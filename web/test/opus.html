@@ -33,15 +33,15 @@
   <div class="table">
     <div class="fmt" data-key="opus">
       <div><b>Opus (.opus)</b> <span class="meta">· 96 kbps · smallest</span></div><span class="res wait" id="r-opus">–</span>
-      <audio controls preload="none" src="/test/sample.opus"></audio>
+      <audio controls preload="auto"></audio>
     </div>
     <div class="fmt" data-key="webm">
       <div><b>Opus in WebM (.webm)</b> <span class="meta">· 96 kbps</span></div><span class="res wait" id="r-webm">–</span>
-      <audio controls preload="none" src="/test/sample.webm"></audio>
+      <audio controls preload="auto"></audio>
     </div>
     <div class="fmt" data-key="m4a">
       <div><b>M4A / AAC (.m4a)</b> <span class="meta">· 128 kbps</span></div><span class="res wait" id="r-m4a">–</span>
-      <audio controls preload="none" src="/test/sample.m4a"></audio>
+      <audio controls preload="auto"></audio>
     </div>
   </div>
   <p class="note" style="margin-top:12px">Please send a screenshot of this page (after tapping Run test) to Jeffry.</p>
@@ -54,12 +54,31 @@
     (ios[1] ? `iOS ${ios[1]}.${ios[2]}${ios[3] ? '.' + ios[3] : ''} · ` : '') + ua;
 
   const FILES = { opus: '/test/sample.opus', webm: '/test/sample.webm', m4a: '/test/sample.m4a' };
+  const TYPES = { opus: 'audio/ogg; codecs=opus', webm: 'audio/webm; codecs=opus', m4a: 'audio/mp4' };
+  // Sampel dimuat penuh dulu (blob), supaya hasilnya hanya menguji FORMAT, bukan server.
+  const blobs = {};
+  async function blobUrl(key) {
+    if (!blobs[key]) {
+      const buf = await (await fetch(FILES[key], { cache: 'no-store' })).arrayBuffer();
+      blobs[key] = URL.createObjectURL(new Blob([buf], { type: TYPES[key].split(';')[0] }));
+    }
+    return blobs[key];
+  }
+  (async () => {
+    for (const row of document.querySelectorAll('.fmt')) {
+      const k = row.dataset.key, au = row.querySelector('audio');
+      au.removeAttribute('src');
+      try { au.src = await blobUrl(k); } catch (e) { document.getElementById('r-' + k).textContent = 'download failed'; }
+      const cp = new Audio().canPlayType(TYPES[k]);
+      row.querySelector('.meta').textContent += ` · browser says: ${cp || 'no'}`;
+    }
+  })();
 
   // Uji nyata: putar (tanpa suara) beberapa detik dan pastikan waktu benar-benar berjalan.
   function test(key) {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       const a = new Audio();
-      a.muted = true; a.preload = 'auto'; a.src = FILES[key];
+      a.muted = true; a.preload = 'auto'; a.src = await blobUrl(key);
       let done = false;
       const finish = (ok, why) => { if (done) return; done = true; a.pause(); resolve({ ok, why }); };
       a.addEventListener('error', () => finish(false, 'cannot decode'));
