@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,27 +12,27 @@
 
   <!-- Login -->
   <section id="loginView" class="login hidden">
-    <div class="brand" style="margin-bottom:14px">First Club<small>Masuk sebagai admin</small></div>
+    <div class="brand" style="margin-bottom:14px">First Club<small>Sign in as admin</small></div>
     <form id="loginForm" class="panel">
       <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" minlength="6" required></div>
       <div class="err" id="loginErr"></div>
       <div class="bar" style="margin:6px 0 0">
-        <button class="primary" type="submit">Masuk</button>
-        <button type="button" id="forgotBtn" class="ghost">Lupa password</button>
-        <button type="button" id="signupBtn" class="ghost">Buat akun admin (sekali saja)</button>
+        <button class="primary" type="submit">Sign in</button>
+        <button type="button" id="forgotBtn" class="ghost">Forgot password</button>
+        <button type="button" id="signupBtn" class="ghost">Create admin account (one time)</button>
       </div>
     </form>
   </section>
 
   <!-- Set new password (after reset link) -->
   <section id="resetView" class="login hidden">
-    <div class="brand" style="margin-bottom:14px">First Club<small>Buat password baru</small></div>
+    <div class="brand" style="margin-bottom:14px">First Club<small>Set a new password</small></div>
     <form id="resetForm" class="panel">
-      <div class="field"><label for="pw1">Password baru</label><input id="pw1" type="password" autocomplete="new-password" minlength="6" required></div>
-      <div class="field"><label for="pw2">Ulangi password baru</label><input id="pw2" type="password" autocomplete="new-password" minlength="6" required></div>
+      <div class="field"><label for="pw1">New password</label><input id="pw1" type="password" autocomplete="new-password" minlength="6" required></div>
+      <div class="field"><label for="pw2">Repeat new password</label><input id="pw2" type="password" autocomplete="new-password" minlength="6" required></div>
       <div class="err" id="resetErr"></div>
-      <button class="primary" type="submit">Simpan password</button>
+      <button class="primary" type="submit">Save password</button>
     </form>
   </section>
 
@@ -41,26 +41,26 @@
     <aside class="side" id="side" aria-label="Menu">
       <div class="side-head">
         <div class="brand side-brand">First Club<small id="syncInfo">Admin</small></div>
-        <button id="sideClose" class="icon-btn" aria-label="Sembunyikan sidebar" title="Sembunyikan sidebar">
+        <button id="sideClose" class="icon-btn" aria-label="Hide sidebar" title="Hide sidebar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/><path d="M20 6l-6 6 6 6" opacity=".45"/></svg>
         </button>
       </div>
-      <div class="side-label">Vokalis</div>
+      <div class="side-label">Vocalists</div>
       <nav class="side-nav" id="tabs"></nav>
       <div class="side-foot">
-        <a class="btn" href="/" target="_blank" rel="noopener">Semua lagu ↗</a>
-        <button id="logoutBtn" class="ghost">Keluar</button>
+        <a class="btn" href="/" target="_blank" rel="noopener">All songs ↗</a>
+        <button id="logoutBtn" class="ghost">Log out</button>
       </div>
     </aside>
     <div class="side-backdrop" id="sideBackdrop"></div>
 
     <main class="main">
     <header class="maintop">
-      <button id="menuBtn" class="icon-btn menu-btn" aria-label="Tampilkan sidebar" title="Tampilkan sidebar">
+      <button id="menuBtn" class="icon-btn menu-btn" aria-label="Show sidebar" title="Show sidebar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
       </button>
       <span class="grow"></span>
-      <button id="reloadBtn" title="Muat ulang data">Muat ulang</button>
+      <button id="reloadBtn" title="Reload data">Reload</button>
     </header>
 
     <!-- Vocalist view -->
@@ -71,70 +71,70 @@
 
       <div class="panel" style="padding:12px 14px">
         <div class="field" style="margin:0">
-          <label for="vLink">Link untuk vokalis (hanya bisa lihat)</label>
+          <label for="vLink">Vocalist link (view only)</label>
           <div class="linkbox">
             <input id="vLink" type="text" readonly>
-            <button id="copyLink">Salin</button>
-            <a class="btn" id="openLink" target="_blank" rel="noopener">Buka ↗</a>
+            <button id="copyLink">Copy</button>
+            <a class="btn" id="openLink" target="_blank" rel="noopener">Open ↗</a>
           </div>
         </div>
       </div>
 
       <div class="bar">
-        <div class="grow"><input type="search" id="q" placeholder="Cari judul" aria-label="Cari judul"></div>
+        <div class="grow"><input type="search" id="q" placeholder="Search title" aria-label="Search title"></div>
         <select id="status" aria-label="Filter status" style="width:auto">
-          <option value="">Semua</option>
-          <option value="noprice">Belum ada harga</option>
-          <option value="unpaid">Belum lunas</option>
-          <option value="paid">Lunas</option>
+          <option value="">All</option>
+          <option value="noprice">No price</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
         </select>
-        <div class="due" id="due" hidden><span class="due-k">Belum dibayar</span><span class="due-v"></span></div>
+        <div class="due" id="due" hidden><span class="due-k">Total Due</span><span class="due-v"></span></div>
       </div>
       <div class="table" id="table"></div>
-      <p class="note hint">Klik kanan judul lagu (di HP: tekan lama) untuk <b>Ganti revisi</b> atau <b>Hapus</b>.</p>
+      <p class="note hint">Right-click a song title (on phone: long-press) to <b>Replace with revision</b> or <b>Remove</b>.</p>
       </div>
 
       <details class="panel" id="delBox" style="margin-top:14px">
-        <summary style="cursor:pointer;font-weight:600">Terhapus <span id="delCount" class="badge muted">0</span></summary>
-        <p class="note" style="margin:8px 0 10px">Lagu di sini tidak tampil di halaman vokalis dan tidak dimasukkan lagi oleh sync walaupun file-nya masih ada di PC.</p>
+        <summary style="cursor:pointer;font-weight:600">Deleted <span id="delCount" class="badge muted">0</span></summary>
+        <p class="note" style="margin:8px 0 10px">Songs here are hidden from the vocalist page and are not re-added by sync, even if the file is still on the PC.</p>
         <div id="delList"></div>
       </details>
     </div>
 
     <dialog id="repDlg">
       <form method="dialog" class="repform">
-        <h2 style="margin:0 0 6px;font-size:17px">Ganti dengan file revisi</h2>
-        <p class="note" style="margin:0 0 12px">Lagu: <b id="repTitle"></b><br>Judul, harga, dan status lunas tetap. File baru mengambil alih baris ini; file lama tidak dihitung lagi.</p>
-        <div class="field"><label for="repSel">File revisi</label><select id="repSel"></select></div>
+        <h2 style="margin:0 0 6px;font-size:17px">Replace with revision file</h2>
+        <p class="note" style="margin:0 0 12px">Song: <b id="repTitle"></b><br>Title, price and paid status stay the same. The new file takes over this row; the old file is no longer counted.</p>
+        <div class="field"><label for="repSel">Revision file</label><select id="repSel"></select></div>
         <div class="err" id="repErr"></div>
         <div class="bar" style="margin:8px 0 0;justify-content:flex-end">
-          <button value="cancel" formnovalidate>Batal</button>
-          <button class="primary" id="repOk" value="ok">Ganti</button>
+          <button value="cancel" formnovalidate>Cancel</button>
+          <button class="primary" id="repOk" value="ok">Replace</button>
         </div>
       </form>
     </dialog>
 
     <!-- Unmatched -->
     <div id="unView" class="hidden">
-      <h1>Perlu dicek</h1>
-      <p class="sub">File di folder Mixdown dengan nama depan yang tidak cocok dengan folder vokalis mana pun. Pilih ke tabel siapa file ini masuk. Ke depannya, file dengan nama depan yang sama otomatis masuk ke situ.</p>
+      <h1>Needs review</h1>
+      <p class="sub">Files in a Mixdown folder whose name prefix doesn't match any vocalist folder. Choose which table they belong to. Future files with the same prefix will go there automatically.</p>
       <div id="unList"></div>
     </div>
 
     <!-- Settings -->
     <div id="setView" class="hidden">
-      <h1>Pengaturan</h1>
+      <h1>Settings</h1>
       <div id="setBody">
       <div class="panel">
-        <h2>Halaman semua lagu (publik)</h2>
+        <h2>All songs page (public)</h2>
         <label style="display:flex;gap:8px;align-items:center">
           <input type="checkbox" id="showPrices" style="width:auto;min-height:0">
-          Tampilkan harga dan status lunas di halaman semua lagu
+          Show prices and paid status on the all songs page
         </label>
-        <p class="note">Kalau dimatikan, halaman publik hanya menampilkan nama vokalis, tanggal, dan judul. Harga tetap terlihat di link masing-masing vokalis.</p>
+        <p class="note">When off, the public page only shows vocalist, date and title. Prices are still visible on each vocalist's own link.</p>
       </div>
       <div class="panel">
-        <h2>Vokalis</h2>
+        <h2>Vocalists</h2>
         <div id="vocSettings"></div>
       </div>
       </div>

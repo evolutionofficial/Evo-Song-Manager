@@ -45,7 +45,7 @@ function initDrawer() {
   on(document, 'keydown', 'Menu', (e) => { if (e.key === 'Escape' && $('drawer').classList.contains('open')) setDrawer(false); });
   on($('drawerNav'), 'click', 'Menu', (e) => {
     const b = e.target.closest('.nav-item'); if (!b) return;
-    if (b.dataset.soon) { toast(`${b.dataset.soon} segera hadir`); return; }
+    if (b.dataset.soon) { toast(`${b.dataset.soon} is coming soon`); return; }
     showView(b.dataset.view);
     setDrawer(false);
   });
@@ -60,10 +60,10 @@ async function start() {
 
   if (res.error || !res.data) {
     if (res.error) report('data:report', res.error);
-    $('name').textContent = res.error ? 'Gagal memuat' : 'Link tidak ditemukan';
+    $('name').textContent = res.error ? 'Could not load' : 'Link not found';
     $('sub').textContent = res.error
-      ? 'Koneksi bermasalah. Coba muat ulang halaman sebentar lagi.'
-      : 'Link ini salah atau sudah diganti. Minta link terbaru ke admin.';
+      ? 'Connection problem. Please reload the page in a moment.'
+      : 'This link is wrong or has been replaced. Ask the admin for the latest link.';
     return;
   }
 
@@ -75,8 +75,8 @@ async function start() {
   safe('Menu', initDrawer);
   $('drawerBtn').classList.remove('hidden');
   $('drawerName').textContent = rep.name;
-  $('dnMine').textContent = `${rep.songs.length} lagu`;
-  $('dnAll').textContent = `${rep.all_songs.length} lagu · semua vokalis`;
+  $('dnMine').textContent = `${rep.songs.length} songs`;
+  $('dnAll').textContent = `${rep.all_songs.length} songs · all vocalists`;
   on(document.querySelector('.tabs'), 'click', 'Menu tab', (e) => {
     const b = e.target.closest('.tab'); if (b) showView(b.dataset.view);
   });

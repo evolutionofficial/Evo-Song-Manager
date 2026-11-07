@@ -26,7 +26,7 @@ export async function boot() {
   if (!session) return showLogin();
   const { data: ok } = await sb.rpc('is_admin');
   if (!ok) {
-    showLogin(`Akun ${session.user.email} bukan admin.`);
+    showLogin(`${session.user.email} is not an admin account.`);
     await sb.auth.signOut();
     return;
   }
@@ -49,8 +49,8 @@ export function init(c) {
     const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
     if (error) {
       $('loginErr').textContent = /confirm/i.test(error.message)
-        ? 'Email belum dikonfirmasi. Buka email konfirmasi dari Supabase dulu.'
-        : 'Email atau password salah.';
+        ? 'Email not confirmed yet. Open the confirmation email from Supabase first.'
+        : 'Wrong email or password.';
       return;
     }
     await boot();
@@ -58,33 +58,33 @@ export function init(c) {
 
   on($('signupBtn'), 'click', 'Login', async () => {
     const email = $('email').value.trim(), password = $('pw').value;
-    if (!email || password.length < 6) { $('loginErr').textContent = 'Isi email dan password (minimal 6 karakter) dulu.'; return; }
+    if (!email || password.length < 6) { $('loginErr').textContent = 'Enter an email and password (at least 6 characters) first.'; return; }
     const { data, error } = await sb.auth.signUp({ email, password });
     if (error) { $('loginErr').textContent = error.message; return; }
     if (data.session) await boot();
-    else $('loginErr').textContent = 'Akun dibuat. Cek email untuk konfirmasi, lalu tekan Masuk.';
+    else $('loginErr').textContent = 'Account created. Check your email to confirm, then press Sign in.';
   });
 
   on($('forgotBtn'), 'click', 'Login', async () => {
     const email = $('email').value.trim();
-    if (!email) { $('loginErr').textContent = 'Isi email dulu, lalu tekan Lupa password.'; return; }
+    if (!email) { $('loginErr').textContent = 'Enter your email first, then press Forgot password.'; return; }
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     $('loginErr').textContent = error
-      ? 'Gagal mengirim email: ' + error.message
-      : 'Link reset password sudah dikirim ke email. Buka link itu dari HP/PC ini.';
+      ? 'Could not send email: ' + error.message
+      : 'A password reset link has been sent to your email. Open it on this phone/PC.';
   });
 
-  on($('resetForm'), 'submit', 'Password baru', async (e) => {
+  on($('resetForm'), 'submit', 'New password', async (e) => {
     e.preventDefault();
     const a = $('pw1').value, b = $('pw2').value;
-    if (a.length < 6) { $('resetErr').textContent = 'Password minimal 6 karakter.'; return; }
-    if (a !== b) { $('resetErr').textContent = 'Kedua password tidak sama.'; return; }
+    if (a.length < 6) { $('resetErr').textContent = 'Password must be at least 6 characters.'; return; }
+    if (a !== b) { $('resetErr').textContent = 'The passwords do not match.'; return; }
     const { error } = await sb.auth.updateUser({ password: a });
-    if (error) { $('resetErr').textContent = 'Gagal: ' + error.message; return; }
+    if (error) { $('resetErr').textContent = 'Failed: ' + error.message; return; }
     recovering = false;
     history.replaceState(null, '', location.pathname);
     $('resetView').classList.add('hidden');
-    toast('Password baru disimpan');
+    toast('New password saved');
     await boot();
   });
 

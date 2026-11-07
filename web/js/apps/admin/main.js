@@ -9,11 +9,11 @@ installGlobalHandlers();
 
 const MODULES = [
   { key: 'auth', label: 'Login', path: '/js/apps/admin/auth.js', el: 'loginView' },
-  { key: 'songs', label: 'Tabel lagu', path: '/js/apps/admin/songs.js', el: 'vocMain' },
-  { key: 'trash', label: 'Terhapus', path: '/js/apps/admin/trash.js', el: 'delBox' },
-  { key: 'revisions', label: 'Ganti revisi', path: '/js/apps/admin/revisions.js', el: null },
-  { key: 'unmatched', label: 'Perlu dicek', path: '/js/apps/admin/unmatched.js', el: 'unList' },
-  { key: 'settings', label: 'Pengaturan', path: '/js/apps/admin/settings.js', el: 'setBody' },
+  { key: 'songs', label: 'Song table', path: '/js/apps/admin/songs.js', el: 'vocMain' },
+  { key: 'trash', label: 'Deleted', path: '/js/apps/admin/trash.js', el: 'delBox' },
+  { key: 'revisions', label: 'Replace revision', path: '/js/apps/admin/revisions.js', el: null },
+  { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
+  { key: 'settings', label: 'Settings', path: '/js/apps/admin/settings.js', el: 'setBody' },
 ];
 const spec = (k) => MODULES.find((m) => m.key === k);
 
@@ -33,7 +33,7 @@ const ctx = {
   reload,
   enterApp,
   openReplace(id) {
-    if (!mods.revisions) return toast('Fitur Ganti revisi sedang bermasalah. Fitur lain tetap bisa dipakai.', 'bad');
+    if (!mods.revisions) return toast('Replace revision is having problems. Everything else still works.', 'bad');
     runMod('revisions', 'open', id);
   },
 };
@@ -49,16 +49,16 @@ async function reload() {
 }
 
 function renderAll() {
-  safe('Status sync', renderSyncInfo);
+  safe('Sync status', renderSyncInfo);
   safe('Sidebar', renderTabs);
-  safe('Tampilan', renderView);
+  safe('View', renderView);
 }
 
 function renderSyncInfo() {
   const t = state.settings?.last_sync;
-  if (!t) { $('syncInfo').textContent = 'Belum pernah sync'; return; }
+  if (!t) { $('syncInfo').textContent = 'Never synced'; return; }
   const min = Math.round((Date.now() - new Date(t)) / 60000);
-  $('syncInfo').textContent = `Sync terakhir dari PC: ${timeAgo(t)}` + (min > 30 ? ' · program sync mungkin tidak jalan' : '');
+  $('syncInfo').textContent = `Last sync from PC: ${timeAgo(t)}` + (min > 30 ? ' · sync program may not be running' : '');
 }
 
 function renderTabs() {
@@ -67,16 +67,16 @@ function renderTabs() {
     const sel = state.tab === 'v:' + v.id;
     return `<button class="nav-item" style="--i:${state.vocalists.indexOf(v)}" aria-current="${sel ? 'page' : 'false'}" data-tab="v:${v.id}">
       <span class="nav-name">${esc(v.display_name)}</span>
-      <span class="nav-meta">${list.length} lagu</span>
+      <span class="nav-meta">${list.length} songs</span>
     </button>`;
   });
   const un = state.unmatched.length;
   items.push(`<div class="side-sep"></div>`);
   const k = state.vocalists.length;
   items.push(`<button class="nav-item ${un ? 'alert' : ''}" style="--i:${k + 1}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
-    <span class="nav-name">Perlu dicek${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
+    <span class="nav-name">Needs review${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
   items.push(`<button class="nav-item" style="--i:${k + 2}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
-    <span class="nav-name">Pengaturan</span></button>`);
+    <span class="nav-name">Settings</span></button>`);
   $('tabs').innerHTML = items.join('');
 }
 
@@ -122,7 +122,7 @@ async function start() {
   mods = await loadModules(MODULES);
   for (const m of MODULES) runMod(m.key, 'init', ctx);
 
-  on($('tabs'), 'click', 'Menu tab', (e) => {
+  on($('tabs'), 'click', 'Sidebar', (e) => {
     const b = e.target.closest('.nav-item'); if (!b) return;
     state.tab = b.dataset.tab;
     runMod('songs', 'resetFilters');
@@ -131,10 +131,10 @@ async function start() {
     window.scrollTo(0, 0);
   });
   safe('Sidebar', initSide);
-  on($('reloadBtn'), 'click', 'Muat ulang', reload);
-  on($('logoutBtn'), 'click', 'Keluar', () => (mods.auth ? mods.auth.logout() : location.reload()));
+  on($('reloadBtn'), 'click', 'Reload', reload);
+  on($('logoutBtn'), 'click', 'Log out', () => (mods.auth ? mods.auth.logout() : location.reload()));
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !$('appView').classList.contains('hidden')) safe('Muat ulang', reload);
+    if (!document.hidden && !$('appView').classList.contains('hidden')) safe('Reload', reload);
   });
 
   if (mods.auth) await runMod('auth', 'boot');

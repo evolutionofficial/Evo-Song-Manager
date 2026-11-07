@@ -11,15 +11,15 @@ export function render() {
   $('delCount').textContent = del.length;
   $('delBox').classList.toggle('hidden', !del.length);
   $('delList').innerHTML = del.map((s) => `<div class="delrow">
-      <span><b>${esc(s.title)}</b> <span class="note">· ${esc(dateLabel(s))}${s.price ? ' · ' + ribu(s.price) : ''}${s.paid ? ' · lunas' : ''}</span></span>
-      <button data-restore="${s.id}">Kembalikan</button>
+      <span><b>${esc(s.title)}</b> <span class="note">· ${esc(dateLabel(s))}${s.price ? ' · ' + ribu(s.price) : ''}${s.paid ? ' · paid' : ''}</span></span>
+      <button data-restore="${s.id}">Restore</button>
     </div>`).join('');
 }
 
 export function init(c) {
   ctx = c;
-  on($('delList'), 'click', 'Terhapus', async (e) => {
+  on($('delList'), 'click', 'Deleted', async (e) => {
     const id = e.target.dataset.restore; if (!id) return;
-    if (await updateSong(id, { deleted: false }, ctx.renderAll)) toast('Lagu dikembalikan');
+    if (await updateSong(id, { deleted: false }, ctx.renderAll)) toast('Song restored');
   });
 }

@@ -31,7 +31,7 @@ function showErr(el, label) {
   b.className = 'seg-err';
   b.dataset.for = el.id;
   b.setAttribute('role', 'alert');
-  b.innerHTML = `<span>Bagian <b></b> sedang bermasalah. Bagian lain tetap bisa dipakai.</span><button type="button">Muat ulang</button>`;
+  b.innerHTML = `<span>The <b></b> section is having problems. Everything else still works.</span><button type="button">Reload</button>`;
   b.querySelector('b').textContent = label;
   b.querySelector('button').addEventListener('click', () => location.reload());
   el.before(b);
@@ -39,7 +39,7 @@ function showErr(el, label) {
 function fail(label, err, el) {
   report(label, err);
   if (el) showErr(el, label);
-  else toast(`${label} sedang bermasalah. Coba lagi sebentar.`, 'bad');
+  else toast(`${label} is having problems. Please try again shortly.`, 'bad');
 }
 
 /** Jalankan fn dengan aman. el (opsional) = elemen milik segmen ini, untuk pesan error di tempat. */
@@ -58,7 +58,7 @@ export function safe(label, fn, el = null) {
 
 /** addEventListener yang dibungkus safe(). */
 export function on(target, type, label, handler) {
-  if (!target) { report(label, new Error(`elemen untuk event ${type} tidak ditemukan`)); return; }
+  if (!target) { report(label, new Error(`element for event ${type} not found`)); return; }
   target.addEventListener(type, (e) => safe(label, () => handler(e)));
 }
 

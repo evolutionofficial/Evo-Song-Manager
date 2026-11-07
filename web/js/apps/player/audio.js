@@ -12,6 +12,6 @@ export function mount(player) {
   setNav(document.getElementById('next'), player.nextUrl);
   const btn = document.getElementById('playBtn');
   btn.disabled = true;
-  btn.title = 'Audio segera hadir';
-  document.getElementById('soon').textContent = 'Audio segera hadir. Untuk sekarang halaman ini menampilkan info lagu dan daftar lagu kamu.';
+  btn.title = 'Audio coming soon';
+  document.getElementById('soon').textContent = 'Audio is coming soon. For now this page shows the song info and your song list.';
 }

@@ -20,9 +20,9 @@ function render() {
     return { name, mine: g.mine, total: g.list.length, list };
   });
   const depth = Math.max(0, ...cols.map((c) => c.list.length));
-  if (!depth) { $('allTable').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
+  if (!depth) { $('allTable').innerHTML = `<div class="empty">No matching songs.</div>`; return; }
   const head = `<tr><th class="rn" scope="col">#</th>${cols.map((c) =>
-    `<th scope="col" class="${c.mine ? 'me' : ''}"><span class="vn">${esc(c.name)}</span>${c.mine ? '<span class="badge ok">kamu</span>' : ''}<span class="vc">${q ? `${c.list.length}/` : ''}${c.total}</span></th>`).join('')}</tr>`;
+    `<th scope="col" class="${c.mine ? 'me' : ''}"><span class="vn">${esc(c.name)}</span>${c.mine ? '<span class="badge ok">you</span>' : ''}<span class="vc">${q ? `${c.list.length}/` : ''}${c.total}</span></th>`).join('')}</tr>`;
   let body = '';
   for (let i = 0; i < depth; i++) {
     body += `<tr><td class="rn">${i + 1}</td>${cols.map((c) => {
@@ -30,7 +30,7 @@ function render() {
       return s ? `<td class="${c.mine ? 'me' : ''}"><span class="st">${esc(s.title)}</span><span class="sd">${esc(dateLabel(s))}</span></td>` : `<td class="${c.mine ? 'me' : ''} blank"></td>`;
     }).join('')}</tr>`;
   }
-  $('allTable').innerHTML = `<div class="sheet" role="region" aria-label="Semua lagu per vokalis" tabindex="0"><table style="--cols:${cols.length}"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  $('allTable').innerHTML = `<div class="sheet" role="region" aria-label="All songs by vocalist" tabindex="0"><table style="--cols:${cols.length}"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 
 export function mount(report) {

@@ -8,31 +8,31 @@ import { state } from './data.js';
 let ctx;
 
 export function render() {
-  if (state.errors.unmatched) { $('unList').innerHTML = `<div class="table"><div class="empty">Data gagal dimuat. Tekan Muat ulang.</div></div>`; return; }
-  if (!state.unmatched.length) { $('unList').innerHTML = `<div class="table"><div class="empty">Tidak ada file yang perlu dicek.</div></div>`; return; }
+  if (state.errors.unmatched) { $('unList').innerHTML = `<div class="table"><div class="empty">Data failed to load. Press Reload.</div></div>`; return; }
+  if (!state.unmatched.length) { $('unList').innerHTML = `<div class="table"><div class="empty">Nothing to review.</div></div>`; return; }
   const groups = {};
   state.unmatched.forEach((u) => (groups[u.prefix] ||= []).push(u));
   const opts = state.vocalists.map((v) => `<option value="${v.id}">${esc(v.display_name)}</option>`).join('');
   $('unList').innerHTML = Object.entries(groups).map(([prefix, files]) => `
     <div class="panel">
-      <h2>Nama di file: “${esc(prefix)}” <span class="badge warn">${files.length} file</span></h2>
+      <h2>Name in file: “${esc(prefix)}” <span class="badge warn">${files.length} file${files.length > 1 ? 's' : ''}</span></h2>
       <ul class="note" style="margin:0 0 12px;padding-left:18px">${files.map((f) => `<li>${esc(f.file_name)} <span style="color:var(--faint)">· ${esc(f.rel_path)}</span></li>`).join('')}</ul>
       <div class="bar" style="margin:0">
-        <select data-assign-sel="${esc(prefix)}" style="width:auto"><option value="">Masukkan ke tabel…</option>${opts}</select>
-        <button data-assign="${esc(prefix)}">Simpan</button>
+        <select data-assign-sel="${esc(prefix)}" style="width:auto"><option value="">Add to table…</option>${opts}</select>
+        <button data-assign="${esc(prefix)}">Save</button>
       </div>
     </div>`).join('');
 }
 
 export function init(c) {
   ctx = c;
-  on($('unList'), 'click', 'Perlu dicek', async (e) => {
+  on($('unList'), 'click', 'Needs review', async (e) => {
     const prefix = e.target.dataset.assign; if (prefix === undefined) return;
     const sel = [...document.querySelectorAll('[data-assign-sel]')].find((s) => s.dataset.assignSel === prefix);
-    if (!sel.value) return toast('Pilih vokalis dulu', 'bad');
+    if (!sel.value) return toast('Choose a vocalist first', 'bad');
     const { data, error } = await sb.rpc('assign_prefix', { p_prefix: prefix, p_vocalist: sel.value });
-    if (error) return toast('Gagal: ' + error.message, 'bad');
-    toast(`${data} file dipindahkan`);
+    if (error) return toast('Failed: ' + error.message, 'bad');
+    toast(`${data} file(s) moved`);
     await ctx.reload();
   });
 }

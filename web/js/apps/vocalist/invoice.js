@@ -15,15 +15,15 @@ function render() {
   $('dueInv').querySelector('.due-v').textContent = rupiah(due);
   const rows = all
     .filter((s) => (!q || norm(s.title).includes(q)) && (!st || (st === 'paid' ? s.paid : !s.paid)));
-  if (!rows.length) { $('invTable').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
+  if (!rows.length) { $('invTable').innerHTML = `<div class="empty">No matching songs.</div>`; return; }
   $('invTable').innerHTML =
-    `<div class="row head cols-view"><span>No</span><span>Tanggal</span><span>Judul</span><span>Harga</span><span>Status</span></div>` +
+    `<div class="row head cols-view"><span>#</span><span>Date</span><span>Title</span><span>Price</span><span>Status</span></div>` +
     rows.map((s) => `<div class="row cols-view ${s.paid ? 'paid' : ''}">
       <span class="no dim">${s.n}</span>
       <span class="date dim">${esc(dateLabel(s))}</span>
       <span class="title dim">${esc(s.title)}</span>
       <span class="price dim">${s.paid ? '<span class="paid-price">—</span>' : s.price ? ribu(s.price) : '—'}</span>
-      <span class="act">${s.paid ? '<span class="badge ok">Lunas</span>' : (s.price ? '<span class="badge warn">Belum</span>' : '<span class="badge muted">—</span>')}</span>
+      <span class="act">${s.paid ? '<span class="badge ok">Paid</span>' : (s.price ? '<span class="badge warn">Unpaid</span>' : '<span class="badge muted">—</span>')}</span>
     </div>`).join('');
 }
 

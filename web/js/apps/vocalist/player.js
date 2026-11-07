@@ -52,8 +52,8 @@ function engineLoad(song) {
   return false;
 }
 async function enginePlay() {
-  if (!audio.src) { toast('Audio segera hadir'); return false; }
-  try { await audio.play(); return true; } catch (e) { report('Player:play', e); toast('Lagu belum bisa diputar', 'bad'); return false; }
+  if (!audio.src) { toast('Audio coming soon'); return false; }
+  try { await audio.play(); return true; } catch (e) { report('Player:play', e); toast("This song can't be played yet", 'bad'); return false; }
 }
 function enginePause() { audio.pause(); }
 function engineVolume() { audio.volume = st.volume; audio.muted = st.muted; }
@@ -74,7 +74,7 @@ function select(n, autoplay) {
 
 async function togglePlay(has = !!audio.src) {
   if (st.playing) { enginePause(); st.playing = false; return render(); }
-  if (!has) { toast('Audio segera hadir'); return; }
+  if (!has) { toast('Audio coming soon'); return; }
   st.playing = await enginePlay();
   render();
 }
@@ -100,15 +100,15 @@ function controls(size) {
   const pp = st.playing ? I.pause : I.play;
   const noAudio = !audio.src;
   return `
-    ${size === 'full' ? `<button class="pc tog ${st.shuffle ? 'on' : ''}" data-act="shuffle" aria-pressed="${st.shuffle}" aria-label="Acak">${I.shuffle}</button>` : ''}
-    <button class="pc" data-act="prev" aria-label="Sebelumnya" ${isFirst() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
-    <button class="pc pp ${noAudio ? 'soon' : ''}" data-act="play" aria-label="${st.playing ? 'Jeda' : 'Putar'}" title="${noAudio ? 'Audio segera hadir' : ''}">${pp}</button>
-    <button class="pc" data-act="next" aria-label="Berikutnya" ${isLast() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
-    ${size === 'full' ? `<button class="pc tog ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Ulangi">${I.repeat}</button>` : ''}`;
+    ${size === 'full' ? `<button class="pc tog ${st.shuffle ? 'on' : ''}" data-act="shuffle" aria-pressed="${st.shuffle}" aria-label="Shuffle">${I.shuffle}</button>` : ''}
+    <button class="pc" data-act="prev" aria-label="Previous" ${isFirst() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
+    <button class="pc pp ${noAudio ? 'soon' : ''}" data-act="play" aria-label="${st.playing ? 'Pause' : 'Play'}" title="${noAudio ? 'Audio coming soon' : ''}">${pp}</button>
+    <button class="pc" data-act="next" aria-label="Next" ${isLast() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
+    ${size === 'full' ? `<button class="pc tog ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Repeat">${I.repeat}</button>` : ''}`;
 }
 function volume() {
   const v = st.muted ? 0 : st.volume;
-  return `<div class="pvol"><button class="pc sm" data-act="mute" aria-label="${st.muted ? 'Bunyikan' : 'Bisukan'}">${st.muted || !st.volume ? I.mute : I.vol}</button>
+  return `<div class="pvol"><button class="pc sm" data-act="mute" aria-label="${st.muted ? 'Unmute' : 'Mute'}">${st.muted || !st.volume ? I.mute : I.vol}</button>
     <input type="range" min="0" max="100" value="${Math.round(v * 100)}" data-act="vol" aria-label="Volume" style="--v:${Math.round(v * 100)}%"></div>`;
 }
 function progress() {
@@ -131,8 +131,8 @@ function render() {
     <div class="mb-vol">${volume()}</div>`;
   el.sheet.innerHTML = `
     <div class="fp-head">
-      <button class="pc" data-act="close" aria-label="Tutup player">${I.down}</button>
-      <div class="fp-from">Memutar dari<b>My songs · ${esc(rep.name)}</b></div>
+      <button class="pc" data-act="close" aria-label="Close player">${I.down}</button>
+      <div class="fp-from">Playing from<b>My songs · ${esc(rep.name)}</b></div>
       <span style="width:40px"></span>
     </div>
     <div class="fp-body">
@@ -142,8 +142,8 @@ function render() {
         <div class="p-times"><span>${p.cur}</span><span>${p.dur}</span></div></div>
       <div class="fp-ctrls">${controls('full')}</div>
       <div class="fp-vol">${volume()}</div>
-      ${audio.src ? '' : '<p class="p-soon">Audio segera hadir. Untuk sekarang player menampilkan info lagu dan antrean.</p>'}
-      <section class="p-queue"><h2>Antrean · ${songs.length} lagu</h2><div class="table">
+      ${audio.src ? '' : '<p class="p-soon">Audio is coming soon. For now the player shows song info and the queue.</p>'}
+      <section class="p-queue"><h2>Queue · ${songs.length} songs</h2><div class="table">
         ${order.map((x) => `<button class="row qrow ${x.n === st.n ? 'cur' : ''}" data-q="${x.n}"><span class="no">${x.n === st.n ? '▶' : x.n}</span><span class="title">${esc(x.title)}</span></button>`).join('')}
       </div></section>
     </div>`;
@@ -198,7 +198,7 @@ export function mount(report_) {
   engineVolume();
 
   const root = document.getElementById('playerBody');
-  root.innerHTML = `<div class="minibar" id="miniBar" hidden role="region" aria-label="Pemutar"></div>
+  root.innerHTML = `<div class="minibar" id="miniBar" hidden role="region" aria-label="Player"></div>
     <div class="fullplayer" id="fullPlayer" aria-hidden="true" role="dialog" aria-label="Player"></div>`;
   el = { bar: root.querySelector('#miniBar'), sheet: root.querySelector('#fullPlayer') };
 

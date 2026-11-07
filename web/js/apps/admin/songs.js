@@ -14,14 +14,14 @@ export function render() {
   const songs = vocSongs();
   const sum = summarize(songs);
   $('vName').textContent = v.display_name;
-  $('vSub').textContent = `${songs.length} lagu · ${sum.priced} sudah diberi harga` + (v.active ? '' : ' · folder tidak ditemukan di PC');
+  $('vSub').textContent = `${songs.length} songs · ${sum.priced} priced` + (v.active ? '' : ' · folder not found on PC');
   $('vLink').value = shareUrl(v);
   $('openLink').href = shareUrl(v);
   renderTable();
 }
 
 function renderTable() {
-  if (state.errors.songs) { $('table').innerHTML = `<div class="empty">Data lagu gagal dimuat. Tekan Muat ulang.</div>`; return; }
+  if (state.errors.songs) { $('table').innerHTML = `<div class="empty">Song data failed to load. Press Reload.</div>`; return; }
   const q = norm($('q').value.trim());
   const st = $('status').value;
   // Nomor = urutan dibuat (1 = paling lama); tampil terbaru di atas.
@@ -29,22 +29,22 @@ function renderTable() {
   showDue($('due'), summarize(all).rest);
   const rows = all.filter((s) => (!q || norm(s.title).includes(q)) &&
     (!st || (st === 'paid' ? s.paid : st === 'unpaid' ? !s.paid : !s.price)));
-  if (!all.length) { $('table').innerHTML = `<div class="empty">Belum ada lagu untuk vokalis ini.</div>`; return; }
-  if (!rows.length) { $('table').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
+  if (!all.length) { $('table').innerHTML = `<div class="empty">No songs for this vocalist yet.</div>`; return; }
+  if (!rows.length) { $('table').innerHTML = `<div class="empty">No matching songs.</div>`; return; }
   $('table').innerHTML =
-    `<div class="row head cols-admin"><span>No</span><span>Tanggal</span><span>Judul</span><span>Harga</span><span>Status</span></div>` +
+    `<div class="row head cols-admin"><span>#</span><span>Date</span><span>Title</span><span>Price</span><span>Status</span></div>` +
     rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
       <span class="no dim">${s.n}</span>
       <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
-      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Diganti ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revisi ${s.revision}</span>` : ''}${s.missing ? ' <span class="badge bad" title="File sudah tidak ada di PC; lagu tetap tersimpan sebagai riwayat">file tidak ada di PC</span>' : ''}</span>
+      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
       ${s.paid
-        ? `<span class="price dim paid-price" title="Harga tersimpan: ${ribu(s.price)} (muncul lagi kalau status Lunas dibatalkan)">—</span>`
-        : `<span class="price"><select data-price="${s.id}" aria-label="Harga ${esc(s.title)}">
+        ? `<span class="price dim paid-price" title="Saved price: ${ribu(s.price)} (shows again if Paid is undone)">—</span>`
+        : `<span class="price"><select data-price="${s.id}" aria-label="Price ${esc(s.title)}">
         <option value="">—</option>
         ${PRICES.concat(s.price && !PRICES.includes(s.price) ? [s.price] : []).map((p) => `<option value="${p}" ${s.price === p ? 'selected' : ''}>${ribu(p)}</option>`).join('')}
         <option value="custom">Custom…</option>
       </select></span>`}
-      <span class="act"><button class="paidbtn ${s.paid ? 'on' : ''}" data-paid="${s.id}" aria-pressed="${s.paid}">${s.paid ? '✓ Lunas' : 'Paid'}</button></span>
+      <span class="act"><button class="paidbtn ${s.paid ? 'on' : ''}" data-paid="${s.id}" aria-pressed="${s.paid}">${s.paid ? '✓ Paid' : 'Mark paid'}</button></span>
     </div>`).join('');
 }
 
@@ -70,7 +70,7 @@ export function parsePrice(str) {
 }
 
 async function savePrice(id, price) {
-  if (await updateSong(id, { price }, ctx.renderAll)) toast('Harga disimpan');
+  if (await updateSong(id, { price }, ctx.renderAll)) toast('Price saved');
 }
 
 // Ganti dropdown dengan kolom ketik nominal. Enter/keluar = simpan, Esc = batal.
@@ -79,7 +79,7 @@ function startCustom(sel, id) {
   const cell = sel.parentElement;
   const inp = document.createElement('input');
   inp.type = 'text'; inp.inputMode = 'numeric'; inp.className = 'price-input';
-  inp.placeholder = 'mis. 85.000'; inp.setAttribute('aria-label', 'Harga custom ' + s.title);
+  inp.placeholder = 'e.g. 85.000'; inp.setAttribute('aria-label', 'Custom price ' + s.title);
   inp.value = s.price && !PRICES.includes(s.price) ? String(s.price) : '';
   cell.replaceChildren(inp);
   inp.focus();
@@ -88,7 +88,7 @@ function startCustom(sel, id) {
     if (done) return; done = true;
     if (!save || !inp.value.trim()) return ctx.renderAll();
     const p = parsePrice(inp.value);
-    if (!p) { toast('Nominal tidak valid', 'bad'); return ctx.renderAll(); }
+    if (!p) { toast('Invalid amount', 'bad'); return ctx.renderAll(); }
     savePrice(id, p);
   };
   inp.addEventListener('keydown', (e) => {
@@ -108,13 +108,13 @@ function openMenu(id, x, y) {
   menuEl = document.createElement('div');
   menuEl.className = 'ctxmenu'; menuEl.setAttribute('role', 'menu');
   menuEl.innerHTML = `<div class="ctx-title">${esc(s.title)}</div>
-    <button role="menuitem" data-act="rep">Ganti revisi…</button>
-    <button role="menuitem" data-act="del" class="danger">Hapus dari daftar</button>`;
+    <button role="menuitem" data-act="rep">Replace with revision…</button>
+    <button role="menuitem" data-act="del" class="danger">Remove from list</button>`;
   document.body.appendChild(menuEl);
   const r = menuEl.getBoundingClientRect();
   menuEl.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
   menuEl.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
-  on(menuEl, 'click', 'Menu lagu', (e) => {
+  on(menuEl, 'click', 'Song menu', (e) => {
     const act = e.target.closest('[data-act]')?.dataset.act; if (!act) return;
     closeMenu();
     if (act === 'rep') ctx.openReplace(id);
@@ -125,14 +125,14 @@ function openMenu(id, x, y) {
 
 async function deleteSong(id) {
   const s = state.songs.find((x) => x.id === id);
-  const extra = s.paid ? `\n\nLagu ini sudah LUNAS (${ribu(s.price)}). Kalau dihapus, nilainya tidak dihitung lagi di invoice.` : '';
-  if (!confirm(`Hapus "${s.title}" dari daftar?\n\nLagu ini hilang dari halaman vokalis dan tidak dimasukkan lagi oleh sync. Bisa dikembalikan dari bagian "Terhapus".${extra}`)) return;
-  if (await updateSong(id, { deleted: true }, ctx.renderAll)) toast('Lagu dihapus dari daftar');
+  const extra = s.paid ? `\n\nThis song is already PAID (${ribu(s.price)}). If removed, it no longer counts on the invoice.` : '';
+  if (!confirm(`Remove "${s.title}" from the list?\n\nIt disappears from the vocalist page and won't be re-added by sync. You can restore it from "Deleted".${extra}`)) return;
+  if (await updateSong(id, { deleted: true }, ctx.renderAll)) toast('Song removed from list');
 }
 
 export function init(c) {
   ctx = c;
-  const L = 'Tabel lagu';
+  const L = 'Song table';
 
   on($('q'), 'input', L, renderTable);
   on($('status'), 'change', L, renderTable);
@@ -147,8 +147,8 @@ export function init(c) {
     const pid = e.target.closest('[data-paid]')?.dataset.paid;
     if (!pid) return;
     const s = state.songs.find((x) => x.id === pid);
-    if (!s.paid && !s.price) { toast('Isi harga dulu sebelum menandai lunas', 'bad'); return; }
-    if (await updateSong(pid, { paid: !s.paid }, ctx.renderAll)) toast(s.paid ? 'Ditandai lunas' : 'Status lunas dibatalkan');
+    if (!s.paid && !s.price) { toast('Set a price before marking as paid', 'bad'); return; }
+    if (await updateSong(pid, { paid: !s.paid }, ctx.renderAll)) toast(s.paid ? 'Marked as paid' : 'Paid status removed');
   });
 
   // Klik kanan (desktop)
@@ -177,7 +177,7 @@ export function init(c) {
   window.addEventListener('scroll', closeMenu, { passive: true });
 
   on($('copyLink'), 'click', L, async () => {
-    try { await navigator.clipboard.writeText($('vLink').value); toast('Link disalin'); }
-    catch { $('vLink').select(); toast('Tekan Ctrl+C untuk menyalin'); }
+    try { await navigator.clipboard.writeText($('vLink').value); toast('Link copied'); }
+    catch { $('vLink').select(); toast('Press Ctrl+C to copy'); }
   });
 }

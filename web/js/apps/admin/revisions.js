@@ -12,22 +12,22 @@ export function open(id) {
   const s = state.songs.find((x) => x.id === id);
   const cands = vocSongs().filter((x) => x.id !== id)
     .sort((a, b) => new Date(b.file_mtime || 0) - new Date(a.file_mtime || 0));
-  if (!cands.length) return toast('Belum ada file lain dari vokalis ini untuk dijadikan revisi', 'bad');
+  if (!cands.length) return toast('No other files from this vocalist to use as a revision yet', 'bad');
   repFrom = s;
   $('repTitle').textContent = s.title;
   $('repErr').textContent = '';
-  $('repSel').innerHTML = `<option value="">Pilih file…</option>` + cands.map((c) =>
-    `<option value="${c.id}">${esc(fmtDate(c.file_mtime))} · ${esc(c.file_name)}${c.price ? ' · ' + ribu(c.price) : ''}${c.paid ? ' · lunas' : ''}</option>`).join('');
+  $('repSel').innerHTML = `<option value="">Choose a file…</option>` + cands.map((c) =>
+    `<option value="${c.id}">${esc(fmtDate(c.file_mtime))} · ${esc(c.file_name)}${c.price ? ' · ' + ribu(c.price) : ''}${c.paid ? ' · paid' : ''}</option>`).join('');
   $('repDlg').showModal();
 }
 
 export function init(c) {
   ctx = c;
-  const L = 'Ganti revisi';
+  const L = 'Replace revision';
   on($('repOk'), 'click', L, async (e) => {
     e.preventDefault();
     const to = $('repSel').value;
-    if (!to) { $('repErr').textContent = 'Pilih file revisinya dulu.'; return; }
+    if (!to) { $('repErr').textContent = 'Choose the revision file first.'; return; }
     $('repOk').disabled = true;
     try {
       const { error } = await sb.rpc('replace_song', { p_old: repFrom.id, p_new: to });
@@ -36,7 +36,7 @@ export function init(c) {
       $('repOk').disabled = false;
     }
     $('repDlg').close();
-    toast(`"${repFrom.title}" diganti dengan file revisi`);
+    toast(`"${repFrom.title}" replaced with the revision file`);
     await ctx.reload();
   });
   on($('repSel'), 'change', L, () => ($('repErr').textContent = ''));

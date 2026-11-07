@@ -8,8 +8,8 @@ import { esc, dateLabel } from '/js/core/format.js';
 installGlobalHandlers();
 
 const MODULES = [
-  { key: 'audio', label: 'Pemutar audio', path: '/js/apps/player/audio.js', el: 'audioBody' },
-  { key: 'queue', label: 'Daftar lagu', path: '/js/apps/player/queue.js', el: 'queueBody' },
+  { key: 'audio', label: 'Audio player', path: '/js/apps/player/audio.js', el: 'audioBody' },
+  { key: 'queue', label: 'Song list', path: '/js/apps/player/queue.js', el: 'queueBody' },
 ];
 
 // URL: /v/<token>/play/<nomor>  (atau /player.html?t=<token>&s=<nomor>)
@@ -41,13 +41,13 @@ async function start() {
   if (res.error || !res.data) {
     if (res.error) report('data:report', res.error);
     return res.error
-      ? fail('Gagal memuat', 'Koneksi bermasalah. Coba muat ulang halaman sebentar lagi.')
-      : fail('Link tidak ditemukan', 'Link ini salah atau sudah diganti. Minta link terbaru ke admin.');
+      ? fail('Could not load', 'Connection problem. Please reload the page in a moment.')
+      : fail('Link not found', 'This link is wrong or has been replaced. Ask the admin for the latest link.');
   }
   const rep = res.data;
   const songs = rep.songs.map((s, i) => ({ ...s, n: i + 1 }));
   const song = songs[num - 1];
-  if (!song) return fail('Lagu tidak ditemukan', 'Lagu ini sudah tidak ada di daftar. Kembali ke Songlist.');
+  if (!song) return fail('Song not found', 'This song is no longer on the list. Go back to the Songlist.');
 
   document.title = `${song.title} · ${rep.name}`;
   $('cover').textContent = initials(song.title);

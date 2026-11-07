@@ -34,7 +34,7 @@ export async function loadAll() {
     }
   });
   const failed = Object.keys(state.errors);
-  if (failed.length) toast('Sebagian data gagal dimuat: ' + failed.join(', '), 'bad');
+  if (failed.length) toast('Some data failed to load: ' + failed.join(', '), 'bad');
   if (!state.tab || (state.tab.startsWith('v:') && !state.vocalists.some((x) => 'v:' + x.id === state.tab))) {
     state.tab = state.vocalists[0] ? 'v:' + state.vocalists[0].id : 'set';
   }
@@ -57,7 +57,7 @@ export async function updateSong(id, patch, onChange) {
   if (error) {
     Object.assign(s, before);
     onChange?.();
-    toast('Gagal menyimpan: ' + error.message, 'bad');
+    toast('Save failed: ' + error.message, 'bad');
     return false;
   }
   Object.assign(s, data);

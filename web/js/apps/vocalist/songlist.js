@@ -18,10 +18,10 @@ function render() {
   const q = norm($('qSongs').value.trim());
   const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).reverse().filter((s) => !q || norm(s.title).includes(q));
   $('songsTable').innerHTML = rows.length
-      ? `<div class="row head cols-list play"><span>No</span><span>Tanggal</span><span>Judul</span><span></span></div>` +
-        rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Sedang dibuka"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span>` +
-          `<span class="pl"><button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${esc(s.title)}">${SEND_ICON}<span>Send to FC</span></button><a class="btn playbtn" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Putar ${esc(s.title)}">▶</a></span></div>`).join('')
-      : `<div class="empty">${q ? 'Tidak ada lagu yang cocok.' : 'Belum ada lagu.'}</div>`;
+      ? `<div class="row head cols-list play"><span>#</span><span>Date</span><span>Title</span><span></span></div>` +
+        rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span>` +
+          `<span class="pl"><button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${esc(s.title)}">${SEND_ICON}<span>Send to FC</span></button><a class="btn playbtn" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}">▶</a></span></div>`).join('')
+      : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
 }
 
 export function mount(report) {
@@ -32,7 +32,7 @@ export function mount(report) {
     if (sb) {
       // Diteruskan ke modul Send to FC (nanti: kirim ke FC lewat WhatsApp). Modul tidak jalan → pesan saja.
       if (window.FC_SEND?.ready) window.dispatchEvent(new CustomEvent('fc:send', { detail: { n: Number(sb.dataset.send) } }));
-      else toast('Send to FC belum tersedia');
+      else toast('Send to FC is not available yet');
       return;
     }
     const a = e.target.closest('[data-play]'); if (!a) return;

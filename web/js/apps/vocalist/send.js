@@ -12,7 +12,7 @@ export function mount(report) {
   on(window, 'fc:send', 'Send to FC', (e) => {
     const s = rep.songs[e.detail.n - 1];
     if (!s) return;
-    toast(`Send to FC segera hadir · ${s.title}`);
+    toast(`Send to FC is coming soon · ${s.title}`);
   });
   window.FC_SEND = { ready: true };
 }
