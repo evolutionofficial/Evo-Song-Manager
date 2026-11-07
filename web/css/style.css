@@ -647,3 +647,4 @@ header.top.vtop { justify-content: flex-start; gap: 10px; margin-bottom: 14px; }
 #drawerBackdrop { z-index: 80; }
 @media (min-width: 861px) { .side-backdrop.show { opacity: 1; visibility: visible; transition: opacity .35s ease, visibility 0s; } }
 @media (prefers-reduced-motion: reduce) { .drawer, .drawer .nav-item { transition: none !important; } }
+.paid-price { color: var(--faint); padding-left: 12px; }

@@ -36,14 +36,16 @@ function renderTable() {
       <span class="no dim">${s.n}</span>
       <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
       <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Diganti ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revisi ${s.revision}</span>` : ''}${s.missing ? ' <span class="badge bad" title="File sudah tidak ada di PC; lagu tetap tersimpan sebagai riwayat">file tidak ada di PC</span>' : ''}</span>
-      <span class="price dim"><select data-price="${s.id}" ${s.paid ? 'disabled' : ''} aria-label="Harga ${esc(s.title)}">
+      ${s.paid
+        ? `<span class="price dim paid-price" title="Harga tersimpan: ${ribu(s.price)} (muncul lagi kalau status Lunas dibatalkan)">—</span>`
+        : `<span class="price"><select data-price="${s.id}" aria-label="Harga ${esc(s.title)}">
         <option value="">—</option>
         ${PRICES.concat(s.price && !PRICES.includes(s.price) ? [s.price] : []).map((p) => `<option value="${p}" ${s.price === p ? 'selected' : ''}>${ribu(p)}</option>`).join('')}
         <option value="custom">Custom…</option>
-      </select></span>
+      </select></span>`}
       <span class="act"><button class="paidbtn ${s.paid ? 'on' : ''}" data-paid="${s.id}" aria-pressed="${s.paid}">${s.paid ? '✓ Lunas' : 'Paid'}</button></span>
     </div>`).join('') +
-    `<div class="row foot cols-admin"><span class="no"></span><span class="date"></span><span class="title" style="text-align:right">Total${q || st ? ' (tersaring)' : ''}</span><span class="price">${ribu(sum.total)}</span><span class="act"></span></div>`;
+    `<div class="row foot cols-admin"><span class="no"></span><span class="date"></span><span class="title" style="text-align:right">Belum dibayar${q || st ? ' (tersaring)' : ''}</span><span class="price">${ribu(sum.rest)}</span><span class="act"></span></div>`;
 }
 
 export function resetFilters() {
