@@ -29,7 +29,7 @@ kegagalannya ditangkap di batas segmen itu sendiri.
 |---|---|---|
 | `js/core/` | `config` (URL, kunci publik, daftar harga), `supabase` (satu-satunya klien), `format` (fungsi murni), `ui` (`$`, `toast`), `guard` (pengaman error) | hanya sesama `core` |
 | `js/apps/admin/` | `main` (kerangka), `data` (lapisan data), `auth`, `songs`, `revisions`, `trash`, `unmatched`, `settings` | `core` + `./data.js` |
-| `js/apps/vocalist/` | `main` (kerangka + data laporan), `songlist`, `invoice` | `core` |
+| `js/apps/vocalist/` | `main` (kerangka + data laporan), `songlist`, `invoice`, `player` (bar bawah + tampilan penuh; ▶ di Songlist → event `fc:play`, player → event `fc:track`) | `core` |
 | `js/apps/player/` | `main` (kerangka + data), `audio` (mesin putar — saat ini placeholder, belum ada sumber audio), `queue` (daftar lagu) | `core` |
 | `js/apps/public/` | `main` | `core` |
 | `js/common.js` | jembatan kompatibilitas (re-export `core`) | `core` |
