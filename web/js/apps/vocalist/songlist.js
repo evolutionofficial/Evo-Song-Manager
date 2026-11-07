@@ -1,4 +1,5 @@
-// VOKALIS — modul Songlist: My songs (dengan tombol ▶) dan All songs (tanpa harga).
+// VOKALIS — modul Songlist: My songs (dengan tombol ▶) dan All songs (seperti spreadsheet: kolom per vokalis,
+// lagu terbaru di atas, tanpa harga).
 // Tombol "Send to FC" mengirim event 'fc:send' ke modul Send (send.js).
 // Tombol ▶ mengirim event 'fc:play' ke modul Player (bar bawah). Kalau modul Player tidak
 // berjalan, tombol tetap berfungsi sebagai link biasa ke halaman player terpisah.
@@ -25,18 +26,34 @@ function render() {
       : `<div class="empty">${q ? 'Tidak ada lagu yang cocok.' : 'Belum ada lagu.'}</div>`;
     return;
   }
-  const rows = rep.all_songs.filter((s) => !q || norm(s.title + ' ' + s.vocalist).includes(q));
-  if (!rows.length) { $('songsTable').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
-  const groups = new Map();
-  rows.forEach((s) => {
-    if (!groups.has(s.vocalist)) groups.set(s.vocalist, { mine: s.mine, list: [] });
-    groups.get(s.vocalist).list.push(s);
+  renderSheet(q);
+}
+
+// All songs: tampilan seperti spreadsheet — satu kolom per vokalis, judul ke bawah, terbaru di atas.
+function renderSheet(q) {
+  const byVoc = new Map();
+  for (const s of rep.all_songs) {
+    if (!byVoc.has(s.vocalist)) byVoc.set(s.vocalist, { mine: s.mine, list: [] });
+    byVoc.get(s.vocalist).list.push(s);
+  }
+  const cols = [...byVoc.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, g]) => {
+    const list = g.list
+      .filter((s) => !q || norm(s.title).includes(q) || norm(name).includes(q))
+      .sort((a, b) => new Date(b.mtime || 0) - new Date(a.mtime || 0));
+    return { name, mine: g.mine, total: g.list.length, list };
   });
-  const ordered = [...groups.entries()].sort((a, b) => (b[1].mine - a[1].mine) || a[0].localeCompare(b[0]));
-  $('songsTable').innerHTML = ordered.map(([name, g]) =>
-    `<div class="group-h"><span>${esc(name)}${g.mine ? ' <span class="badge ok">kamu</span>' : ''}</span><span class="note">${g.list.length} lagu</span></div>` +
-    g.list.map((s, i) => `<div class="row cols-list ${g.mine ? 'me' : ''}"><span class="no">${i + 1}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span></div>`).join('')
-  ).join('');
+  const depth = Math.max(0, ...cols.map((c) => c.list.length));
+  if (!depth) { $('songsTable').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
+  const head = `<tr><th class="rn" scope="col">#</th>${cols.map((c) =>
+    `<th scope="col" class="${c.mine ? 'me' : ''}"><span class="vn">${esc(c.name)}</span>${c.mine ? '<span class="badge ok">kamu</span>' : ''}<span class="vc">${q ? `${c.list.length}/` : ''}${c.total}</span></th>`).join('')}</tr>`;
+  let body = '';
+  for (let i = 0; i < depth; i++) {
+    body += `<tr><td class="rn">${i + 1}</td>${cols.map((c) => {
+      const s = c.list[i];
+      return s ? `<td class="${c.mine ? 'me' : ''}"><span class="st">${esc(s.title)}</span><span class="sd">${esc(dateLabel(s))}</span></td>` : `<td class="${c.mine ? 'me' : ''} blank"></td>`;
+    }).join('')}</tr>`;
+  }
+  $('songsTable').innerHTML = `<div class="sheet" role="region" aria-label="Semua lagu per vokalis" tabindex="0"><table style="--cols:${cols.length}"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 
 export function mount(report) {

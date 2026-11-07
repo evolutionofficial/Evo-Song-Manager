@@ -587,3 +587,35 @@ body.is-playing .eq i { animation: eq 0.9s ease-in-out infinite; }
   .sendbtn span { display: none; }
   .sendbtn { width: 36px; padding: 0; justify-content: center; }
 }
+
+/* =====================================================================
+   ALL SONGS — tampilan spreadsheet: kolom per vokalis, judul ke bawah
+   ===================================================================== */
+.sheet { max-height: min(72vh, 900px); overflow: auto; overscroll-behavior: contain; border-radius: inherit; }
+.sheet:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sheet table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: calc(44px + var(--cols) * 190px); table-layout: fixed; font-size: 14px; }
+.sheet th, .sheet td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid rgba(255, 255, 255, .06); border-right: 1px solid rgba(255, 255, 255, .05); }
+.sheet th:last-child, .sheet td:last-child { border-right: 0; }
+.sheet .rn { width: 44px; text-align: center; color: var(--faint); font-variant-numeric: tabular-nums; font-size: 12.5px; padding-left: 4px; padding-right: 4px; }
+.sheet thead th {
+  position: sticky; top: 0; z-index: 2; white-space: nowrap; font-size: 13px; font-weight: 650; color: #cfe0ff;
+  background: linear-gradient(180deg, rgba(30, 38, 56, .96), rgba(18, 22, 32, .96));
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: inset 0 -1px 0 rgba(46, 139, 255, .45);
+}
+.sheet thead th.me { color: #fff; background: linear-gradient(180deg, rgba(36, 72, 140, .96), rgba(20, 34, 62, .96)); box-shadow: inset 0 -2px 0 var(--accent), 0 6px 18px rgba(46, 139, 255, .2); }
+.sheet .rn { position: sticky; left: 0; z-index: 1; background: rgba(14, 16, 22, .94); }
+.sheet thead th.rn { z-index: 3; }
+.sheet .vn { margin-right: 6px; }
+.sheet .vc { float: right; font-size: 12px; font-weight: 500; color: var(--faint); font-variant-numeric: tabular-nums; }
+.sheet thead th.me .vc { color: #a9cbff; }
+.sheet td .st { display: block; color: var(--text); overflow-wrap: anywhere; line-height: 1.35; }
+.sheet td .sd { display: block; font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+.sheet td.me { background: linear-gradient(90deg, rgba(46, 139, 255, .08), rgba(46, 139, 255, .03)); }
+.sheet tbody tr:hover td:not(.blank):not(.rn) { background: rgba(46, 139, 255, .10); }
+.sheet tbody tr:nth-child(even) td.blank, .sheet tbody tr:nth-child(even) td:not(.me):not(.rn) { background-color: rgba(255, 255, 255, .012); }
+@media (max-width: 640px) {
+  .sheet table { min-width: calc(36px + var(--cols) * 160px); font-size: 13.5px; }
+  .sheet .rn { width: 36px; }
+  .sheet th, .sheet td { padding: 8px 10px; }
+}
