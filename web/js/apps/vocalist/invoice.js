@@ -22,8 +22,8 @@ function render() {
       <span class="no dim">${s.n}</span>
       <span class="date dim">${esc(dateLabel(s))}</span>
       <span class="title dim">${esc(s.title)}</span>
-      <span class="price dim">${s.paid ? '<span class="paid-price">—</span>' : s.price ? ribu(s.price) : '—'}</span>
-      <span class="act">${s.paid ? '<span class="badge ok">Paid</span>' : (s.price ? '<span class="badge warn">Unpaid</span>' : '<span class="badge muted">—</span>')}</span>
+      <span class="price dim">${s.paid ? '<span class="paid-price">—</span>' : s.price === 0 ? 'Free/Revision' : s.price ? ribu(s.price) : '—'}</span>
+      <span class="act">${s.paid ? '<span class="badge ok">Paid</span>' : s.price === 0 ? '<span class="badge muted">Free</span>' : (s.price ? '<span class="badge warn">Unpaid</span>' : '<span class="badge muted">—</span>')}</span>
     </div>`).join('');
 }
 

@@ -86,7 +86,7 @@ button:disabled { opacity: .5; cursor: default; }
 .empty { padding: 28px 14px; text-align: center; color: var(--muted); }
 .who { font-size: 12.5px; color: var(--muted); }
 
-.cols-admin { grid-template-columns: 30px 78px minmax(0, 1fr) 124px 86px; }
+.cols-admin { grid-template-columns: 30px 78px minmax(0, 1fr) 146px 100px; }
 .cols-view { grid-template-columns: 30px 78px minmax(0, 1fr) 104px 86px; }
 .cols-all { grid-template-columns: 92px 78px minmax(0, 1fr); }
 .cols-all.prices { grid-template-columns: 92px 78px minmax(0, 1fr) 96px 86px; }
@@ -660,3 +660,19 @@ header.top.vtop { justify-content: flex-start; gap: 10px; margin-bottom: 14px; }
 .due-v { font-weight: 700; color: #ffcf85; font-variant-numeric: tabular-nums; }
 @keyframes due-in { from { opacity: 0; transform: translateY(-4px); } }
 @media (max-width: 640px) { .due { flex: 1 1 100%; justify-content: space-between; } }
+
+/* Accept (sebelum Send to FC) */
+.acceptbtn {
+  min-height: 36px; height: 36px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 650; gap: 6px; color: #eafff5;
+  background: linear-gradient(135deg, rgba(61, 220, 151, .30), rgba(0, 200, 160, .12)); border-color: rgba(61, 220, 151, .5);
+  box-shadow: 0 0 16px rgba(61, 220, 151, .15);
+}
+.acceptbtn svg { color: #3ddc97; }
+.acceptbtn:hover:not(:disabled) { border-color: rgba(61, 220, 151, .8); box-shadow: 0 0 0 3px rgba(61, 220, 151, .15), 0 0 22px rgba(61, 220, 151, .3); }
+@media (max-width: 360px) { .acceptbtn span { display: none; } .acceptbtn { width: 36px; padding: 0; justify-content: center; } }
+.badge.acc { background: rgba(61, 220, 151, .14); color: var(--ok); border: 1px solid rgba(61, 220, 151, .35); }
+.freebadge { display: inline-flex; justify-content: center; width: 100%; margin-left: 0; padding: 6px 0; font-size: 13px; }
+.ctxmenu button:disabled { opacity: .45; }
+dialog.confirm { width: min(420px, calc(100vw - 32px)); }
+dialog.confirm h2 { margin: 0 0 6px; font-size: 18px; color: #fff; }
+dialog.confirm .cf-title { margin: 0 0 8px; font-weight: 650; color: #9fd0ff; }

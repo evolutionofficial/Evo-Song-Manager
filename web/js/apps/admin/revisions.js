@@ -13,6 +13,7 @@ export function open(id) {
   const cands = vocSongs().filter((x) => x.id !== id)
     .sort((a, b) => new Date(b.file_mtime || 0) - new Date(a.file_mtime || 0));
   if (!cands.length) return toast('No other files from this vocalist to use as a revision yet', 'bad');
+  if (s.accepted_at) return toast('This song was accepted by the vocalist (locked). Unlock it first.', 'bad');
   repFrom = s;
   $('repTitle').textContent = s.title;
   $('repErr').textContent = '';
