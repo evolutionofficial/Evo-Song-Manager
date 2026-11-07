@@ -8,9 +8,28 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+<!-- LACI (side panel) -->
+<aside class="drawer" id="drawer" aria-label="Menu" aria-hidden="true">
+  <div class="side-head">
+    <div class="brand side-brand">First Club<small id="drawerName"></small></div>
+    <button id="drawerClose" class="icon-btn" aria-label="Tutup menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/><path d="M20 6l-6 6 6 6" opacity=".45"/></svg>
+    </button>
+  </div>
+  <nav class="side-nav" id="drawerNav">
+    <button class="nav-item" style="--i:0" data-view="songs"><span class="nav-name">My Songs</span><span class="nav-meta" id="dnMine"></span></button>
+    <button class="nav-item" style="--i:1" data-view="invoice"><span class="nav-name">Invoice</span></button>
+    <button class="nav-item" style="--i:2" data-view="all"><span class="nav-name">All Song List</span><span class="nav-meta" id="dnAll"></span></button>
+    <div class="side-sep"></div>
+    <button class="nav-item soon" style="--i:3" data-soon="Video Call"><span class="nav-name">Video Call <span class="badge muted">segera</span></span><span class="nav-meta">Sesi langsung dengan FC</span></button>
+  </nav>
+</aside>
+<div class="side-backdrop" id="drawerBackdrop"></div>
+
 <div class="wrap">
-  <header class="top">
-    <div class="brand">First Club<small>Backing track · Jeffry Ferdian</small></div>
+  <header class="top vtop">
+    <button id="drawerBtn" class="icon-btn menu-open hidden" aria-label="Buka menu" aria-controls="drawer" aria-expanded="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+    <div class="brand">First Club</div>
   </header>
 
   <h1 id="name">Memuat…</h1>
@@ -18,17 +37,13 @@
 
   <div id="app" class="hidden">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="tabSongs" aria-selected="true" data-tab="songs">Songlist</button>
-      <button class="tab" role="tab" id="tabInv" aria-selected="false" data-tab="invoice">Invoice</button>
+      <button class="tab" role="tab" id="tabSongs" aria-selected="true" data-view="songs">Songlist</button>
+      <button class="tab" role="tab" id="tabInv" aria-selected="false" data-view="invoice">Invoice</button>
     </div>
 
-    <!-- SONGLIST -->
+    <!-- SONGLIST (My Songs) -->
     <section id="songsView">
       <div id="songsBody">
-      <div class="chips" id="scope">
-        <button class="chip" aria-pressed="true" data-scope="mine">My songs <span class="n" id="nMine"></span></button>
-        <button class="chip" aria-pressed="false" data-scope="all">All songs <span class="n" id="nAll"></span></button>
-      </div>
       <div class="bar"><div class="grow"><input type="search" id="qSongs" placeholder="Cari judul" aria-label="Cari judul lagu"></div></div>
       <div class="table" id="songsTable"></div>
       </div>
@@ -48,9 +63,16 @@
       <div class="table" id="invTable"></div>
       </div>
     </section>
-  </div>
 
-  <footer>Halaman ini hanya bisa dilihat. Hubungi Jeffry kalau ada yang tidak sesuai.</footer>
+    <!-- ALL SONG LIST (dibuka dari laci) -->
+    <section id="allView" class="hidden">
+      <div id="allBody">
+      <h2 class="view-h">All Song List</h2>
+      <div class="bar"><div class="grow"><input type="search" id="qAll" placeholder="Cari judul atau nama vokalis" aria-label="Cari di semua lagu"></div></div>
+      <div class="table" id="allTable"></div>
+      </div>
+    </section>
+  </div>
 </div>
 
 <!-- PLAYER: bar bawah + tampilan penuh (modul player.js) -->

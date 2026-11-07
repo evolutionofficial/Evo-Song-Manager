@@ -486,18 +486,21 @@ body.has-player .wrap { padding-bottom: 120px; }
 .mb-vol { cursor: default; }
 
 /* Tombol kontrol player */
-.pc, .pc:hover:not(:disabled) {
+.pc {
   width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; border-radius: 999px;
   background: transparent; border: 1px solid transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: #cfd7e6;
 }
-.pc:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, .07); }
+/* Hover hanya mengubah warna — ukuran tidak pernah berubah (sebelumnya tombol mengecil/membesar saat disentuh kursor) */
+.pc:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, .07); border-color: transparent; box-shadow: none; }
+.pc:active:not(:disabled) { transform: scale(.94); }
 .pc:disabled { opacity: .3; }
 .pc.sm { width: 34px; height: 34px; min-height: 34px; }
-.pc.pp, .pc.pp:hover:not(:disabled) {
+.pc.pp {
   width: 46px; height: 46px; color: #fff; background: var(--grad-blue); border-color: rgba(140, 200, 255, .6);
   box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 6px 20px rgba(46, 139, 255, .5);
 }
-.pc.pp:hover:not(:disabled) { box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 0 0 4px rgba(46, 139, 255, .2), 0 8px 26px rgba(46, 139, 255, .7); }
+.pc.pp:hover:not(:disabled) { color: #fff; background: var(--grad-blue); border-color: rgba(160, 210, 255, .8);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 0 0 4px rgba(46, 139, 255, .2), 0 8px 26px rgba(46, 139, 255, .7); }
 .pc.pp.soon { filter: saturate(.55) brightness(.85); }
 .pc.tog.on { color: #4fb0ff; }
 .pc.tog.on::after { content: ""; position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 9px; background: #4fb0ff; box-shadow: 0 0 8px #4fb0ff; }
@@ -619,3 +622,28 @@ body.is-playing .eq i { animation: eq 0.9s ease-in-out infinite; }
   .sheet .rn { width: 36px; }
   .sheet th, .sheet td { padding: 8px 10px; }
 }
+
+/* =====================================================================
+   VOKALIS — header & laci (side panel)
+   ===================================================================== */
+header.top.vtop { justify-content: flex-start; gap: 10px; margin-bottom: 14px; }
+.menu-open { background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03)); border-color: rgba(255, 255, 255, .11);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); color: #dbe6f7; }
+.sub:empty { display: none; }
+.view-h { font-size: 20px; margin: 4px 0 12px; color: #fff; }
+.drawer {
+  position: fixed; z-index: 85; top: 10px; left: 10px; bottom: 10px; width: min(300px, 84vw);
+  display: flex; flex-direction: column; gap: 4px; overflow: auto; border-radius: 20px; padding: 14px 10px 12px;
+  background: var(--stripe-top) top / 100% 1px no-repeat, linear-gradient(170deg, rgba(46, 139, 255, .12), rgba(255, 255, 255, .02) 45%), rgba(14, 16, 21, .78);
+  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow), 0 0 40px rgba(46, 139, 255, .12);
+  transform: translateX(calc(-100% - 24px)); visibility: hidden;
+  transition: transform .5s var(--ease-out), visibility 0s linear .5s;
+}
+.drawer.open { transform: none; visibility: visible; transition: transform .5s var(--ease-out), visibility 0s; }
+.drawer .nav-item { opacity: 0; transform: translateX(-14px); transition: background .2s, border-color .2s, opacity .35s ease, transform .5s var(--ease-out); }
+.drawer.open .nav-item { opacity: 1; transform: none; transition-delay: 0s, 0s, calc(var(--i, 0) * 40ms + 100ms), calc(var(--i, 0) * 40ms + 100ms); }
+.drawer .nav-item.soon .nav-name { color: var(--muted); }
+#drawerBackdrop { z-index: 80; }
+@media (min-width: 861px) { .side-backdrop.show { opacity: 1; visibility: visible; transition: opacity .35s ease, visibility 0s; } }
+@media (prefers-reduced-motion: reduce) { .drawer, .drawer .nav-item { transition: none !important; } }

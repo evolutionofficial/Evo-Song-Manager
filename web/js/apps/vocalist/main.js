@@ -1,7 +1,7 @@
 // VOKALIS — kerangka halaman: memuat laporan sekali, lalu menyerahkan ke modul Songlist & Invoice.
 // Modul baru (Player, ACC, Studio) cukup ditambahkan ke daftar MODULES.
 import { sb } from '/js/core/supabase.js';
-import { $ } from '/js/core/ui.js';
+import { $, toast } from '/js/core/ui.js';
 import { safe, on, loadModules, installGlobalHandlers, report } from '/js/core/guard.js';
 
 installGlobalHandlers();
@@ -9,18 +9,46 @@ installGlobalHandlers();
 const MODULES = [
   { key: 'songlist', label: 'Songlist', path: '/js/apps/vocalist/songlist.js', el: 'songsBody' },
   { key: 'invoice', label: 'Invoice', path: '/js/apps/vocalist/invoice.js', el: 'invBody' },
+  { key: 'allsongs', label: 'All Song List', path: '/js/apps/vocalist/allsongs.js', el: 'allBody' },
   { key: 'send', label: 'Send to FC', path: '/js/apps/vocalist/send.js', el: null },
   { key: 'player', label: 'Player', path: '/js/apps/vocalist/player.js', el: 'playerBody' },
 ];
 
 const token = new URLSearchParams(location.search).get('t') || location.pathname.split('/').filter(Boolean).pop();
 
-function showTab(t) {
-  $('tabSongs').setAttribute('aria-selected', t === 'songs');
-  $('tabInv').setAttribute('aria-selected', t === 'invoice');
-  $('songsView').classList.toggle('hidden', t !== 'songs');
-  $('invView').classList.toggle('hidden', t !== 'invoice');
-  history.replaceState(null, '', t === 'invoice' ? '#invoice' : location.pathname + location.search);
+// ---------- Tampilan: Songlist / Invoice (tab) dan All Song List (dari laci) ----------
+const VIEWS = { songs: 'songsView', invoice: 'invView', all: 'allView' };
+const HASH = { songs: '', invoice: '#invoice', all: '#all' };
+
+function showView(v) {
+  if (!VIEWS[v]) v = 'songs';
+  for (const [k, id] of Object.entries(VIEWS)) $(id).classList.toggle('hidden', k !== v);
+  $('tabSongs').setAttribute('aria-selected', v === 'songs');
+  $('tabInv').setAttribute('aria-selected', v === 'invoice');
+  document.querySelectorAll('#drawerNav [data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
+  history.replaceState(history.state, '', location.pathname + location.search + HASH[v]);
+  window.scrollTo(0, 0);
+}
+
+function setDrawer(open) {
+  $('drawer').classList.toggle('open', open);
+  $('drawer').setAttribute('aria-hidden', String(!open));
+  $('drawerBackdrop').classList.toggle('show', open);
+  $('drawerBtn').setAttribute('aria-expanded', String(open));
+  if (open) $('drawerNav').querySelector('[aria-current=page]')?.focus({ preventScroll: true });
+}
+
+function initDrawer() {
+  on($('drawerBtn'), 'click', 'Menu', () => setDrawer(true));
+  on($('drawerClose'), 'click', 'Menu', () => setDrawer(false));
+  on($('drawerBackdrop'), 'click', 'Menu', () => setDrawer(false));
+  on(document, 'keydown', 'Menu', (e) => { if (e.key === 'Escape' && $('drawer').classList.contains('open')) setDrawer(false); });
+  on($('drawerNav'), 'click', 'Menu', (e) => {
+    const b = e.target.closest('.nav-item'); if (!b) return;
+    if (b.dataset.soon) { toast(`${b.dataset.soon} segera hadir`); return; }
+    showView(b.dataset.view);
+    setDrawer(false);
+  });
 }
 
 async function start() {
@@ -35,20 +63,24 @@ async function start() {
     $('name').textContent = res.error ? 'Gagal memuat' : 'Link tidak ditemukan';
     $('sub').textContent = res.error
       ? 'Koneksi bermasalah. Coba muat ulang halaman sebentar lagi.'
-      : 'Link ini salah atau sudah diganti. Minta link terbaru ke Jeffry.';
+      : 'Link ini salah atau sudah diganti. Minta link terbaru ke admin.';
     return;
   }
 
   const rep = { ...res.data, token };
   document.title = `${rep.name} · First Club`;
   $('name').textContent = rep.name;
-  $('sub').textContent = `${rep.songs.length} lagu bersama Jeffry`;
   $('app').classList.remove('hidden');
 
+  safe('Menu', initDrawer);
+  $('drawerBtn').classList.remove('hidden');
+  $('drawerName').textContent = rep.name;
+  $('dnMine').textContent = `${rep.songs.length} lagu`;
+  $('dnAll').textContent = `${rep.all_songs.length} lagu · semua vokalis`;
   on(document.querySelector('.tabs'), 'click', 'Menu tab', (e) => {
-    const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
+    const b = e.target.closest('.tab'); if (b) showView(b.dataset.view);
   });
-  if (location.hash === '#invoice') showTab('invoice');
+  showView(location.hash === '#invoice' ? 'invoice' : location.hash === '#all' ? 'all' : 'songs');
 
   for (const m of MODULES) {
     const mod = mods[m.key];

@@ -42,7 +42,7 @@ async function start() {
     if (res.error) report('data:report', res.error);
     return res.error
       ? fail('Gagal memuat', 'Koneksi bermasalah. Coba muat ulang halaman sebentar lagi.')
-      : fail('Link tidak ditemukan', 'Link ini salah atau sudah diganti. Minta link terbaru ke Jeffry.');
+      : fail('Link tidak ditemukan', 'Link ini salah atau sudah diganti. Minta link terbaru ke admin.');
   }
   const rep = res.data;
   const songs = rep.songs.map((s, i) => ({ ...s, n: i + 1 }));
