@@ -1,4 +1,4 @@
-# Situs sudah pindah ke Cloudflare Pages. Netlify tidak membangun apa pun lagi
+# Situs sudah pindah ke Cloudflare Workers. Netlify tidak membangun apa pun lagi
 # (perintah ignore "exit 0" = lewati build), supaya kredit Netlify tidak terpakai.
 [build]
   publish = "web"

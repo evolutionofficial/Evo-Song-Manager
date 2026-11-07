@@ -2,3 +2,6 @@ sync/config.json
 sync/sync.log*
 sync/supervisor.pid
 node_modules/
+
+# wrangler
+.wrangler/
