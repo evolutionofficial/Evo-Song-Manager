@@ -166,35 +166,105 @@ details > summary::-webkit-details-marker { display: none; }
   padding: 10px 14px; margin: 0 0 14px; font-size: 14px; }
 .seg-err button { min-height: 32px; }
 
-/* ---------- Admin: kerangka dengan sidebar ---------- */
-.wrap.wide { max-width: 1200px; }
-.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 28px; align-items: start; }
-.side { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 40px); overflow: auto; }
-.side-brand { padding: 2px 10px 14px; }
-.side-label { font-size: 12px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; padding: 0 10px 4px; }
+/* ---------- Admin: kerangka dengan sidebar kaca ---------- */
+:root {
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --glass: color-mix(in srgb, var(--card) 58%, transparent);
+  --glass-strong: color-mix(in srgb, var(--card) 72%, transparent);
+  --glass-line: rgba(255, 255, 255, .55);
+  --glass-shadow: 0 10px 40px rgba(20, 24, 40, .10), 0 1px 0 rgba(255, 255, 255, .6) inset;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass: color-mix(in srgb, var(--card) 50%, transparent);
+    --glass-strong: color-mix(in srgb, var(--card) 70%, transparent);
+    --glass-line: rgba(255, 255, 255, .09);
+    --glass-shadow: 0 14px 50px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .06) inset;
+  }
+}
+body.glass-bg {
+  background:
+    radial-gradient(900px 520px at -8% -12%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    radial-gradient(760px 480px at 108% 4%, color-mix(in srgb, #a46bff 16%, transparent), transparent 60%),
+    radial-gradient(700px 520px at 40% 115%, color-mix(in srgb, #2bb3a3 12%, transparent), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+.glass, .side {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--glass-shadow);
+}
+
+.wrap.wide { max-width: 1240px; }
+.shell { --side-w: 248px; display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); column-gap: 26px; align-items: start;
+  transition: grid-template-columns .5s var(--ease-out), column-gap .5s var(--ease-out); }
+.shell.collapsed { --side-w: 0px; column-gap: 0px; }
+
+.side { position: sticky; top: 20px; width: 248px; display: flex; flex-direction: column; gap: 4px;
+  max-height: calc(100vh - 40px); overflow: auto; border-radius: 18px; padding: 14px 10px 12px;
+  transition: transform .5s var(--ease-out), opacity .35s ease, filter .5s var(--ease-out); will-change: transform; }
+.shell.collapsed .side { transform: translateX(calc(-100% - 40px)); opacity: 0; filter: blur(6px); pointer-events: none; }
+.side-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 2px 0 12px 10px; }
+.side-brand { padding: 0; }
+.icon-btn { width: 38px; height: 38px; min-height: 38px; padding: 0; justify-content: center; border-radius: 10px;
+  background: transparent; border-color: transparent; color: var(--muted); transition: background .2s, color .2s, transform .25s var(--ease-out); }
+.icon-btn:hover { background: var(--glass-strong); color: var(--text); border-color: var(--glass-line); }
+.icon-btn:active { transform: scale(.92); }
+.side-label { font-size: 11.5px; font-weight: 650; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; padding: 0 10px 4px; }
 .side-nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item { display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; text-align: left;
-  border: 0; background: transparent; border-radius: 8px; padding: 8px 10px; min-height: 44px; white-space: normal; }
-.nav-item:hover { background: var(--card); }
-.nav-item[aria-current=page] { background: var(--card); box-shadow: inset 3px 0 0 var(--accent), 0 0 0 1px var(--line); }
+  border: 1px solid transparent; background: transparent; border-radius: 11px; padding: 8px 12px; min-height: 46px; white-space: normal;
+  transition: background .2s, border-color .2s, opacity .4s ease, transform .5s var(--ease-out);
+  transition-delay: 0s, 0s, calc(var(--i, 0) * 35ms + 80ms), calc(var(--i, 0) * 35ms + 80ms); }
+.nav-item:hover { background: var(--glass-strong); }
+.nav-item[aria-current=page] { background: var(--glass-strong); border-color: var(--glass-line);
+  box-shadow: inset 3px 0 0 var(--accent), 0 4px 14px rgba(20, 24, 40, .08); }
+.shell.collapsed .nav-item { opacity: 0; transform: translateX(-14px); transition-delay: 0s; }
 .nav-name { font-weight: 600; font-size: 15px; }
 .nav-meta { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .nav-item .badge { margin-left: 4px; }
-.side-sep { height: 1px; background: var(--line); margin: 8px 10px; }
-.side-foot { display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 10px 0; margin-top: 8px; border-top: 1px solid var(--line); }
-.side-backdrop { display: none; }
-.maintop { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.side-sep { height: 1px; background: var(--glass-line); margin: 8px 10px; }
+.side-foot { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 10px 0; margin-top: 8px; border-top: 1px solid var(--glass-line); }
+.side-foot .btn { background: var(--glass-strong); border-color: var(--glass-line); }
+
+.maintop { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; min-height: 40px; }
 .maintop .grow { flex: 1; }
-.menu-btn { display: none; font-size: 18px; padding: 6px 12px; }
+.menu-btn { opacity: 0; transform: translateX(-10px) scale(.9); pointer-events: none;
+  transition: opacity .3s ease .15s, transform .45s var(--ease-out) .15s; }
+.shell.collapsed .menu-btn { opacity: 1; transform: none; pointer-events: auto; background: var(--glass); border-color: var(--glass-line);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .hint { margin: 8px 2px 0; }
+.side-backdrop { position: fixed; inset: 0; z-index: 55; background: rgba(8, 10, 18, .32); opacity: 0; visibility: hidden;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); transition: opacity .35s ease, visibility 0s linear .35s; }
+
 @media (max-width: 860px) {
   .shell { display: block; }
-  .menu-btn { display: inline-flex; }
-  .side { position: fixed; z-index: 60; top: 0; left: 0; bottom: 0; width: min(280px, 82vw); max-height: none;
-    background: var(--bg); border-right: 1px solid var(--line); padding: 18px 10px; transform: translateX(-102%); transition: transform .2s; }
-  .side.open { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.25); }
-  .side-backdrop.show { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,.4); }
+  .menu-btn, .shell.collapsed .menu-btn { opacity: 1; transform: none; pointer-events: auto; background: var(--glass); border-color: var(--glass-line);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+  .side, .shell.collapsed .side { position: fixed; z-index: 60; top: 10px; left: 10px; bottom: 10px; width: min(290px, 84vw); max-height: none;
+    background: var(--glass-strong); transform: translateX(calc(-100% - 24px)); opacity: 1; filter: none; pointer-events: auto; }
+  .side.open, .shell.collapsed .side.open { transform: none; }
+  .side .nav-item, .shell.collapsed .side .nav-item { opacity: 0; transform: translateX(-14px); transition-delay: 0s; }
+  .side.open .nav-item, .shell.collapsed .side.open .nav-item { opacity: 1; transform: none;
+    transition-delay: 0s, 0s, calc(var(--i, 0) * 35ms + 90ms), calc(var(--i, 0) * 35ms + 90ms); }
+  .side-backdrop.show { opacity: 1; visibility: visible; transition: opacity .35s ease, visibility 0s; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .shell, .side, .nav-item, .menu-btn, .side-backdrop { transition: none !important; }
+}
+
+/* Kartu & tabel admin ikut sedikit transparan di atas latar bergradasi */
+.glass-bg .stat, .glass-bg .panel, .glass-bg .table, .glass-bg .ctxmenu {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-color: var(--glass-line);
+}
+.glass-bg .row.head, .glass-bg .row.foot { background: color-mix(in srgb, var(--card) 40%, transparent); }
 
 /* Harga custom */
 .price-input { font: inherit; width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--accent);

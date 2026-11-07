@@ -66,23 +66,45 @@ function renderTabs() {
     const list = state.songs.filter((s) => s.vocalist_id === v.id && !s.deleted);
     const sum = summarize(list);
     const sel = state.tab === 'v:' + v.id;
-    return `<button class="nav-item" aria-current="${sel ? 'page' : 'false'}" data-tab="v:${v.id}">
+    return `<button class="nav-item" style="--i:${state.vocalists.indexOf(v)}" aria-current="${sel ? 'page' : 'false'}" data-tab="v:${v.id}">
       <span class="nav-name">${esc(v.display_name)}</span>
       <span class="nav-meta">${list.length} lagu${sum.rest ? ` · sisa ${ribu(sum.rest)}` : ''}</span>
     </button>`;
   });
   const un = state.unmatched.length;
   items.push(`<div class="side-sep"></div>`);
-  items.push(`<button class="nav-item ${un ? 'alert' : ''}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
+  const k = state.vocalists.length;
+  items.push(`<button class="nav-item ${un ? 'alert' : ''}" style="--i:${k + 1}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
     <span class="nav-name">Perlu dicek${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
-  items.push(`<button class="nav-item" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
+  items.push(`<button class="nav-item" style="--i:${k + 2}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
     <span class="nav-name">Pengaturan</span></button>`);
   $('tabs').innerHTML = items.join('');
 }
 
+// Sidebar: di layar lebar bisa disembunyikan ke kiri (diingat di browser ini);
+// di HP jadi panel geser yang menutup sendiri setelah memilih.
+const mobileMq = matchMedia('(max-width: 860px)');
+const isMobile = () => mobileMq.matches;
+
 function setSide(open) {
   $('side').classList.toggle('open', open);
   $('sideBackdrop').classList.toggle('show', open);
+}
+
+function setCollapsed(c) {
+  $('appView').classList.toggle('collapsed', c);
+  try { localStorage.setItem('fc.sideCollapsed', c ? '1' : '0'); } catch {}
+}
+
+function initSide() {
+  let c = false;
+  try { c = localStorage.getItem('fc.sideCollapsed') === '1'; } catch {}
+  $('appView').classList.toggle('collapsed', c);
+  on($('menuBtn'), 'click', 'Menu', () => (isMobile() ? setSide(true) : setCollapsed(false)));
+  on($('sideClose'), 'click', 'Menu', () => (isMobile() ? setSide(false) : setCollapsed(true)));
+  on($('sideBackdrop'), 'click', 'Menu', () => setSide(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('side').classList.contains('open')) setSide(false); });
+  mobileMq.addEventListener?.('change', () => setSide(false));
 }
 
 function renderView() {
@@ -105,12 +127,11 @@ async function start() {
     const b = e.target.closest('.nav-item'); if (!b) return;
     state.tab = b.dataset.tab;
     runMod('songs', 'resetFilters');
-    setSide(false);
+    if (isMobile()) setSide(false);
     renderAll();
     window.scrollTo(0, 0);
   });
-  on($('menuBtn'), 'click', 'Menu', () => setSide(!$('side').classList.contains('open')));
-  on($('sideBackdrop'), 'click', 'Menu', () => setSide(false));
+  safe('Sidebar', initSide);
   on($('reloadBtn'), 'click', 'Muat ulang', reload);
   on($('logoutBtn'), 'click', 'Keluar', () => (mods.auth ? mods.auth.logout() : location.reload()));
   document.addEventListener('visibilitychange', () => {
