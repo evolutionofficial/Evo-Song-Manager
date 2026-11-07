@@ -4,7 +4,7 @@
 import { PRICES } from '/js/core/config.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
-import { ribu, esc, norm, dateLabel, summarize, fmtDate } from '/js/core/format.js';
+import { rupiah, ribu, esc, norm, dateLabel, summarize, fmtDate } from '/js/core/format.js';
 import { state, curVoc, vocSongs, shareUrl, updateSong } from './data.js';
 
 let ctx;
@@ -24,12 +24,13 @@ function renderTable() {
   if (state.errors.songs) { $('table').innerHTML = `<div class="empty">Data lagu gagal dimuat. Tekan Muat ulang.</div>`; return; }
   const q = norm($('q').value.trim());
   const st = $('status').value;
-  const all = vocSongs().map((s, i) => ({ ...s, n: i + 1 }));
+  // Nomor = urutan dibuat (1 = paling lama); tampil terbaru di atas.
+  const all = vocSongs().map((s, i) => ({ ...s, n: i + 1 })).reverse();
+  showDue($('due'), summarize(all).rest);
   const rows = all.filter((s) => (!q || norm(s.title).includes(q)) &&
     (!st || (st === 'paid' ? s.paid : st === 'unpaid' ? !s.paid : !s.price)));
   if (!all.length) { $('table').innerHTML = `<div class="empty">Belum ada lagu untuk vokalis ini.</div>`; return; }
   if (!rows.length) { $('table').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
-  const sum = summarize(rows);
   $('table').innerHTML =
     `<div class="row head cols-admin"><span>No</span><span>Tanggal</span><span>Judul</span><span>Harga</span><span>Status</span></div>` +
     rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
@@ -44,8 +45,13 @@ function renderTable() {
         <option value="custom">Custom…</option>
       </select></span>`}
       <span class="act"><button class="paidbtn ${s.paid ? 'on' : ''}" data-paid="${s.id}" aria-pressed="${s.paid}">${s.paid ? '✓ Lunas' : 'Paid'}</button></span>
-    </div>`).join('') +
-    `<div class="row foot cols-admin"><span class="no"></span><span class="date"></span><span class="title" style="text-align:right">Belum dibayar${q || st ? ' (tersaring)' : ''}</span><span class="price">${ribu(sum.rest)}</span><span class="act"></span></div>`;
+    </div>`).join('');
+}
+
+/** Total "Belum dibayar" di samping filter; disembunyikan kalau semua sudah lunas. */
+export function showDue(el, amount) {
+  el.hidden = !amount;
+  el.querySelector('.due-v').textContent = rupiah(amount);
 }
 
 export function resetFilters() {

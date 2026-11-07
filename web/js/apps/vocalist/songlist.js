@@ -16,7 +16,7 @@ const playUrl = (n) => `/v/${encodeURIComponent(rep.token)}/play/${n}`;
 
 function render() {
   const q = norm($('qSongs').value.trim());
-  const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).filter((s) => !q || norm(s.title).includes(q));
+  const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).reverse().filter((s) => !q || norm(s.title).includes(q));
   $('songsTable').innerHTML = rows.length
       ? `<div class="row head cols-list play"><span>No</span><span>Tanggal</span><span>Judul</span><span></span></div>` +
         rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Sedang dibuka"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span>` +

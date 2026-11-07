@@ -23,7 +23,7 @@ const I = {
   down: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
 };
 
-let rep, songs, el;
+let rep, songs, order, el;
 const st = { n: 0, playing: false, shuffle: false, repeat: false, volume: 0.8, muted: false, open: false };
 
 const store = {
@@ -79,15 +79,20 @@ async function togglePlay(has = !!audio.src) {
   render();
 }
 
+// Urutan antrean = urutan di Songlist (terbaru di atas). "Berikutnya" = lagu di bawahnya.
+const pos = () => order.findIndex((x) => x.n === st.n);
+const isFirst = () => pos() <= 0;
+const isLast = () => pos() >= order.length - 1;
+
 function step(dir) {
-  if (st.shuffle && songs.length > 1) {
-    let r; do { r = 1 + Math.floor(Math.random() * songs.length); } while (r === st.n);
+  if (st.shuffle && order.length > 1) {
+    let r; do { r = order[Math.floor(Math.random() * order.length)].n; } while (r === st.n);
     return select(r, st.playing);
   }
-  const n = st.n + dir;
-  if (n < 1) return select(st.repeat ? songs.length : 1, st.playing);
-  if (n > songs.length) return select(st.repeat ? 1 : songs.length, st.playing);
-  select(n, st.playing);
+  let i = pos() + dir;
+  if (i < 0) i = st.repeat ? order.length - 1 : 0;
+  if (i > order.length - 1) i = st.repeat ? 0 : order.length - 1;
+  select(order[i].n, st.playing);
 }
 
 // ---------- Tampilan ----------
@@ -96,9 +101,9 @@ function controls(size) {
   const noAudio = !audio.src;
   return `
     ${size === 'full' ? `<button class="pc tog ${st.shuffle ? 'on' : ''}" data-act="shuffle" aria-pressed="${st.shuffle}" aria-label="Acak">${I.shuffle}</button>` : ''}
-    <button class="pc" data-act="prev" aria-label="Sebelumnya" ${st.n <= 1 && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
+    <button class="pc" data-act="prev" aria-label="Sebelumnya" ${isFirst() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
     <button class="pc pp ${noAudio ? 'soon' : ''}" data-act="play" aria-label="${st.playing ? 'Jeda' : 'Putar'}" title="${noAudio ? 'Audio segera hadir' : ''}">${pp}</button>
-    <button class="pc" data-act="next" aria-label="Berikutnya" ${st.n >= songs.length && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
+    <button class="pc" data-act="next" aria-label="Berikutnya" ${isLast() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
     ${size === 'full' ? `<button class="pc tog ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Ulangi">${I.repeat}</button>` : ''}`;
 }
 function volume() {
@@ -139,7 +144,7 @@ function render() {
       <div class="fp-vol">${volume()}</div>
       ${audio.src ? '' : '<p class="p-soon">Audio segera hadir. Untuk sekarang player menampilkan info lagu dan antrean.</p>'}
       <section class="p-queue"><h2>Antrean · ${songs.length} lagu</h2><div class="table">
-        ${songs.map((x) => `<button class="row qrow ${x.n === st.n ? 'cur' : ''}" data-q="${x.n}"><span class="no">${x.n === st.n ? '▶' : x.n}</span><span class="title">${esc(x.title)}</span></button>`).join('')}
+        ${order.map((x) => `<button class="row qrow ${x.n === st.n ? 'cur' : ''}" data-q="${x.n}"><span class="no">${x.n === st.n ? '▶' : x.n}</span><span class="title">${esc(x.title)}</span></button>`).join('')}
       </div></section>
     </div>`;
 }
@@ -185,6 +190,7 @@ function onVol(input) {
 export function mount(report_) {
   rep = report_;
   songs = rep.songs.map((s, i) => ({ ...s, n: i + 1 }));
+  order = songs.slice().reverse();
   st.shuffle = store.get('shuffle', false);
   st.repeat = store.get('repeat', false);
   st.volume = store.get('volume', 0.8);
@@ -225,7 +231,7 @@ export function mount(report_) {
     const f = el.sheet.querySelector('.p-fill'); if (f) f.style.width = p.pct + '%';
     const t = el.sheet.querySelectorAll('.p-times span'); if (t.length) { t[0].textContent = p.cur; t[1].textContent = p.dur; }
   });
-  audio.addEventListener('ended', () => { st.playing = false; if (st.n < songs.length || st.repeat || st.shuffle) step(1); else render(); });
+  audio.addEventListener('ended', () => { st.playing = false; if (!isLast() || st.repeat || st.shuffle) step(1); else render(); });
 
   if ('mediaSession' in navigator) {
     try {
