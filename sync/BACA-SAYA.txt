@@ -25,3 +25,9 @@ ATURAN YANG DIBACA
 - File yang sedang dirender (berubah < 15 detik lalu) ditunggu dulu.
 - File yang dihapus/di-rename tidak menghapus barisnya; barisnya
   ditandai "file tidak ditemukan" supaya riwayat harga tetap aman.
+
+PENJAGA OTOMATIS (sejak versi modular)
+- install-autostart.bat sekarang menjalankan first-club-supervisor.js.
+  Penjaga ini menyalakan lagi program sync kalau berhenti/crash,
+  dengan jeda yang makin panjang kalau terus-terusan gagal.
+- Jalankan ulang install-autostart.bat sekali setelah update agar penjaga aktif.

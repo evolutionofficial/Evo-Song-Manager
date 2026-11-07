@@ -158,3 +158,10 @@ details > summary::-webkit-details-marker { display: none; }
 .group-h:first-child { border-top: 0; }
 .row.me { background: color-mix(in srgb, var(--accent-bg) 45%, transparent); }
 .cols-list { grid-template-columns: 30px 92px minmax(0, 1fr); }
+
+/* Segmen error: bagian yang gagal disembunyikan, diganti pesan */
+.seg-failed { display: none !important; }
+.seg-err { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); border-radius: var(--radius);
+  padding: 10px 14px; margin: 0 0 14px; font-size: 14px; }
+.seg-err button { min-height: 32px; }

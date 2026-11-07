@@ -24,16 +24,19 @@
 
     <!-- SONGLIST -->
     <section id="songsView">
+      <div id="songsBody">
       <div class="chips" id="scope">
         <button class="chip" aria-pressed="true" data-scope="mine">My songs <span class="n" id="nMine"></span></button>
         <button class="chip" aria-pressed="false" data-scope="all">All songs <span class="n" id="nAll"></span></button>
       </div>
       <div class="bar"><div class="grow"><input type="search" id="qSongs" placeholder="Cari judul" aria-label="Cari judul lagu"></div></div>
       <div class="table" id="songsTable"></div>
+      </div>
     </section>
 
     <!-- INVOICE -->
     <section id="invView" class="hidden">
+      <div id="invBody">
       <div class="cards">
         <div class="stat"><div class="k">Total</div><div class="v" id="sTotal">Rp 0</div></div>
         <div class="stat ok"><div class="k">Sudah dibayar</div><div class="v" id="sPaid">Rp 0</div></div>
@@ -49,107 +52,13 @@
         </select>
       </div>
       <div class="table" id="invTable"></div>
+      </div>
     </section>
   </div>
 
   <footer>Halaman ini hanya bisa dilihat. Hubungi Jeffry kalau ada yang tidak sesuai.</footer>
 </div>
 
-<script type="module">
-import { sb, rupiah, ribu, esc, norm, dateLabel, summarize } from '/js/common.js';
-
-const $ = (id) => document.getElementById(id);
-const token = new URLSearchParams(location.search).get('t') || location.pathname.split('/').filter(Boolean).pop();
-let rep = null;
-let scope = 'mine';
-
-async function load() {
-  const { data, error } = await sb.rpc('get_vocalist_report', { p_token: token || '' });
-  if (error || !data) {
-    $('name').textContent = 'Link tidak ditemukan';
-    $('sub').textContent = 'Link ini salah atau sudah diganti. Minta link terbaru ke Jeffry.';
-    return;
-  }
-  rep = data;
-  document.title = `${rep.name} · First Club`;
-  $('name').textContent = rep.name;
-  $('sub').textContent = `${rep.songs.length} lagu bersama Jeffry`;
-  $('nMine').textContent = rep.songs.length;
-  $('nAll').textContent = rep.all_songs.length;
-  $('app').classList.remove('hidden');
-  const sum = summarize(rep.songs);
-  $('sTotal').textContent = rupiah(sum.total);
-  $('sPaid').textContent = rupiah(sum.paid);
-  $('sRest').textContent = rupiah(sum.rest);
-  $('sCount').textContent = `${sum.paidCount} / ${sum.count}`;
-  if (location.hash === '#invoice') showTab('invoice');
-  renderSongs();
-  renderInvoice();
-}
-
-function showTab(t) {
-  $('tabSongs').setAttribute('aria-selected', t === 'songs');
-  $('tabInv').setAttribute('aria-selected', t === 'invoice');
-  $('songsView').classList.toggle('hidden', t !== 'songs');
-  $('invView').classList.toggle('hidden', t !== 'invoice');
-  history.replaceState(null, '', t === 'invoice' ? '#invoice' : location.pathname + location.search);
-}
-document.querySelector('.tabs').addEventListener('click', (e) => {
-  const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
-});
-
-// ---------- Songlist ----------
-function renderSongs() {
-  const q = norm($('qSongs').value.trim());
-  if (scope === 'mine') {
-    const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).filter((s) => !q || norm(s.title).includes(q));
-    $('songsTable').innerHTML = rows.length
-      ? `<div class="row head cols-list"><span>No</span><span>Tanggal</span><span>Judul</span></div>` +
-        rows.map((s) => `<div class="row cols-list"><span class="no">${s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span></div>`).join('')
-      : `<div class="empty">${q ? 'Tidak ada lagu yang cocok.' : 'Belum ada lagu.'}</div>`;
-    return;
-  }
-  const rows = rep.all_songs.filter((s) => !q || norm(s.title + ' ' + s.vocalist).includes(q));
-  if (!rows.length) { $('songsTable').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
-  const groups = new Map();
-  rows.forEach((s) => { if (!groups.has(s.vocalist)) groups.set(s.vocalist, { mine: s.mine, list: [] }); groups.get(s.vocalist).list.push(s); });
-  const ordered = [...groups.entries()].sort((a, b) => (b[1].mine - a[1].mine) || a[0].localeCompare(b[0]));
-  $('songsTable').innerHTML = ordered.map(([name, g]) =>
-    `<div class="group-h"><span>${esc(name)}${g.mine ? ' <span class="badge ok">kamu</span>' : ''}</span><span class="note">${g.list.length} lagu</span></div>` +
-    g.list.map((s, i) => `<div class="row cols-list ${g.mine ? 'me' : ''}"><span class="no">${i + 1}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span></div>`).join('')
-  ).join('');
-}
-$('scope').addEventListener('click', (e) => {
-  const b = e.target.closest('.chip'); if (!b) return;
-  scope = b.dataset.scope;
-  [...$('scope').children].forEach((c) => c.setAttribute('aria-pressed', c === b));
-  renderSongs();
-});
-$('qSongs').addEventListener('input', () => rep && renderSongs());
-
-// ---------- Invoice ----------
-function renderInvoice() {
-  const q = norm($('qInv').value.trim());
-  const st = $('status').value;
-  const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 }))
-    .filter((s) => (!q || norm(s.title).includes(q)) && (!st || (st === 'paid' ? s.paid : !s.paid)));
-  if (!rows.length) { $('invTable').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
-  const sum = summarize(rows);
-  $('invTable').innerHTML =
-    `<div class="row head cols-view"><span>No</span><span>Tanggal</span><span>Judul</span><span>Harga</span><span>Status</span></div>` +
-    rows.map((s) => `<div class="row cols-view ${s.paid ? 'paid' : ''}">
-      <span class="no dim">${s.n}</span>
-      <span class="date dim">${esc(dateLabel(s))}</span>
-      <span class="title dim">${esc(s.title)}</span>
-      <span class="price dim">${s.price ? ribu(s.price) : '—'}</span>
-      <span class="act">${s.paid ? '<span class="badge ok">Lunas</span>' : (s.price ? '<span class="badge warn">Belum</span>' : '<span class="badge muted">—</span>')}</span>
-    </div>`).join('') +
-    `<div class="row foot cols-view"><span class="no"></span><span class="date"></span><span class="title" style="text-align:right">Total${q || st ? ' (tersaring)' : ''}</span><span class="price">${ribu(sum.total)}</span><span class="act"></span></div>`;
-}
-$('qInv').addEventListener('input', () => rep && renderInvoice());
-$('status').addEventListener('change', () => rep && renderInvoice());
-
-load();
-</script>
+<script type="module" src="/js/apps/vocalist/main.js"></script>
 </body>
 </html>

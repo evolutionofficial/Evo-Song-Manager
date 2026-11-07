@@ -19,11 +19,13 @@ set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 (
   echo Set sh = CreateObject^("WScript.Shell"^)
   echo sh.CurrentDirectory = "%~dp0"
-  echo sh.Run "cmd /c node ""%~dp0first-club-sync.js""", 0, False
+  echo sh.Run "cmd /c node ""%~dp0first-club-supervisor.js""", 0, False
 ) > "%STARTUP%\First Club Sync.vbs"
-powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*first-club-sync.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*first-club-s*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+del "%~dp0supervisor.pid" >nul 2>nul
 wscript "%STARTUP%\First Club Sync.vbs"
 echo.
-echo Selesai. First Club Sync sekarang jalan di background dan otomatis aktif setiap Windows menyala.
+echo Selesai. First Club Sync sekarang jalan di background, dijaga otomatis
+echo ^(kalau mati, menyala lagi sendiri^), dan aktif setiap Windows menyala.
 echo Log: %~dp0sync.log
 pause
