@@ -1,7 +1,7 @@
-// VOKALIS — modul Invoice: harga, status lunas, ringkasan tagihan.
+// VOKALIS — modul Invoice: harga dan status lunas per lagu, total di bawah tabel.
 import { $ } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
-import { rupiah, ribu, esc, norm, dateLabel, summarize } from '/js/core/format.js';
+import { ribu, esc, norm, dateLabel, summarize } from '/js/core/format.js';
 
 let rep;
 
@@ -26,11 +26,6 @@ function render() {
 
 export function mount(report) {
   rep = report;
-  const sum = summarize(rep.songs);
-  $('sTotal').textContent = rupiah(sum.total);
-  $('sPaid').textContent = rupiah(sum.paid);
-  $('sRest').textContent = rupiah(sum.rest);
-  $('sCount').textContent = `${sum.paidCount} / ${sum.count}`;
   on($('qInv'), 'input', 'Invoice', render);
   on($('status'), 'change', 'Invoice', render);
   render();

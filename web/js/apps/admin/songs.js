@@ -4,7 +4,7 @@
 import { PRICES } from '/js/core/config.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
-import { rupiah, ribu, esc, norm, dateLabel, summarize, fmtDate } from '/js/core/format.js';
+import { ribu, esc, norm, dateLabel, summarize, fmtDate } from '/js/core/format.js';
 import { state, curVoc, vocSongs, shareUrl, updateSong } from './data.js';
 
 let ctx;
@@ -15,10 +15,6 @@ export function render() {
   const sum = summarize(songs);
   $('vName').textContent = v.display_name;
   $('vSub').textContent = `${songs.length} lagu · ${sum.priced} sudah diberi harga` + (v.active ? '' : ' · folder tidak ditemukan di PC');
-  $('sTotal').textContent = rupiah(sum.total);
-  $('sPaid').textContent = rupiah(sum.paid);
-  $('sRest').textContent = rupiah(sum.rest);
-  $('sCount').textContent = `${sum.paidCount} / ${sum.count}`;
   $('vLink').value = shareUrl(v);
   $('openLink').href = shareUrl(v);
   renderTable();
