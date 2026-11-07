@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Audio Format Test · First Club</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .fmt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.06); }
+  .fmt:first-child { border-top: 0; }
+  .fmt b { color: #fff; }
+  .fmt .meta { font-size: 12.5px; color: var(--muted); }
+  .fmt audio { grid-column: 1 / -1; width: 100%; height: 40px; }
+  .res { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .res.ok { color: var(--ok); } .res.bad { color: var(--bad); } .res.wait { color: var(--muted); }
+  #verdict { font-size: 17px; font-weight: 700; color: #fff; margin: 0 0 6px; }
+  #device { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:620px">
+  <header class="top vtop"><div class="brand">First Club</div></header>
+  <h1>Audio format test</h1>
+  <p class="sub">Checks which audio format this phone can play. Tap the button, then also try playing each sample.</p>
+
+  <div class="panel">
+    <p id="verdict">Not tested yet</p>
+    <p id="device"></p>
+    <button class="primary" id="run" style="margin-top:8px">Run test</button>
+  </div>
+
+  <div class="table">
+    <div class="fmt" data-key="opus">
+      <div><b>Opus (.opus)</b> <span class="meta">· 96 kbps · smallest</span></div><span class="res wait" id="r-opus">–</span>
+      <audio controls preload="none" src="/test/sample.opus"></audio>
+    </div>
+    <div class="fmt" data-key="webm">
+      <div><b>Opus in WebM (.webm)</b> <span class="meta">· 96 kbps</span></div><span class="res wait" id="r-webm">–</span>
+      <audio controls preload="none" src="/test/sample.webm"></audio>
+    </div>
+    <div class="fmt" data-key="m4a">
+      <div><b>M4A / AAC (.m4a)</b> <span class="meta">· 128 kbps</span></div><span class="res wait" id="r-m4a">–</span>
+      <audio controls preload="none" src="/test/sample.m4a"></audio>
+    </div>
+  </div>
+  <p class="note" style="margin-top:12px">Please send a screenshot of this page (after tapping Run test) to Jeffry.</p>
+</div>
+
+<script>
+  const ua = navigator.userAgent;
+  const ios = (ua.match(/OS (\d+)_(\d+)(?:_(\d+))? like Mac OS X/) || []);
+  document.getElementById('device').textContent =
+    (ios[1] ? `iOS ${ios[1]}.${ios[2]}${ios[3] ? '.' + ios[3] : ''} · ` : '') + ua;
+
+  const FILES = { opus: '/test/sample.opus', webm: '/test/sample.webm', m4a: '/test/sample.m4a' };
+
+  // Uji nyata: putar (tanpa suara) beberapa detik dan pastikan waktu benar-benar berjalan.
+  function test(key) {
+    return new Promise((resolve) => {
+      const a = new Audio();
+      a.muted = true; a.preload = 'auto'; a.src = FILES[key];
+      let done = false;
+      const finish = (ok, why) => { if (done) return; done = true; a.pause(); resolve({ ok, why }); };
+      a.addEventListener('error', () => finish(false, 'cannot decode'));
+      a.addEventListener('timeupdate', () => { if (a.currentTime > 0.5) finish(true, Number.isFinite(a.duration) ? `plays · ${a.duration.toFixed(1)} s` : 'plays · length unknown'); });
+      setTimeout(() => finish(false, 'no playback after 8 s'), 8000);
+      const p = a.play(); if (p && p.catch) p.catch((e) => finish(false, e.name));
+    });
+  }
+
+  document.getElementById('run').addEventListener('click', async () => {
+    const v = document.getElementById('verdict');
+    v.textContent = 'Testing…';
+    const out = {};
+    for (const key of Object.keys(FILES)) {
+      const el = document.getElementById('r-' + key);
+      el.className = 'res wait'; el.textContent = 'testing…';
+      out[key] = await test(key);
+      el.className = 'res ' + (out[key].ok ? 'ok' : 'bad');
+      el.textContent = (out[key].ok ? '✓ ' : '✗ ') + out[key].why;
+    }
+    v.textContent = out.opus.ok ? 'Opus works on this phone ✓'
+      : out.webm.ok ? 'Opus works only in WebM on this phone'
+      : out.m4a.ok ? 'Opus does NOT work here — M4A works ✓'
+      : 'Neither format played — please tell Jeffry';
+  });
+</script>
+</body>
+</html>
