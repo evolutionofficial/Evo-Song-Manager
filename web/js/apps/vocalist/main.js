@@ -9,6 +9,7 @@ installGlobalHandlers();
 const MODULES = [
   { key: 'songlist', label: 'Songlist', path: '/js/apps/vocalist/songlist.js', el: 'songsBody' },
   { key: 'invoice', label: 'Invoice', path: '/js/apps/vocalist/invoice.js', el: 'invBody' },
+  { key: 'send', label: 'Send to FC', path: '/js/apps/vocalist/send.js', el: null },
   { key: 'player', label: 'Player', path: '/js/apps/vocalist/player.js', el: 'playerBody' },
 ];
 
