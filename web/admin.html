@@ -19,8 +19,20 @@
       <div class="err" id="loginErr"></div>
       <div class="bar" style="margin:6px 0 0">
         <button class="primary" type="submit">Masuk</button>
+        <button type="button" id="forgotBtn" class="ghost">Lupa password</button>
         <button type="button" id="signupBtn" class="ghost">Buat akun admin (sekali saja)</button>
       </div>
+    </form>
+  </section>
+
+  <!-- Set new password (after reset link) -->
+  <section id="resetView" class="login hidden">
+    <div class="brand" style="margin-bottom:14px">First Club<small>Buat password baru</small></div>
+    <form id="resetForm" class="panel">
+      <div class="field"><label for="pw1">Password baru</label><input id="pw1" type="password" autocomplete="new-password" minlength="6" required></div>
+      <div class="field"><label for="pw2">Ulangi password baru</label><input id="pw2" type="password" autocomplete="new-password" minlength="6" required></div>
+      <div class="err" id="resetErr"></div>
+      <button class="primary" type="submit">Simpan password</button>
     </form>
   </section>
 
@@ -129,6 +141,7 @@ const state = { vocalists: [], songs: [], unmatched: [], settings: null, tab: nu
 
 // ---------- auth ----------
 async function boot() {
+  if (recovering) return showReset();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return showLogin();
   const { data: ok } = await sb.rpc('is_admin');
@@ -433,7 +446,41 @@ $('vocSettings').addEventListener('click', async (e) => {
   }
 });
 
-sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_OUT') showLogin(); });
+// ---------- lupa password ----------
+let recovering = /type=recovery/.test(location.hash);
+$('forgotBtn').addEventListener('click', async () => {
+  const email = $('email').value.trim();
+  if (!email) { $('loginErr').textContent = 'Isi email dulu, lalu tekan Lupa password.'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/admin.html' });
+  $('loginErr').textContent = error
+    ? 'Gagal mengirim email: ' + error.message
+    : 'Link reset password sudah dikirim ke email. Buka link itu dari HP/PC ini.';
+});
+function showReset() {
+  recovering = true;
+  $('loginView').classList.add('hidden');
+  $('appView').classList.add('hidden');
+  $('resetView').classList.remove('hidden');
+}
+$('resetForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const a = $('pw1').value, b = $('pw2').value;
+  if (a.length < 6) { $('resetErr').textContent = 'Password minimal 6 karakter.'; return; }
+  if (a !== b) { $('resetErr').textContent = 'Kedua password tidak sama.'; return; }
+  const { error } = await sb.auth.updateUser({ password: a });
+  if (error) { $('resetErr').textContent = 'Gagal: ' + error.message; return; }
+  recovering = false;
+  history.replaceState(null, '', location.pathname);
+  $('resetView').classList.add('hidden');
+  toast('Password baru disimpan');
+  boot();
+});
+
+sb.auth.onAuthStateChange((evt) => {
+  if (evt === 'PASSWORD_RECOVERY') showReset();
+  else if (evt === 'SIGNED_OUT' && !recovering) showLogin();
+});
+if (recovering) showReset();
 boot();
 </script>
 </body>
