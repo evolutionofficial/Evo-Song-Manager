@@ -68,7 +68,7 @@ export function init(c) {
   on($('forgotBtn'), 'click', 'Login', async () => {
     const email = $('email').value.trim();
     if (!email) { $('loginErr').textContent = 'Isi email dulu, lalu tekan Lupa password.'; return; }
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/admin.html' });
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     $('loginErr').textContent = error
       ? 'Gagal mengirim email: ' + error.message
       : 'Link reset password sudah dikirim ke email. Buka link itu dari HP/PC ini.';

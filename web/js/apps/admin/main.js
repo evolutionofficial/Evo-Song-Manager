@@ -2,7 +2,7 @@
 // Modul fitur tidak saling mengimpor; mereka berkomunikasi lewat ctx.
 import { $, toast } from '/js/core/ui.js';
 import { safe, on, loadModules, installGlobalHandlers } from '/js/core/guard.js';
-import { esc, timeAgo, ribu, summarize } from '/js/core/format.js';
+import { esc, timeAgo } from '/js/core/format.js';
 import { state, loadAll } from './data.js';
 
 installGlobalHandlers();
@@ -64,11 +64,10 @@ function renderSyncInfo() {
 function renderTabs() {
   const items = state.vocalists.map((v) => {
     const list = state.songs.filter((s) => s.vocalist_id === v.id && !s.deleted);
-    const sum = summarize(list);
     const sel = state.tab === 'v:' + v.id;
     return `<button class="nav-item" style="--i:${state.vocalists.indexOf(v)}" aria-current="${sel ? 'page' : 'false'}" data-tab="v:${v.id}">
       <span class="nav-name">${esc(v.display_name)}</span>
-      <span class="nav-meta">${list.length} lagu${sum.rest ? ` · sisa ${ribu(sum.rest)}` : ''}</span>
+      <span class="nav-meta">${list.length} lagu</span>
     </button>`;
   });
   const un = state.unmatched.length;
