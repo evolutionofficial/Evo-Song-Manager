@@ -1,0 +1,27 @@
+FIRST CLUB SYNC
+===============
+Program kecil yang memantau D:\FIRST CLUB dan mengirim daftar file
+Mixdown (format "Nama - Judul.wav") ke web app First Club.
+
+PASANG (sekali saja)
+1. Pastikan Node.js sudah terpasang (https://nodejs.org, versi LTS).
+2. Double-click  install-autostart.bat
+   - Ia langsung sync sekali untuk mengecek.
+   - Setelah itu program jalan di background dan otomatis aktif
+     setiap Windows menyala.
+
+FILE LAIN
+- sync-sekarang.bat       : sync sekali secara manual (lihat hasilnya).
+- uninstall-autostart.bat : matikan dan lepas dari startup.
+- sync.log                : catatan setiap sync.
+- config.json             : pengaturan. JANGAN dibagikan ke orang lain
+                            (berisi kunci sync).
+
+ATURAN YANG DIBACA
+- Setiap folder langsung di bawah D:\FIRST CLUB = satu vokalis.
+  (Folder yang namanya diawali _ atau . diabaikan.)
+- File .wav di dalam folder bernama "Mixdown" (sedalam apa pun)
+  dengan nama "Nama - Judul.wav" masuk ke tabel vokalis sesuai Nama.
+- File yang sedang dirender (berubah < 15 detik lalu) ditunggu dulu.
+- File yang dihapus/di-rename tidak menghapus barisnya; barisnya
+  ditandai "file tidak ditemukan" supaya riwayat harga tetap aman.

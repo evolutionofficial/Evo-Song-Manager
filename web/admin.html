@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin · First Club</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Login -->
+  <section id="loginView" class="login hidden">
+    <div class="brand" style="margin-bottom:14px">First Club<small>Masuk sebagai admin</small></div>
+    <form id="loginForm" class="panel">
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" minlength="6" required></div>
+      <div class="err" id="loginErr"></div>
+      <div class="bar" style="margin:6px 0 0">
+        <button class="primary" type="submit">Masuk</button>
+        <button type="button" id="signupBtn" class="ghost">Buat akun admin (sekali saja)</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- App -->
+  <section id="appView" class="hidden">
+    <header class="top">
+      <div class="brand">First Club<small id="syncInfo">Admin</small></div>
+      <div class="bar" style="margin:0">
+        <a class="btn" href="/" target="_blank" rel="noopener">Semua lagu ↗</a>
+        <button id="reloadBtn" title="Muat ulang data">Muat ulang</button>
+        <button id="logoutBtn" class="ghost">Keluar</button>
+      </div>
+    </header>
+
+    <div class="chips" id="tabs"></div>
+
+    <!-- Vocalist view -->
+    <div id="vocView">
+      <h1 id="vName"></h1>
+      <p class="sub" id="vSub"></p>
+      <div class="cards">
+        <div class="stat"><div class="k">Total</div><div class="v" id="sTotal">Rp 0</div></div>
+        <div class="stat ok"><div class="k">Sudah dibayar</div><div class="v" id="sPaid">Rp 0</div></div>
+        <div class="stat warn"><div class="k">Sisa</div><div class="v" id="sRest">Rp 0</div></div>
+        <div class="stat"><div class="k">Lagu lunas</div><div class="v" id="sCount">0 / 0</div></div>
+      </div>
+
+      <div class="panel" style="padding:12px 14px">
+        <div class="field" style="margin:0">
+          <label for="vLink">Link untuk vokalis (hanya bisa lihat)</label>
+          <div class="linkbox">
+            <input id="vLink" type="text" readonly>
+            <button id="copyLink">Salin</button>
+            <a class="btn" id="openLink" target="_blank" rel="noopener">Buka ↗</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="bar">
+        <div class="grow"><input type="search" id="q" placeholder="Cari judul" aria-label="Cari judul"></div>
+        <select id="status" aria-label="Filter status" style="width:auto">
+          <option value="">Semua</option>
+          <option value="noprice">Belum ada harga</option>
+          <option value="unpaid">Belum lunas</option>
+          <option value="paid">Lunas</option>
+        </select>
+      </div>
+      <div class="bar">
+        <span class="note">Isi harga untuk semua lagu yang masih kosong:</span>
+        <span id="bulkBtns"></span>
+      </div>
+
+      <div class="table" id="table"></div>
+
+      <details class="panel" id="delBox" style="margin-top:14px">
+        <summary style="cursor:pointer;font-weight:600">Terhapus <span id="delCount" class="badge muted">0</span></summary>
+        <p class="note" style="margin:8px 0 10px">Lagu di sini tidak tampil di halaman vokalis dan tidak dimasukkan lagi oleh sync walaupun file-nya masih ada di PC.</p>
+        <div id="delList"></div>
+      </details>
+    </div>
+
+    <dialog id="repDlg">
+      <form method="dialog" class="repform">
+        <h2 style="margin:0 0 6px;font-size:17px">Ganti dengan file revisi</h2>
+        <p class="note" style="margin:0 0 12px">Lagu: <b id="repTitle"></b><br>Judul, harga, dan status lunas tetap. File baru mengambil alih baris ini; file lama tidak dihitung lagi.</p>
+        <div class="field"><label for="repSel">File revisi</label><select id="repSel"></select></div>
+        <div class="err" id="repErr"></div>
+        <div class="bar" style="margin:8px 0 0;justify-content:flex-end">
+          <button value="cancel" formnovalidate>Batal</button>
+          <button class="primary" id="repOk" value="ok">Ganti</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Unmatched -->
+    <div id="unView" class="hidden">
+      <h1>Perlu dicek</h1>
+      <p class="sub">File di folder Mixdown dengan nama depan yang tidak cocok dengan folder vokalis mana pun. Pilih ke tabel siapa file ini masuk. Ke depannya, file dengan nama depan yang sama otomatis masuk ke situ.</p>
+      <div id="unList"></div>
+    </div>
+
+    <!-- Settings -->
+    <div id="setView" class="hidden">
+      <h1>Pengaturan</h1>
+      <div class="panel">
+        <h2>Halaman semua lagu (publik)</h2>
+        <label style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="showPrices" style="width:auto;min-height:0">
+          Tampilkan harga dan status lunas di halaman semua lagu
+        </label>
+        <p class="note">Kalau dimatikan, halaman publik hanya menampilkan nama vokalis, tanggal, dan judul. Harga tetap terlihat di link masing-masing vokalis.</p>
+      </div>
+      <div class="panel">
+        <h2>Vokalis</h2>
+        <div id="vocSettings"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { sb, PRICES, rupiah, ribu, esc, norm, dateLabel, summarize, toast, fmtDate } from '/js/common.js';
+
+const $ = (id) => document.getElementById(id);
+const state = { vocalists: [], songs: [], unmatched: [], settings: null, tab: null };
+
+// ---------- auth ----------
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return showLogin();
+  const { data: ok } = await sb.rpc('is_admin');
+  if (!ok) {
+    showLogin(`Akun ${session.user.email} bukan admin.`);
+    await sb.auth.signOut();
+    return;
+  }
+  $('loginView').classList.add('hidden');
+  $('appView').classList.remove('hidden');
+  await loadAll();
+}
+function showLogin(msg = '') {
+  $('appView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+  $('loginErr').textContent = msg;
+}
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+  if (error) {
+    $('loginErr').textContent = /confirm/i.test(error.message)
+      ? 'Email belum dikonfirmasi. Buka email konfirmasi dari Supabase dulu.'
+      : 'Email atau password salah.';
+    return;
+  }
+  boot();
+});
+$('signupBtn').addEventListener('click', async () => {
+  const email = $('email').value.trim(), password = $('pw').value;
+  if (!email || password.length < 6) { $('loginErr').textContent = 'Isi email dan password (minimal 6 karakter) dulu.'; return; }
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) { $('loginErr').textContent = error.message; return; }
+  if (data.session) boot();
+  else $('loginErr').textContent = 'Akun dibuat. Cek email untuk konfirmasi, lalu tekan Masuk.';
+});
+$('logoutBtn').addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+// ---------- data ----------
+async function loadAll() {
+  const [v, s, u, st] = await Promise.all([
+    sb.from('vocalists').select('*').order('display_name'),
+    sb.from('songs').select('id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at').order('sort_date', { ascending: true, nullsFirst: false }),
+    sb.from('unmatched_files').select('*').order('file_mtime'),
+    sb.from('app_settings').select('*').eq('id', 1).single(),
+  ]);
+  const err = v.error || s.error || u.error || st.error;
+  if (err) { toast('Gagal memuat data: ' + err.message, 'bad'); return; }
+  state.vocalists = v.data; state.songs = s.data; state.unmatched = u.data; state.settings = st.data;
+  if (!state.tab || (state.tab.startsWith('v:') && !state.vocalists.some((x) => 'v:' + x.id === state.tab))) {
+    state.tab = state.vocalists[0] ? 'v:' + state.vocalists[0].id : 'set';
+  }
+  renderSyncInfo();
+  renderTabs();
+  renderView();
+}
+$('reloadBtn').addEventListener('click', loadAll);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('appView').classList.contains('hidden')) loadAll(); });
+
+function renderSyncInfo() {
+  const t = state.settings?.last_sync;
+  if (!t) { $('syncInfo').textContent = 'Belum pernah sync'; return; }
+  const min = Math.round((Date.now() - new Date(t)) / 60000);
+  const ago = min < 1 ? 'baru saja' : min < 60 ? `${min} menit lalu` : min < 1440 ? `${Math.round(min / 60)} jam lalu` : fmtDate(t);
+  $('syncInfo').textContent = `Sync terakhir dari PC: ${ago}` + (min > 30 ? ' · program sync mungkin tidak jalan' : '');
+}
+
+function renderTabs() {
+  const tabs = state.vocalists.map((v) => {
+    const n = state.songs.filter((s) => s.vocalist_id === v.id && !s.deleted).length;
+    return `<button class="chip" aria-pressed="${state.tab === 'v:' + v.id}" data-tab="v:${v.id}">${esc(v.display_name)} <span class="n">${n}</span></button>`;
+  });
+  const un = state.unmatched.length;
+  tabs.push(`<button class="chip ${un ? 'alert' : ''}" aria-pressed="${state.tab === 'un'}" data-tab="un">Perlu dicek <span class="n">${un}</span></button>`);
+  tabs.push(`<button class="chip" aria-pressed="${state.tab === 'set'}" data-tab="set">Pengaturan</button>`);
+  $('tabs').innerHTML = tabs.join('');
+}
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  state.tab = b.dataset.tab; $('q').value = ''; $('status').value = '';
+  renderTabs(); renderView();
+});
+
+function renderView() {
+  const t = state.tab;
+  $('vocView').classList.toggle('hidden', !t.startsWith('v:'));
+  $('unView').classList.toggle('hidden', t !== 'un');
+  $('setView').classList.toggle('hidden', t !== 'set');
+  if (t.startsWith('v:')) renderVocalist();
+  else if (t === 'un') renderUnmatched();
+  else renderSettings();
+}
+
+// ---------- vocalist table ----------
+const curVoc = () => state.vocalists.find((v) => 'v:' + v.id === state.tab);
+const vocSongs = () => state.songs.filter((s) => s.vocalist_id === curVoc()?.id && !s.deleted);
+const vocDeleted = () => state.songs.filter((s) => s.vocalist_id === curVoc()?.id && s.deleted);
+const shareUrl = (v) => `${location.origin}/v/${v.share_token}`;
+
+function renderVocalist() {
+  const v = curVoc(); if (!v) return;
+  const songs = vocSongs();
+  const sum = summarize(songs);
+  $('vName').textContent = v.display_name;
+  $('vSub').textContent = `${songs.length} lagu · ${sum.priced} sudah diberi harga` + (v.active ? '' : ' · folder tidak ditemukan di PC');
+  $('sTotal').textContent = rupiah(sum.total);
+  $('sPaid').textContent = rupiah(sum.paid);
+  $('sRest').textContent = rupiah(sum.rest);
+  $('sCount').textContent = `${sum.paidCount} / ${sum.count}`;
+  $('vLink').value = shareUrl(v);
+  $('openLink').href = shareUrl(v);
+  $('bulkBtns').innerHTML = PRICES.map((p) => `<button data-bulk="${p}">${ribu(p)}</button>`).join(' ');
+  renderTable();
+  renderDeleted();
+}
+
+function renderDeleted() {
+  const del = vocDeleted();
+  $('delCount').textContent = del.length;
+  $('delBox').classList.toggle('hidden', !del.length);
+  $('delList').innerHTML = del.map((s) => `<div class="delrow">
+      <span><b>${esc(s.title)}</b> <span class="note">· ${esc(dateLabel(s))}${s.price ? ' · ' + ribu(s.price) : ''}${s.paid ? ' · lunas' : ''}</span></span>
+      <button data-restore="${s.id}">Kembalikan</button>
+    </div>`).join('');
+}
+$('delList').addEventListener('click', async (e) => {
+  const id = e.target.dataset.restore; if (!id) return;
+  const ok = await updateSong(id, { deleted: false });
+  if (ok) { renderTabs(); toast('Lagu dikembalikan'); }
+});
+
+function renderTable() {
+  const q = norm($('q').value.trim());
+  const st = $('status').value;
+  const all = vocSongs().map((s, i) => ({ ...s, n: i + 1 }));
+  const rows = all.filter((s) => (!q || norm(s.title).includes(q)) &&
+    (!st || (st === 'paid' ? s.paid : st === 'unpaid' ? !s.paid : !s.price)));
+  if (!all.length) { $('table').innerHTML = `<div class="empty">Belum ada lagu untuk vokalis ini.</div>`; return; }
+  if (!rows.length) { $('table').innerHTML = `<div class="empty">Tidak ada lagu yang cocok.</div>`; return; }
+  const sum = summarize(rows);
+  $('table').innerHTML =
+    `<div class="row head cols-admin"><span>No</span><span>Tanggal</span><span>Judul</span><span>Harga</span><span>Status</span><span>Aksi</span></div>` +
+    rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
+      <span class="no dim">${s.n}</span>
+      <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
+      <span class="title dim" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Diganti ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revisi ${s.revision}</span>` : ''}${s.missing ? ' <span class="badge bad" title="File sudah tidak ada di PC; lagu tetap tersimpan sebagai riwayat">file tidak ada di PC</span>' : ''}</span>
+      <span class="price dim"><select data-price="${s.id}" ${s.paid ? 'disabled' : ''} aria-label="Harga ${esc(s.title)}">
+        <option value="">—</option>
+        ${PRICES.concat(s.price && !PRICES.includes(s.price) ? [s.price] : []).map((p) => `<option value="${p}" ${s.price === p ? 'selected' : ''}>${ribu(p)}</option>`).join('')}
+      </select></span>
+      <span class="act"><button class="paidbtn ${s.paid ? 'on' : ''}" data-paid="${s.id}" aria-pressed="${s.paid}">${s.paid ? '✓ Lunas' : 'Paid'}</button></span>
+      <span class="ops"><button class="mini" data-rep="${s.id}" title="Ganti dengan file revisi">Ganti</button><button class="mini danger" data-del="${s.id}" title="Hapus dari daftar">Hapus</button></span>
+    </div>`).join('') +
+    `<div class="row foot cols-admin"><span class="no"></span><span class="date"></span><span class="title" style="text-align:right">Total${q || st ? ' (tersaring)' : ''}</span><span class="price">${ribu(sum.total)}</span><span class="act"></span><span class="ops"></span></div>`;
+}
+$('q').addEventListener('input', renderTable);
+$('status').addEventListener('change', renderTable);
+
+async function updateSong(id, patch) {
+  const s = state.songs.find((x) => x.id === id);
+  const before = { ...s };
+  Object.assign(s, patch);
+  renderVocalist();
+  const { data, error } = await sb.from('songs').update(patch).eq('id', id).select('id,price,paid,paid_at,deleted,deleted_at').single();
+  if (error) { Object.assign(s, before); renderVocalist(); toast('Gagal menyimpan: ' + error.message, 'bad'); return false; }
+  Object.assign(s, data);
+  return true;
+}
+
+$('table').addEventListener('change', (e) => {
+  const id = e.target.dataset.price; if (!id) return;
+  const v = e.target.value ? Number(e.target.value) : null;
+  updateSong(id, { price: v }).then((ok) => ok && toast('Harga disimpan'));
+});
+$('table').addEventListener('click', async (e) => {
+  const pid = e.target.closest('[data-paid]')?.dataset.paid;
+  if (pid) {
+    const s = state.songs.find((x) => x.id === pid);
+    if (!s.paid && !s.price) { toast('Pilih harga dulu sebelum menandai lunas', 'bad'); return; }
+    const ok = await updateSong(pid, { paid: !s.paid });
+    if (ok) toast(s.paid ? 'Ditandai lunas' : 'Status lunas dibatalkan');
+    return;
+  }
+  const did = e.target.dataset.del;
+  if (did) {
+    const s = state.songs.find((x) => x.id === did);
+    const extra = s.paid ? `\n\nLagu ini sudah LUNAS (${ribu(s.price)}). Kalau dihapus, nilainya tidak dihitung lagi di invoice.` : '';
+    if (!confirm(`Hapus "${s.title}" dari daftar?\n\nLagu ini hilang dari halaman vokalis dan tidak dimasukkan lagi oleh sync. Bisa dikembalikan dari bagian "Terhapus".${extra}`)) return;
+    const ok = await updateSong(did, { deleted: true });
+    if (ok) { renderTabs(); toast('Lagu dihapus dari daftar'); }
+    return;
+  }
+  const rid = e.target.dataset.rep;
+  if (rid) openReplace(rid);
+});
+
+// ---------- replace (revisi) ----------
+let repFrom = null;
+function openReplace(id) {
+  const s = state.songs.find((x) => x.id === id);
+  const cands = vocSongs().filter((x) => x.id !== id)
+    .sort((a, b) => new Date(b.file_mtime || 0) - new Date(a.file_mtime || 0));
+  if (!cands.length) return toast('Belum ada file lain dari vokalis ini untuk dijadikan revisi', 'bad');
+  repFrom = s;
+  $('repTitle').textContent = s.title;
+  $('repErr').textContent = '';
+  $('repSel').innerHTML = `<option value="">Pilih file…</option>` + cands.map((c) =>
+    `<option value="${c.id}">${esc(fmtDate(c.file_mtime))} · ${esc(c.file_name)}${c.price ? ' · ' + ribu(c.price) : ''}${c.paid ? ' · lunas' : ''}</option>`).join('');
+  $('repDlg').showModal();
+}
+$('repOk').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const to = $('repSel').value;
+  if (!to) { $('repErr').textContent = 'Pilih file revisinya dulu.'; return; }
+  $('repOk').disabled = true;
+  const { error } = await sb.rpc('replace_song', { p_old: repFrom.id, p_new: to });
+  $('repOk').disabled = false;
+  if (error) { $('repErr').textContent = error.message; return; }
+  $('repDlg').close();
+  toast(`"${repFrom.title}" diganti dengan file revisi`);
+  loadAll();
+});
+$('repSel').addEventListener('change', () => ($('repErr').textContent = ''));
+$('bulkBtns').addEventListener('click', async (e) => {
+  const p = Number(e.target.dataset.bulk); if (!p) return;
+  const v = curVoc();
+  const targets = vocSongs().filter((s) => !s.price && !s.paid);
+  if (!targets.length) return toast('Semua lagu sudah punya harga');
+  if (!confirm(`Isi harga ${ribu(p)} untuk ${targets.length} lagu ${v.display_name} yang masih kosong?`)) return;
+  const { error } = await sb.from('songs').update({ price: p }).in('id', targets.map((s) => s.id));
+  if (error) return toast('Gagal: ' + error.message, 'bad');
+  targets.forEach((s) => (s.price = p));
+  renderVocalist(); toast(`${targets.length} lagu diisi ${ribu(p)}`);
+});
+$('copyLink').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('vLink').value); toast('Link disalin'); }
+  catch { $('vLink').select(); toast('Tekan Ctrl+C untuk menyalin'); }
+});
+
+// ---------- unmatched ----------
+function renderUnmatched() {
+  if (!state.unmatched.length) { $('unList').innerHTML = `<div class="table"><div class="empty">Tidak ada file yang perlu dicek.</div></div>`; return; }
+  const groups = {};
+  state.unmatched.forEach((u) => (groups[u.prefix] ||= []).push(u));
+  const opts = state.vocalists.map((v) => `<option value="${v.id}">${esc(v.display_name)}</option>`).join('');
+  $('unList').innerHTML = Object.entries(groups).map(([prefix, files]) => `
+    <div class="panel">
+      <h2>Nama di file: “${esc(prefix)}” <span class="badge warn">${files.length} file</span></h2>
+      <ul class="note" style="margin:0 0 12px;padding-left:18px">${files.map((f) => `<li>${esc(f.file_name)} <span style="color:var(--faint)">· ${esc(f.rel_path)}</span></li>`).join('')}</ul>
+      <div class="bar" style="margin:0">
+        <select data-assign-sel="${esc(prefix)}" style="width:auto"><option value="">Masukkan ke tabel…</option>${opts}</select>
+        <button data-assign="${esc(prefix)}">Simpan</button>
+      </div>
+    </div>`).join('');
+}
+$('unList').addEventListener('click', async (e) => {
+  const prefix = e.target.dataset.assign; if (prefix === undefined) return;
+  const sel = [...document.querySelectorAll('[data-assign-sel]')].find((s) => s.dataset.assignSel === prefix);
+  if (!sel.value) return toast('Pilih vokalis dulu', 'bad');
+  const { data, error } = await sb.rpc('assign_prefix', { p_prefix: prefix, p_vocalist: sel.value });
+  if (error) return toast('Gagal: ' + error.message, 'bad');
+  toast(`${data} file dipindahkan`);
+  loadAll();
+});
+
+// ---------- settings ----------
+function renderSettings() {
+  $('showPrices').checked = !!state.settings?.show_prices_public;
+  $('vocSettings').innerHTML = state.vocalists.map((v) => `
+    <div class="field" style="border-top:1px solid var(--line);padding-top:12px">
+      <label>Folder: ${esc(v.folder_name)}${v.aliases?.length ? ' · juga menerima nama: ' + v.aliases.map(esc).join(', ') : ''}${v.active ? '' : ' · <span style="color:var(--bad)">folder tidak ada di PC</span>'}</label>
+      <div class="linkbox">
+        <input type="text" value="${esc(v.display_name)}" data-name="${v.id}" aria-label="Nama tampilan ${esc(v.display_name)}">
+        <button data-savename="${v.id}">Simpan nama</button>
+        <button data-regen="${v.id}" title="Link lama tidak bisa dipakai lagi">Ganti link</button>
+      </div>
+    </div>`).join('');
+}
+$('showPrices').addEventListener('change', async (e) => {
+  const { error } = await sb.from('app_settings').update({ show_prices_public: e.target.checked }).eq('id', 1);
+  if (error) { e.target.checked = !e.target.checked; return toast('Gagal: ' + error.message, 'bad'); }
+  state.settings.show_prices_public = e.target.checked;
+  toast(e.target.checked ? 'Harga ditampilkan di halaman publik' : 'Harga disembunyikan dari halaman publik');
+});
+$('vocSettings').addEventListener('click', async (e) => {
+  const sid = e.target.dataset.savename, rid = e.target.dataset.regen;
+  if (sid) {
+    const name = document.querySelector(`[data-name="${sid}"]`).value.trim();
+    if (!name) return toast('Nama tidak boleh kosong', 'bad');
+    const { error } = await sb.from('vocalists').update({ display_name: name }).eq('id', sid);
+    if (error) return toast('Gagal: ' + error.message, 'bad');
+    state.vocalists.find((v) => v.id === sid).display_name = name;
+    renderTabs(); toast('Nama disimpan');
+  }
+  if (rid) {
+    const v = state.vocalists.find((x) => x.id === rid);
+    if (!confirm(`Ganti link ${v.display_name}? Link lama langsung tidak bisa dibuka lagi.`)) return;
+    const { data, error } = await sb.rpc('regenerate_token', { p_vocalist: rid });
+    if (error) return toast('Gagal: ' + error.message, 'bad');
+    v.share_token = data; toast('Link baru dibuat. Lihat di tab ' + v.display_name);
+  }
+});
+
+sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_OUT') showLogin(); });
+boot();
+</script>
+</body>
+</html>
