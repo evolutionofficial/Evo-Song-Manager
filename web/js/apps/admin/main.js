@@ -2,7 +2,7 @@
 // Modul fitur tidak saling mengimpor; mereka berkomunikasi lewat ctx.
 import { $, toast } from '/js/core/ui.js';
 import { safe, on, loadModules, installGlobalHandlers } from '/js/core/guard.js';
-import { esc, timeAgo } from '/js/core/format.js';
+import { esc, timeAgo, ribu, summarize } from '/js/core/format.js';
 import { state, loadAll } from './data.js';
 
 installGlobalHandlers();
@@ -50,7 +50,7 @@ async function reload() {
 
 function renderAll() {
   safe('Status sync', renderSyncInfo);
-  safe('Menu tab', renderTabs);
+  safe('Sidebar', renderTabs);
   safe('Tampilan', renderView);
 }
 
@@ -62,14 +62,27 @@ function renderSyncInfo() {
 }
 
 function renderTabs() {
-  const tabs = state.vocalists.map((v) => {
-    const n = state.songs.filter((s) => s.vocalist_id === v.id && !s.deleted).length;
-    return `<button class="chip" aria-pressed="${state.tab === 'v:' + v.id}" data-tab="v:${v.id}">${esc(v.display_name)} <span class="n">${n}</span></button>`;
+  const items = state.vocalists.map((v) => {
+    const list = state.songs.filter((s) => s.vocalist_id === v.id && !s.deleted);
+    const sum = summarize(list);
+    const sel = state.tab === 'v:' + v.id;
+    return `<button class="nav-item" aria-current="${sel ? 'page' : 'false'}" data-tab="v:${v.id}">
+      <span class="nav-name">${esc(v.display_name)}</span>
+      <span class="nav-meta">${list.length} lagu${sum.rest ? ` · sisa ${ribu(sum.rest)}` : ''}</span>
+    </button>`;
   });
   const un = state.unmatched.length;
-  tabs.push(`<button class="chip ${un ? 'alert' : ''}" aria-pressed="${state.tab === 'un'}" data-tab="un">Perlu dicek <span class="n">${un}</span></button>`);
-  tabs.push(`<button class="chip" aria-pressed="${state.tab === 'set'}" data-tab="set">Pengaturan</button>`);
-  $('tabs').innerHTML = tabs.join('');
+  items.push(`<div class="side-sep"></div>`);
+  items.push(`<button class="nav-item ${un ? 'alert' : ''}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
+    <span class="nav-name">Perlu dicek${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
+  items.push(`<button class="nav-item" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
+    <span class="nav-name">Pengaturan</span></button>`);
+  $('tabs').innerHTML = items.join('');
+}
+
+function setSide(open) {
+  $('side').classList.toggle('open', open);
+  $('sideBackdrop').classList.toggle('show', open);
 }
 
 function renderView() {
@@ -89,11 +102,15 @@ async function start() {
   for (const m of MODULES) runMod(m.key, 'init', ctx);
 
   on($('tabs'), 'click', 'Menu tab', (e) => {
-    const b = e.target.closest('.chip'); if (!b) return;
+    const b = e.target.closest('.nav-item'); if (!b) return;
     state.tab = b.dataset.tab;
     runMod('songs', 'resetFilters');
+    setSide(false);
     renderAll();
+    window.scrollTo(0, 0);
   });
+  on($('menuBtn'), 'click', 'Menu', () => setSide(!$('side').classList.contains('open')));
+  on($('sideBackdrop'), 'click', 'Menu', () => setSide(false));
   on($('reloadBtn'), 'click', 'Muat ulang', reload);
   on($('logoutBtn'), 'click', 'Keluar', () => (mods.auth ? mods.auth.logout() : location.reload()));
   document.addEventListener('visibilitychange', () => {

@@ -19,6 +19,8 @@ kegagalannya ditangkap di batas segmen itu sendiri.
      ▼                     ▼                     ▼
  Admin app           Vokalis app            Publik app
  (/admin.html)       (/v/<token>)           (/)
+                     Player app
+                     (/v/<token>/play/<n>)
 ```
 
 ## 1. Segmen web (`web/`)
@@ -28,6 +30,7 @@ kegagalannya ditangkap di batas segmen itu sendiri.
 | `js/core/` | `config` (URL, kunci publik, daftar harga), `supabase` (satu-satunya klien), `format` (fungsi murni), `ui` (`$`, `toast`), `guard` (pengaman error) | hanya sesama `core` |
 | `js/apps/admin/` | `main` (kerangka), `data` (lapisan data), `auth`, `songs`, `revisions`, `trash`, `unmatched`, `settings` | `core` + `./data.js` |
 | `js/apps/vocalist/` | `main` (kerangka + data laporan), `songlist`, `invoice` | `core` |
+| `js/apps/player/` | `main` (kerangka + data), `audio` (mesin putar — saat ini placeholder, belum ada sumber audio), `queue` (daftar lagu) | `core` |
 | `js/apps/public/` | `main` | `core` |
 | `js/common.js` | jembatan kompatibilitas (re-export `core`) | `core` |
 
@@ -50,6 +53,8 @@ kegagalannya ditangkap di batas segmen itu sendiri.
 - Admin: `init(ctx)` (pasang event), `render()` (gambar ulang). Opsional: fungsi lain
   yang dipanggil kerangka lewat `ctx` (mis. `open(id)` di `revisions`).
 - Vokalis: `mount(report)` — menerima data laporan sekali, lalu mengurus dirinya sendiri.
+- Player: `mount(player)` — `{ song, songs, vocalist, prevUrl, nextUrl, songUrl }`. Saat sumber audio
+  sudah diputuskan, cukup `audio.js` yang diganti.
 
 ### Menambah modul baru (contoh: Player)
 1. Buat `js/apps/vocalist/player.js` yang mengekspor `mount(report)`.

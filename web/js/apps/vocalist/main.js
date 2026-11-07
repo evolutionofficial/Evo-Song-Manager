@@ -37,7 +37,7 @@ async function start() {
     return;
   }
 
-  const rep = res.data;
+  const rep = { ...res.data, token };
   document.title = `${rep.name} · First Club`;
   $('name').textContent = rep.name;
   $('sub').textContent = `${rep.songs.length} lagu bersama Jeffry`;

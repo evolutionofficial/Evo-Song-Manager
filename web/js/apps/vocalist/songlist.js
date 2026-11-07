@@ -1,4 +1,4 @@
-// VOKALIS — modul Songlist: My songs dan All songs (tanpa harga).
+// VOKALIS — modul Songlist: My songs (dengan tombol ▶ ke Media Player) dan All songs (tanpa harga).
 import { $ } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
 import { esc, norm, dateLabel } from '/js/core/format.js';
@@ -6,13 +6,16 @@ import { esc, norm, dateLabel } from '/js/core/format.js';
 let rep;
 let scope = 'mine';
 
+const playUrl = (n) => `/v/${encodeURIComponent(rep.token)}/play/${n}`;
+
 function render() {
   const q = norm($('qSongs').value.trim());
   if (scope === 'mine') {
     const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).filter((s) => !q || norm(s.title).includes(q));
     $('songsTable').innerHTML = rows.length
-      ? `<div class="row head cols-list"><span>No</span><span>Tanggal</span><span>Judul</span></div>` +
-        rows.map((s) => `<div class="row cols-list"><span class="no">${s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span></div>`).join('')
+      ? `<div class="row head cols-list play"><span>No</span><span>Tanggal</span><span>Judul</span><span></span></div>` +
+        rows.map((s) => `<div class="row cols-list play"><span class="no">${s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span>` +
+          `<span class="pl"><a class="btn playbtn" href="${playUrl(s.n)}" aria-label="Putar ${esc(s.title)}">▶</a></span></div>`).join('')
       : `<div class="empty">${q ? 'Tidak ada lagu yang cocok.' : 'Belum ada lagu.'}</div>`;
     return;
   }

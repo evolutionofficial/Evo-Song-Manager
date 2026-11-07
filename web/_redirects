@@ -1,1 +1,2 @@
+/v/:token/play/:n  /player.html?t=:token&s=:n  200
 /v/:token  /v.html?t=:token  200

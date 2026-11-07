@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Player · First Club</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="player">
+    <a class="back" id="back" href="#">← Songlist</a>
+
+    <div id="msg" class="hidden"><h1 id="msgTitle"></h1><p class="sub" id="msgSub"></p></div>
+
+    <div id="app" class="hidden">
+      <div class="cover" id="cover" aria-hidden="true"></div>
+      <h1 class="p-title" id="title"></h1>
+      <p class="p-sub" id="meta"></p>
+
+      <!-- Mesin audio: modul terpisah (audio.js) -->
+      <div id="audioBody">
+        <div class="p-bar"><div id="pFill" style="width:0;height:100%;background:var(--accent)"></div></div>
+        <div class="p-times"><span id="tCur">0:00</span><span id="tDur">–:––</span></div>
+        <div class="p-ctrls">
+          <a class="btn" id="prev" aria-label="Lagu sebelumnya">⏮</a>
+          <button class="p-main" id="playBtn" aria-label="Putar">▶</button>
+          <a class="btn" id="next" aria-label="Lagu berikutnya">⏭</a>
+        </div>
+        <p class="p-soon" id="soon"></p>
+      </div>
+
+      <!-- Antrean: modul terpisah (queue.js) -->
+      <section class="p-queue" id="queueBody">
+        <h2>Lagu kamu</h2>
+        <div class="table" id="queue"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<script type="module" src="/js/apps/player/main.js"></script>
+</body>
+</html>

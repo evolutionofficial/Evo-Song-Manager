@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="wrap">
+<div class="wrap wide">
 
   <!-- Login -->
   <section id="loginView" class="login hidden">
@@ -37,17 +37,24 @@
   </section>
 
   <!-- App -->
-  <section id="appView" class="hidden">
-    <header class="top">
-      <div class="brand">First Club<small id="syncInfo">Admin</small></div>
-      <div class="bar" style="margin:0">
+  <section id="appView" class="hidden shell">
+    <aside class="side" id="side" aria-label="Menu">
+      <div class="brand side-brand">First Club<small id="syncInfo">Admin</small></div>
+      <div class="side-label">Vokalis</div>
+      <nav class="side-nav" id="tabs"></nav>
+      <div class="side-foot">
         <a class="btn" href="/" target="_blank" rel="noopener">Semua lagu ↗</a>
-        <button id="reloadBtn" title="Muat ulang data">Muat ulang</button>
         <button id="logoutBtn" class="ghost">Keluar</button>
       </div>
-    </header>
+    </aside>
+    <div class="side-backdrop" id="sideBackdrop"></div>
 
-    <div class="chips" id="tabs"></div>
+    <main class="main">
+    <header class="maintop">
+      <button id="menuBtn" class="menu-btn" aria-label="Buka menu vokalis">☰</button>
+      <span class="grow"></span>
+      <button id="reloadBtn" title="Muat ulang data">Muat ulang</button>
+    </header>
 
     <!-- Vocalist view -->
     <div id="vocView">
@@ -81,12 +88,8 @@
           <option value="paid">Lunas</option>
         </select>
       </div>
-      <div class="bar">
-        <span class="note">Isi harga untuk semua lagu yang masih kosong:</span>
-        <span id="bulkBtns"></span>
-      </div>
-
       <div class="table" id="table"></div>
+      <p class="note hint">Klik kanan judul lagu (di HP: tekan lama) untuk <b>Ganti revisi</b> atau <b>Hapus</b>.</p>
       </div>
 
       <details class="panel" id="delBox" style="margin-top:14px">
@@ -134,6 +137,7 @@
       </div>
       </div>
     </div>
+    </main>
   </section>
 </div>
 
