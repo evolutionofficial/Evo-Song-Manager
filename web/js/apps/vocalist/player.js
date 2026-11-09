@@ -43,24 +43,8 @@ const audio = new Audio();
 audio.preload = 'metadata';
 
 // iPhone/iPad: Safari tidak mengizinkan web mengubah audio.volume (selalu 1). Di perangkat seperti
-// itu suara dialirkan lewat Web Audio (GainNode) supaya slider volume tetap bekerja.
-// Perangkat lain memakai audio.volume biasa. Graf dibuat saat Play pertama (butuh sentuhan pengguna).
+// itu slider volume disembunyikan — volume diatur dari tombol HP; tombol mute tetap ada.
 const volumeLocked = (() => { try { const a = new Audio(); a.volume = 0.5; return a.volume !== 0.5; } catch { return false; } })();
-let actx = null, gain = null;
-function ensureGraph() {
-  if (!volumeLocked || actx) return;
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  try {
-    actx = new AC();
-    gain = actx.createGain();
-    actx.createMediaElementSource(audio).connect(gain).connect(actx.destination);
-    engineVolume();
-  } catch (e) { report('Player:webaudio', e); actx = null; gain = null; }
-}
-async function resumeGraph() {
-  if (actx && actx.state !== 'running') { try { await actx.resume(); } catch {} }
-}
 
 /** URL audio untuk sebuah lagu, atau null kalau lagu ini belum punya M4A.
  *  ?v= berubah setiap ada file audio baru (revisi), supaya browser tidak memakai cache lama. */
@@ -78,8 +62,6 @@ function engineLoad(song) {
 }
 async function enginePlay() {
   if (!audio.src) { toast('No audio yet for this song'); return false; }
-  ensureGraph();
-  await resumeGraph();
   try { await audio.play(); return true; } catch (e) {
     if (e && e.name === 'AbortError') return false; // diganti lagu lain sebelum mulai — normal
     report('Player:play', e); toast("This song can't be played right now", 'bad'); return false;
@@ -91,12 +73,7 @@ function engineSeek(frac) {
   audio.currentTime = Math.min(Math.max(0, frac), 1) * d;
 }
 function enginePause() { audio.pause(); }
-function engineVolume() {
-  const v = st.muted ? 0 : st.volume;
-  if (gain) gain.gain.setTargetAtTime(v, actx.currentTime, 0.015); // halus, tanpa bunyi "klik"
-  else audio.volume = st.volume;
-  audio.muted = st.muted;
-}
+function engineVolume() { if (!volumeLocked) audio.volume = st.volume; audio.muted = st.muted; }
 // =========================================================================================
 
 function select(n, autoplay) {
@@ -163,8 +140,9 @@ function controls(size) {
 }
 function volume() {
   const v = st.muted ? 0 : st.volume;
-  return `<div class="pvol"><button class="pc sm" data-act="mute" aria-label="${st.muted ? 'Unmute' : 'Mute'}">${st.muted || !st.volume ? I.mute : I.vol}</button>
-    <input type="range" min="0" max="100" value="${Math.round(v * 100)}" data-act="vol" aria-label="Volume" style="--v:${Math.round(v * 100)}%"></div>`;
+  const icon = st.muted || (!volumeLocked && !st.volume) ? I.mute : I.vol;
+  return `<div class="pvol ${volumeLocked ? 'novol' : ''}"><button class="pc sm" data-act="mute" aria-label="${st.muted ? 'Unmute' : 'Mute'}">${icon}</button>
+    ${volumeLocked ? '' : `<input type="range" min="0" max="100" value="${Math.round(v * 100)}" data-act="vol" aria-label="Volume" style="--v:${Math.round(v * 100)}%">`}</div>`;
 }
 function progress() {
   const d = audio.duration, c = audio.currentTime || 0;
@@ -331,9 +309,5 @@ export function mount(report_) {
     } catch {}
   }
 
-  // Web Audio (iPhone) bisa dijeda sistem saat layar dikunci / pindah aplikasi → coba lanjutkan.
-  on(document, 'visibilitychange', L, () => { if (st.playing) resumeGraph(); });
-  if (volumeLocked) audio.addEventListener('play', resumeGraph);
-
-  window.FC_PLAYER = { ready: true, volumeMode: () => (gain ? 'webaudio' : 'element') };
+  window.FC_PLAYER = { ready: true, volumeSlider: !volumeLocked };
 }
