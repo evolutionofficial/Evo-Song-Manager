@@ -744,3 +744,30 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
 .badge.wav { white-space: nowrap; }
 .badge.wav.ok { background: rgba(46, 139, 255, .14); color: #8cc2ff; border: 1px solid rgba(46, 139, 255, .35); }
+
+/* ---------- Halaman operator FC (unduhan) ---------- */
+.op-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; min-height: 38px; }
+.op-all { gap: 8px; border-radius: 999px; padding: 0 16px; min-height: 38px; background: var(--grad-blue); border: 0;
+  box-shadow: 0 6px 22px rgba(46, 139, 255, .35); }
+.op-row { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 16px; }
+.op-title { font-weight: 650; font-size: 15.5px; overflow-wrap: anywhere; }
+.op-meta { margin-top: 3px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.op-voc { color: #9fd0ff; font-weight: 600; }
+.op-done { color: var(--ok); margin-left: 4px; }
+.op-sent { color: #ffd38a; margin-left: 4px; }
+.op-row.done .op-title { color: var(--text); opacity: .75; }
+.op-dl { gap: 7px; border-radius: 999px; padding: 0 16px; min-height: 40px; font-weight: 650; }
+.op-dl.hot { background: var(--grad-blue); border-color: transparent; color: #fff; box-shadow: 0 0 18px rgba(46, 139, 255, .45); }
+.badge.new { background: rgba(46, 139, 255, .18); color: #9fd0ff; border: 1px solid rgba(46, 139, 255, .45); font-weight: 700; }
+.op-note { margin-top: 14px; color: var(--muted); font-size: 13px; }
+.op-hint { font-size: 13px; color: var(--faint); }
+@media (max-width: 480px) {
+  .op-row { padding: 12px 12px; }
+  .op-dl span { display: none; }
+  .op-dl { width: 44px; padding: 0; justify-content: center; }
+}
+.sendbtn.sent:disabled, .sendbtn.done:disabled { opacity: 1; cursor: default; }
+.sendbtn.sent { color: #ffe2b8; border-color: rgba(255, 190, 110, .35); background: rgba(255, 180, 80, .08); }
+.sendbtn.sent svg { color: #ffb661; }
+.sendbtn.done { color: #c9f5e2; border-color: rgba(61, 220, 151, .4); background: rgba(61, 220, 151, .1); }
+.sendbtn.done svg { color: #3ddc97; }

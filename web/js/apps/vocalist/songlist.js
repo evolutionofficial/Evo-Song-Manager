@@ -16,6 +16,16 @@ const SEND_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" s
 
 const REV_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
 
+// Tombol kirim ke FC sesuai status: Preparing… → Send to FC → Sent → Downloaded by FC.
+function sendButton(s) {
+  const t = esc(s.title);
+  if (s.fc_downloaded_at) return `<button class="sendbtn done" disabled title="FC downloaded this song" aria-label="${t}: downloaded by FC">${CHECK_ICON}<span>Downloaded</span></button>`;
+  if (s.sent_at) return `<button class="sendbtn sent" disabled title="Waiting for FC to download" aria-label="${t}: sent to FC">${CHECK_ICON}<span>Sent</span></button>`;
+  if (s.wav === 'complete' && s.on_drive !== false) return `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${t}">${SEND_ICON}<span>Send to FC</span></button>`;
+  if (s.wav === 'complete') return `<button class="sendbtn" disabled title="This file is no longer stored. Ask the studio." aria-label="${t}: not available">${SEND_ICON}<span>Unavailable</span></button>`;
+  return `<button class="sendbtn preparing" disabled aria-label="Preparing ${t} for sending" title="${s.wav === 'failed' ? 'Upload is being retried automatically' : 'Getting the WAV ready…'}"><i class="spin" aria-hidden="true"></i><span>Preparing…</span></button>`;
+}
+
 const playUrl = (n) => `/v/${encodeURIComponent(rep.token)}/play/${n}`;
 
 function render() {
@@ -26,9 +36,7 @@ function render() {
         rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${!s.accepted_at && s.revision_requested_at ? ' <span class="badge rev">Revision requested</span>' : ''}</span>` +
           `<span class="pl">${s.accepted_at
             ? `<button class="revbtn" data-revision="${s.n}" aria-label="Request a revision: ${esc(s.title)}" title="Request a revision">${REV_ICON}<span>Revision</span></button>` +
-              (s.wav === 'complete'
-                ? `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${esc(s.title)}">${SEND_ICON}<span>Send to FC</span></button>`
-                : `<button class="sendbtn preparing" disabled aria-label="Preparing ${esc(s.title)} for sending" title="${s.wav === 'failed' ? 'Upload is being retried automatically' : 'Getting the WAV ready…'}"><i class="spin" aria-hidden="true"></i><span>Preparing…</span></button>`)
+              sendButton(s)
             : `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`}<a class="btn playbtn${s.audio ? '' : ' noaudio'}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${s.audio ? '' : ' title="No audio yet"'}>▶</a></span></div>`).join('')
       : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
 }

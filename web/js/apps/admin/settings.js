@@ -39,8 +39,12 @@ async function setPhoto(v, file) {
   if (old) sb.storage.from('photos').remove([old]).catch(() => {});
 }
 
+const fcUrl = () => (state.settings?.fc_token ? `${location.origin}/fc/${state.settings.fc_token}` : '');
+
 export function render() {
   $('showPrices').checked = !!state.settings?.show_prices_public;
+  $('fcLink').value = fcUrl() || 'Not available — press Reload';
+  $('fcOpen').href = fcUrl() || '#';
   $('vocSettings').innerHTML = state.vocalists.map((v) => `
     <div class="field vset" style="border-top:1px solid var(--line);padding-top:12px">
       <div class="vphoto">
@@ -69,6 +73,20 @@ export function init(c) {
     if (error) { e.target.checked = !e.target.checked; return toast('Failed: ' + error.message, 'bad'); }
     state.settings.show_prices_public = e.target.checked;
     toast(e.target.checked ? 'Prices shown on the public page' : 'Prices hidden from the public page');
+  });
+
+  on($('fcCopy'), 'click', L, async () => {
+    try { await navigator.clipboard.writeText(fcUrl()); toast('FC link copied'); }
+    catch { $('fcLink').select(); toast('Select the link and copy it'); }
+  });
+  on($('fcRegen'), 'click', L, async () => {
+    if (!confirm('Create a new FC download link? The old link will stop working immediately.')) return;
+    const b = new Uint8Array(18); crypto.getRandomValues(b);
+    const t = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+    const { error } = await sb.from('app_settings').update({ fc_token: t }).eq('id', 1);
+    if (error) return toast('Failed: ' + error.message, 'bad');
+    state.settings.fc_token = t; render();
+    toast('New FC link created. Send it to the operator.');
   });
 
   on($('vocSettings'), 'change', L, async (e) => {

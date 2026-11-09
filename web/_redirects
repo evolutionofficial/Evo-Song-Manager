@@ -1,2 +1,3 @@
 /v/:token/play/:n  /player  200
 /v/:token  /v  200
+/fc/:token  /fc  200

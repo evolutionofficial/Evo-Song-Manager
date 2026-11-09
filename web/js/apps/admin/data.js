@@ -17,7 +17,7 @@ const SOURCES = {
   songs: () => sb.from('songs').select(SONG_COLS).order('sort_date', { ascending: true, nullsFirst: false }),
   unmatched: () => sb.from('unmatched_files').select('*').order('file_mtime'),
   settings: () => sb.from('app_settings').select('*').eq('id', 1).single(),
-  wav: () => sb.from('wav_uploads').select('id,song_id,revision,status,attempts,last_error,uploaded_at,size_bytes,drive_deleted_at'),
+  wav: () => sb.from('wav_uploads').select('id,song_id,revision,status,attempts,last_error,uploaded_at,size_bytes,drive_deleted_at,cleanup_eligible_at,sent_at,downloaded_at'),
 };
 
 /** Status upload WAV untuk revisi lagu saat ini, atau null. */

@@ -3,12 +3,13 @@
 // Alur: lagu baru → tombol "Accept". Vokalis mendengarkan dulu; kalau sudah oke, tekan Accept
 // (lagu dikunci). Setelah itu muncul "Revision" dan "Send to FC".
 // Revision = batalkan Accept + minta revisi (boleh dengan catatan); tombol kembali ke "Accept".
-// Pengiriman ke FC (mis. lewat WhatsApp Business) belum diputuskan, jadi Send masih "coming soon".
+// Send to FC: lagu muncul di halaman unduhan operator FC (/fc/<kode>). Vokalis memberi tahu
+// operator sendiri lewat WhatsApp. Status: Sent → Downloaded (setelah operator mengunduh).
 import { sb } from '/js/core/supabase.js';
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';
 
-let rep, dlg, rdlg;
+let rep, dlg, rdlg, sdlg;
 
 function ask(song) {
   return new Promise((resolve) => {
@@ -54,7 +55,7 @@ async function revision(n) {
     .catch((e) => ({ error: e }));
   if (error || !data) { report('Revision', error || new Error('no data')); return toast('Could not send the request. Please try again.', 'bad'); }
   s.accepted_at = null;
-  s.wav = null;
+  s.wav = null; s.sent_at = null; s.fc_downloaded_at = null;
   s.revision_requested_at = data.revision_requested_at;
   window.dispatchEvent(new CustomEvent('fc:songs-changed'));
   toast(`Revision requested · "${s.title}"`);
@@ -63,7 +64,7 @@ async function revision(n) {
 // Setelah Accept, WAV diunggah ke Google Drive oleh program di komputer studio.
 // Selama ada lagu yang belum siap, status dicek ulang tiap 15 detik (hanya saat halaman terlihat).
 let wavTimer = null;
-const pendingWav = () => rep.songs.some((s) => s.accepted_at && s.wav !== 'complete');
+const pendingWav = () => rep.songs.some((s) => s.accepted_at && (s.wav !== 'complete' || (s.sent_at && !s.fc_downloaded_at)));
 async function refreshWav() {
   wavTimer = null;
   if (!pendingWav()) return;
@@ -73,9 +74,11 @@ async function refreshWav() {
       let changed = false;
       for (const fresh of data.songs) {
         const s = rep.songs.find((x) => x.id === fresh.id);
-        if (s && s.wav !== fresh.wav) {
-          if (fresh.wav === 'complete' && s.accepted_at) toast(`"${s.title}" is ready to send`);
-          s.wav = fresh.wav; changed = true;
+        if (!s) continue;
+        if (s.wav !== fresh.wav && fresh.wav === 'complete' && s.accepted_at && !s.sent_at) toast(`"${s.title}" is ready to send`);
+        if (!s.fc_downloaded_at && fresh.fc_downloaded_at) toast(`FC downloaded "${s.title}"`);
+        for (const k of ['wav', 'on_drive', 'sent_at', 'fc_downloaded_at']) {
+          if (s[k] !== fresh[k]) { s[k] = fresh[k]; changed = true; }
         }
       }
       if (changed) window.dispatchEvent(new CustomEvent('fc:songs-changed'));
@@ -83,7 +86,37 @@ async function refreshWav() {
   }
   watchWav();
 }
-function watchWav() { if (!wavTimer && pendingWav()) wavTimer = setTimeout(refreshWav, 15000); }
+function watchWav() {
+  if (wavTimer || !pendingWav()) return;
+  const waitingFile = rep.songs.some((s) => s.accepted_at && s.wav !== 'complete');
+  wavTimer = setTimeout(refreshWav, waitingFile ? 15000 : 30000);
+}
+
+function askSend(song) {
+  return new Promise((resolve) => {
+    sdlg.querySelector('.cf-title').textContent = song.title;
+    sdlg.returnValue = '';
+    sdlg.showModal();
+    sdlg.addEventListener('close', () => resolve(sdlg.returnValue === 'ok'), { once: true });
+  });
+}
+
+async function send(n) {
+  const s = rep.songs[n - 1];
+  if (!s || !s.accepted_at || s.sent_at || s.wav !== 'complete') return;
+  if (!(await askSend(s))) return;
+  const { data, error } = await Promise.resolve()
+    .then(() => sb.rpc('send_to_fc', { p_token: rep.token, p_song: s.id }))
+    .catch((e) => ({ error: e }));
+  if (error || !data) {
+    report('Send to FC', error || new Error('no data'));
+    return toast(/not ready/.test(error?.message || '') ? 'The file is not ready yet. Please wait a moment.' : 'Could not send. Please try again.', 'bad');
+  }
+  s.sent_at = data;
+  window.dispatchEvent(new CustomEvent('fc:songs-changed'));
+  toast(`Sent · let FC know "${s.title}" is ready to download`);
+  watchWav();
+}
 
 export function mount(report_) {
   rep = report_;
@@ -115,13 +148,22 @@ export function mount(report_) {
     </form>`;
   document.body.appendChild(rdlg);
 
+  sdlg = document.createElement('dialog');
+  sdlg.className = 'confirm';
+  sdlg.innerHTML = `<form method="dialog">
+      <h2>Send to FC?</h2>
+      <p class="cf-title"></p>
+      <p class="note">The song will appear on FC's download page. Then message FC that it's ready.</p>
+      <div class="bar" style="margin:14px 0 0;justify-content:flex-end">
+        <button value="cancel">Cancel</button>
+        <button class="primary" value="ok">Send</button>
+      </div>
+    </form>`;
+  document.body.appendChild(sdlg);
+
   on(window, 'fc:accept', 'Accept', (e) => accept(e.detail.n));
   on(window, 'fc:revision', 'Revision', (e) => revision(e.detail.n));
-  on(window, 'fc:send', 'Send to FC', (e) => {
-    const s = rep.songs[e.detail.n - 1];
-    if (!s) return;
-    toast(`Send to FC is coming soon · ${s.title}`);
-  });
+  on(window, 'fc:send', 'Send to FC', (e) => send(e.detail.n));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && pendingWav()) { clearTimeout(wavTimer); wavTimer = null; refreshWav(); } });
   watchWav();
   window.FC_SEND = { ready: true };

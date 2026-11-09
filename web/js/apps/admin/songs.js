@@ -142,6 +142,13 @@ function wavBadge(s) {
     failed: ['bad', 'WAV failed', `Upload failed (try ${w.attempts}), retrying automatically: ${w.last_error || ''}`],
     cancelled: ['muted', 'WAV cancelled', 'Cancelled by Revision / Unlock'],
   };
+  if (w.status === 'complete' && (w.drive_deleted_at || w.cleanup_eligible_at)) {
+    map.complete = ['muted', 'Cleaned from Drive', 'Removed from Google Drive after a newer song was downloaded by FC (the WAV on the computer is kept)'];
+  } else if (w.status === 'complete' && w.downloaded_at) {
+    map.complete = ['wav ok', 'Downloaded by FC', `FC downloaded it ${fmtDate(w.downloaded_at)}${mb}`];
+  } else if (w.status === 'complete' && w.sent_at) {
+    map.complete = ['warn', 'Sent to FC', `Sent by the vocalist ${fmtDate(w.sent_at)} — waiting for FC to download`];
+  }
   const [cls, label, tip] = map[w.status] || ['muted', w.status, ''];
   return ` <span class="badge ${cls}" title="${esc(tip)}">${esc(label)}</span>`;
 }
