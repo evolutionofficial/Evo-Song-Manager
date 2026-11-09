@@ -37,6 +37,7 @@ function loadConfig() {
   }
   cfg.r2 = parseR2(readR2());
   cfg.sources = loadSyncSources(cfg);
+  cfg.root = cfg.sources[0].root;
   return cfg;
 }
 

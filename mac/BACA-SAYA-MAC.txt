@@ -1,0 +1,19 @@
+EVO SONG MANAGER DI MACBOOK
+===========================
+Folder ini berisi dua program (sama seperti di PC):
+- sync/   First Club Sync  : mencatat file Mixdown "Nama - Judul.wav" ke web app.
+- drive/  Evo Media Agent  : mengunggah "Nama - Judul.m4a" ke R2 untuk player, lalu menghapusnya.
+
+Lagu dari MacBook diberi tanda "MacBook" di admin (sources.json: "main": "mac").
+
+PASANG / UPDATE
+1. Pastikan Node.js terpasang (nodejs.org, versi LTS, macOS Installer .pkg).
+2. Salin dari PC:  sync\config.json  → sync/config.json
+                   drive\r2.txt     → drive/r2.txt
+3. Buka Terminal, tempel lalu Enter:
+     bash ~/Documents/First\ Club/_First\ Club\ Manager/install-mac.sh
+
+MATIKAN
+     bash ~/Documents/First\ Club/_First\ Club\ Manager/uninstall-mac.sh
+
+config.json dan r2.txt berisi kunci. JANGAN dibagikan.
