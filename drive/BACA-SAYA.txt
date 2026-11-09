@@ -32,3 +32,11 @@ KALAU GAGAL
 - File M4A di PC tidak pernah dihapus sebelum upload terbukti berhasil.
 - Upload yang gagal dicoba lagi otomatis (30 detik, 1, 5, 15, 30 menit).
 - M4A tanpa WAV bernama sama tidak diunggah (ditunggu).
+
+UPLOAD WAV KE GOOGLE DRIVE (setelah vokalis menekan Accept)
+- Sekali saja per komputer: jalankan login-google.bat (Mac: node login-google.js),
+  login dengan evolution.official.id@gmail.com, klik Allow.
+- WAV diunggah ke Drive: Evo Song Manager / Vokalis / Tanggal Accept / file.wav,
+  dicek MD5-nya. WAV di komputer TIDAK dihapus.
+- Kalau vokalis menekan Revision, file di Drive dihapus otomatis.
+- client_secret.json dan google-token.json berisi kunci. JANGAN dibagikan.

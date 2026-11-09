@@ -28,8 +28,10 @@ async function accept(n) {
     .catch((e) => ({ error: e }));
   if (error || !data) { report('Accept', error || new Error('no data')); return toast('Could not accept. Please try again.', 'bad'); }
   s.accepted_at = data;
+  if (s.wav !== 'complete') s.wav = 'waiting';
   window.dispatchEvent(new CustomEvent('fc:songs-changed'));
-  toast(`Accepted · you can now send "${s.title}" to FC`);
+  toast(`Accepted · preparing "${s.title}" for sending`);
+  watchWav();
 }
 
 function askRevision(song) {
@@ -52,10 +54,36 @@ async function revision(n) {
     .catch((e) => ({ error: e }));
   if (error || !data) { report('Revision', error || new Error('no data')); return toast('Could not send the request. Please try again.', 'bad'); }
   s.accepted_at = null;
+  s.wav = null;
   s.revision_requested_at = data.revision_requested_at;
   window.dispatchEvent(new CustomEvent('fc:songs-changed'));
   toast(`Revision requested · "${s.title}"`);
 }
+
+// Setelah Accept, WAV diunggah ke Google Drive oleh program di komputer studio.
+// Selama ada lagu yang belum siap, status dicek ulang tiap 15 detik (hanya saat halaman terlihat).
+let wavTimer = null;
+const pendingWav = () => rep.songs.some((s) => s.accepted_at && s.wav !== 'complete');
+async function refreshWav() {
+  wavTimer = null;
+  if (!pendingWav()) return;
+  if (!document.hidden) {
+    const { data } = await Promise.resolve().then(() => sb.rpc('get_vocalist_report', { p_token: rep.token })).catch(() => ({}));
+    if (data?.songs) {
+      let changed = false;
+      for (const fresh of data.songs) {
+        const s = rep.songs.find((x) => x.id === fresh.id);
+        if (s && s.wav !== fresh.wav) {
+          if (fresh.wav === 'complete' && s.accepted_at) toast(`"${s.title}" is ready to send`);
+          s.wav = fresh.wav; changed = true;
+        }
+      }
+      if (changed) window.dispatchEvent(new CustomEvent('fc:songs-changed'));
+    }
+  }
+  watchWav();
+}
+function watchWav() { if (!wavTimer && pendingWav()) wavTimer = setTimeout(refreshWav, 15000); }
 
 export function mount(report_) {
   rep = report_;
@@ -94,5 +122,7 @@ export function mount(report_) {
     if (!s) return;
     toast(`Send to FC is coming soon · ${s.title}`);
   });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && pendingWav()) { clearTimeout(wavTimer); wavTimer = null; refreshWav(); } });
+  watchWav();
   window.FC_SEND = { ready: true };
 }

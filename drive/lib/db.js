@@ -28,6 +28,9 @@ function createDb(cfg) {
     target: (relPath) => rpc('audio_target', { p_rel_path: relPath }),
     register: (a) => rpc('register_audio', { p_rel_path: a.relPath, p_key: a.key, p_file_name: a.fileName, p_size: a.size, p_md5: a.md5 }),
     heartbeat: (info) => rpc('agent_heartbeat', { p_agent: 'media', p_info: info }),
+    wavJobs: (sources) => rpc('wav_jobs', { p_sources: sources }),
+    wavReport: (r) => rpc('wav_report', { p_id: r.id, p_status: r.status, p_drive_file_id: r.driveFileId || null,
+      p_size: r.size ?? null, p_md5: r.md5 || null, p_error: r.error || null }),
   };
 }
 

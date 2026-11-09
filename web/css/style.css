@@ -735,3 +735,12 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
   box-sizing: border-box; border-radius: 99px; background: #ff9d3b; color: #1a1206; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
   box-shadow: 0 0 0 2px #0b0f17, 0 0 12px rgba(255, 157, 59, .6); }
 .nav-item .badge.rev.count { background: #ff9d3b; color: #1a1206; border: none; box-shadow: 0 0 12px rgba(255, 157, 59, .45); }
+/* ---------- Send to FC: menunggu WAV siap di Drive ---------- */
+.sendbtn.preparing { opacity: .75; cursor: progress; }
+.sendbtn.preparing:disabled { opacity: .75; }
+.spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(111, 182, 255, .25); border-top-color: #6fb6ff;
+  animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+.badge.wav { white-space: nowrap; }
+.badge.wav.ok { background: rgba(46, 139, 255, .14); color: #8cc2ff; border: 1px solid rgba(46, 139, 255, .35); }

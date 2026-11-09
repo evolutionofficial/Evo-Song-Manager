@@ -20,14 +20,17 @@ const { createR2 } = require('./lib/r2');
 const { createDb } = require('./lib/db');
 const { scanM4a } = require('./lib/scan');
 const { log } = require('./lib/log');
+const { createWavWorker } = require('./lib/wav');
+const { hasToken } = require('./lib/gdrive');
 
-const VERSION = '1.1';
+const VERSION = '1.2';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
 function createAgent(cfg) {
   const r2 = createR2(cfg.r2, cfg.bucket);
   const db = createDb(cfg);
+  const wav = createWavWorker(cfg, db);
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
   const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0 };
@@ -104,6 +107,7 @@ function createAgent(cfg) {
     } finally {
       running = false;
     }
+    if (!(await wav.runOnce())) ok = false;
     if (Date.now() - lastBeat > HEARTBEAT_MS) {
       lastBeat = Date.now();
       db.heartbeat({ version: VERSION, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
@@ -119,6 +123,8 @@ function createAgent(cfg) {
     await r2.put('_agent/check.txt', probe, md5, 'text/plain');
     const h = await r2.head('_agent/check.txt');
     if (!h || h.etag !== md5) throw new Error('R2: file uji tidak terbaca kembali');
+    if (hasToken()) { await wav.check(); log('Google Drive terhubung.'); }
+    else log('Google Drive: belum login (upload WAV belum aktif). Jalankan login-google.');
   }
 
   function watch() {

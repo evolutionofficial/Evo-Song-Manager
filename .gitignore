@@ -12,3 +12,4 @@ drive/client_secret.json
 drive/media.log*
 drive/supervisor.pid
 sync/sources.json
+drive/google-token.json

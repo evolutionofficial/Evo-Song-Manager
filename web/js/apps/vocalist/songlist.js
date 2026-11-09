@@ -26,7 +26,9 @@ function render() {
         rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${!s.accepted_at && s.revision_requested_at ? ' <span class="badge rev">Revision requested</span>' : ''}</span>` +
           `<span class="pl">${s.accepted_at
             ? `<button class="revbtn" data-revision="${s.n}" aria-label="Request a revision: ${esc(s.title)}" title="Request a revision">${REV_ICON}<span>Revision</span></button>` +
-              `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${esc(s.title)}">${SEND_ICON}<span>Send to FC</span></button>`
+              (s.wav === 'complete'
+                ? `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${esc(s.title)}">${SEND_ICON}<span>Send to FC</span></button>`
+                : `<button class="sendbtn preparing" disabled aria-label="Preparing ${esc(s.title)} for sending" title="${s.wav === 'failed' ? 'Upload is being retried automatically' : 'Getting the WAV ready…'}"><i class="spin" aria-hidden="true"></i><span>Preparing…</span></button>`)
             : `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`}<a class="btn playbtn${s.audio ? '' : ' noaudio'}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${s.audio ? '' : ' title="No audio yet"'}>▶</a></span></div>`).join('')
       : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
 }
