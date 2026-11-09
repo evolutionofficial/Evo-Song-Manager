@@ -21,6 +21,22 @@ async function main() {
   const ok = await agent.runOnce('awal');
   if (once) { process.exitCode = ok ? 0 : 1; return; }
   agent.watch();
+  watchSelf();
+}
+
+// File program diperbarui → keluar rapi; penjaga menyalakan lagi dengan versi baru.
+function watchSelf() {
+  const fs = require('fs');
+  const path = require('path');
+  let t = null;
+  const bump = (f) => {
+    if (!/\.js$/.test(String(f || ''))) return;
+    clearTimeout(t);
+    t = setTimeout(() => { log('Program diperbarui — menyalakan ulang dengan versi baru.'); process.exit(0); }, 5000);
+  };
+  for (const d of [__dirname, path.join(__dirname, 'lib')]) {
+    try { fs.watch(d, (_e, f) => bump(f)); } catch (_) { /* update butuh restart manual */ }
+  }
 }
 
 if (require.main === module) {

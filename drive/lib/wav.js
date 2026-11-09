@@ -1,13 +1,14 @@
 'use strict';
 // MEDIA — pekerjaan WAV: setelah vokalis menekan Accept, WAV diunggah ke Google Drive
-// (Evo Song Manager / Vokalis / Tanggal Accept / file.wav), dicek MD5-nya, lalu dilaporkan.
+// (First Club / Vokalis / "YYYY-MM-DD Vokalis - Judul.wav", tanggal = tanggal Accept supaya urut),
+// dicek MD5-nya, lalu dilaporkan.
 // Kalau vokalis menekan Revision, file di Drive dihapus. WAV di komputer TIDAK pernah dihapus.
 const fs = require('fs');
 const path = require('path');
 const { createDrive, md5File, hasToken } = require('./gdrive');
 const { log } = require('./log');
 
-const ROOT_FOLDER = 'Evo Song Manager';
+const ROOT_FOLDER = 'First Club';
 
 function createWavWorker(cfg, db) {
   const drive = createDrive();
@@ -24,6 +25,7 @@ function createWavWorker(cfg, db) {
   async function doUpload(job) {
     const file = localPath(job);
     const name = path.basename(file || job.rel_path);
+    const driveName = `${job.upload_date} ${name}`; // nama di Drive diawali tanggal supaya urut
     if (!fs.existsSync(file)) {
       const src = sources.get(job.source);
       const why = src && !src.main && !fs.existsSync(src.root) ? `${src.root} tidak tersambung` : 'file WAV tidak ditemukan di komputer ini';
@@ -37,9 +39,9 @@ function createWavWorker(cfg, db) {
     let f = await drive.findByJob(job.id);
     if (f && f.md5Checksum !== md5) { await drive.remove(f.id); f = null; } // sisa upload lama yang berbeda
     if (!f) {
-      const parent = await drive.folderPath([ROOT_FOLDER, job.vocalist, String(job.upload_date)]);
+      const parent = await drive.folderPath([ROOT_FOLDER, job.vocalist]);
       log(`WAV ${name}: mengunggah ke Drive (${(size / 1048576).toFixed(1)} MB)…`);
-      f = await drive.upload(file, name, parent, job.id);
+      f = await drive.upload(file, driveName, parent, job.id);
     }
     if (f.md5Checksum !== md5 || Number(f.size) !== size) {
       await drive.remove(f.id).catch(() => {});
@@ -48,7 +50,7 @@ function createWavWorker(cfg, db) {
     const after = await db.wavReport({ id: job.id, status: 'complete', driveFileId: f.id, size, md5 });
     log(after === 'cancelled'
       ? `WAV ${name}: terunggah, tapi lagunya sudah di-Revision — akan dihapus dari Drive.`
-      : `WAV ${name}: siap di Google Drive (${job.vocalist} / ${job.upload_date}).`);
+      : `WAV ${name}: siap di Google Drive (${ROOT_FOLDER} / ${job.vocalist}).`);
   }
 
   async function doDelete(job) {
@@ -83,7 +85,12 @@ function createWavWorker(cfg, db) {
     return ok;
   }
 
-  return { runOnce, check: () => drive.token() };
+  /** Siapkan folder First Club / <vokalis> supaya Drive langsung rapi. */
+  async function ensureFolders(names) {
+    for (const n of names || []) await drive.folderPath([ROOT_FOLDER, n]);
+  }
+
+  return { runOnce, check: () => drive.token(), ensureFolders };
 }
 
 module.exports = { createWavWorker };

@@ -23,7 +23,7 @@ const { log } = require('./lib/log');
 const { createWavWorker } = require('./lib/wav');
 const { hasToken } = require('./lib/gdrive');
 
-const VERSION = '1.2';
+const VERSION = '1.3';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
@@ -123,7 +123,11 @@ function createAgent(cfg) {
     await r2.put('_agent/check.txt', probe, md5, 'text/plain');
     const h = await r2.head('_agent/check.txt');
     if (!h || h.etag !== md5) throw new Error('R2: file uji tidak terbaca kembali');
-    if (hasToken()) { await wav.check(); log('Google Drive terhubung.'); }
+    if (hasToken()) {
+      await wav.check();
+      try { await wav.ensureFolders(await db.vocalists()); } catch (e) { log('Folder Drive belum bisa disiapkan: ' + e.message); }
+      log('Google Drive terhubung.');
+    }
     else log('Google Drive: belum login (upload WAV belum aktif). Jalankan login-google.');
   }
 
@@ -160,6 +164,22 @@ async function main() {
   const ok = await agent.runOnce();
   if (once) { process.exitCode = ok ? 0 : 1; return; }
   agent.watch();
+  watchSelf();
+}
+
+// Kalau file program diperbarui (update dari Claude), keluar dengan rapi; penjaga menyalakan lagi
+// dengan versi baru dalam beberapa detik. Jadi update tidak perlu restart manual.
+function watchSelf() {
+  const path = require('path');
+  let t = null;
+  const bump = (f) => {
+    if (!/\.js$/.test(String(f || ''))) return;
+    clearTimeout(t);
+    t = setTimeout(() => { log('Program diperbarui — menyalakan ulang dengan versi baru.'); process.exit(0); }, 5000);
+  };
+  for (const d of [__dirname, path.join(__dirname, 'lib')]) {
+    try { fs.watch(d, (_e, f) => bump(f)); } catch (_) { /* tidak didukung: update butuh restart manual */ }
+  }
 }
 
 if (require.main === module) {
