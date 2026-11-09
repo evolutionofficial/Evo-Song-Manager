@@ -1,11 +1,9 @@
-// Hosting: Cloudflare Workers (static assets). Situs = isi folder web/, tanpa build.
+// Hosting: Cloudflare Pages (akun Evolution), project "evo-song-manager".
+// Yang disajikan HANYA folder web/ — file lain di repo (sync/, db/, dokumen) tidak ikut online.
 // _redirects di web/ mengatur link vokalis /v/<kode> dan player /v/<kode>/play/<n>.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "fc-song-manager",
+  "name": "evo-song-manager",
   "compatibility_date": "2026-11-04",
-  "workers_dev": true,
-  "preview_urls": true,
-  "observability": { "enabled": true },
-  "assets": { "directory": "web" }
+  "pages_build_output_dir": "web"
 }
