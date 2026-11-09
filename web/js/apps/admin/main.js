@@ -12,6 +12,7 @@ const MODULES = [
   { key: 'songs', label: 'Song table', path: '/js/apps/admin/songs.js', el: 'vocMain' },
   { key: 'trash', label: 'Deleted', path: '/js/apps/admin/trash.js', el: 'delBox' },
   { key: 'revisions', label: 'Replace revision', path: '/js/apps/admin/revisions.js', el: null },
+  { key: 'requests', label: 'Revisions', path: '/js/apps/admin/requests.js', el: 'rrList' },
   { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
   { key: 'settings', label: 'Settings', path: '/js/apps/admin/settings.js', el: 'setBody' },
 ];
@@ -32,6 +33,12 @@ const ctx = {
   renderAll,
   reload,
   enterApp,
+  openTab(tab) {
+    state.tab = tab;
+    runMod('songs', 'resetFilters');
+    renderAll();
+    window.scrollTo(0, 0);
+  },
   openReplace(id) {
     if (!mods.revisions) return toast('Replace revision is having problems. Everything else still works.', 'bad');
     runMod('revisions', 'open', id);
@@ -71,13 +78,20 @@ function renderTabs() {
     </button>`;
   });
   const un = state.unmatched.length;
+  const rr = state.songs.filter((s) => !s.deleted && !s.accepted_at && s.revision_requested_at).length;
   items.push(`<div class="side-sep"></div>`);
   const k = state.vocalists.length;
+  items.push(`<button class="nav-item ${rr ? 'alert' : ''}" style="--i:${k}" aria-current="${state.tab === 'rr' ? 'page' : 'false'}" data-tab="rr">
+    <span class="nav-name">Revisions${rr ? ` <span class="badge rev count" aria-label="${rr} new">${rr}</span>` : ''}</span></button>`);
   items.push(`<button class="nav-item ${un ? 'alert' : ''}" style="--i:${k + 1}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
     <span class="nav-name">Needs review${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
   items.push(`<button class="nav-item" style="--i:${k + 2}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
     <span class="nav-name">Settings</span></button>`);
   $('tabs').innerHTML = items.join('');
+  // Titik notifikasi di tombol menu (saat sidebar tertutup / di HP).
+  const total = rr + un;
+  $('menuBtn').dataset.count = total ? String(total) : '';
+  $('menuBtn').classList.toggle('has-count', !!total);
 }
 
 // Sidebar: di layar lebar bisa disembunyikan ke kiri (diingat di browser ini);
@@ -110,11 +124,13 @@ function renderView() {
   const t = state.tab;
   $('vocView').classList.toggle('hidden', !t.startsWith('v:'));
   $('unView').classList.toggle('hidden', t !== 'un');
+  $('rrView').classList.toggle('hidden', t !== 'rr');
   $('setView').classList.toggle('hidden', t !== 'set');
   if (t.startsWith('v:')) {
     runMod('songs', 'render');
     runMod('trash', 'render');
   } else if (t === 'un') runMod('unmatched', 'render');
+  else if (t === 'rr') runMod('requests', 'render');
   else runMod('settings', 'render');
 }
 

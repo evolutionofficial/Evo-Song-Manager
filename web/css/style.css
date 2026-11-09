@@ -721,3 +721,17 @@ dialog.confirm .rv-label span { opacity: .7; }
 dialog.confirm textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 14px; color: var(--text);
   background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
 dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46, 139, 255, .2); }
+
+/* ---------- Revisions (admin) ---------- */
+.badge.count { min-width: 18px; text-align: center; font-weight: 700; padding: 1px 6px; border-radius: 99px; }
+.rr .rr-voc { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #ffc477; }
+.rr .rr-title { margin: 2px 0 2px; }
+.rr .rr-meta { font-size: 13px; color: var(--muted); }
+.rr .rr-note { margin: 12px 0 14px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 180, 80, .08);
+  border-left: 3px solid rgba(255, 180, 80, .6); color: #ffe2b8; font-style: italic; white-space: pre-wrap; }
+.rr .rr-note.none { background: transparent; border-left-color: var(--line); color: var(--muted); font-style: normal; padding: 0 0 0 12px; }
+#menuBtn { position: relative; }
+#menuBtn.has-count::after { content: attr(data-count); position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px;
+  box-sizing: border-box; border-radius: 99px; background: #ff9d3b; color: #1a1206; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
+  box-shadow: 0 0 0 2px #0b0f17, 0 0 12px rgba(255, 157, 59, .6); }
+.nav-item .badge.rev.count { background: #ff9d3b; color: #1a1206; border: none; box-shadow: 0 0 12px rgba(255, 157, 59, .45); }
