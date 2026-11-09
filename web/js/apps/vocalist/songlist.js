@@ -16,6 +16,14 @@ const SEND_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" s
 
 const REV_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
 
+const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
+
+// Unduh WAV (cadangan pribadi vokalis): muncul hanya kalau WAV sudah siap di Drive.
+function downloadButton(s) {
+  if (s.wav !== 'complete' || s.on_drive === false) return '';
+  return `<a class="btn dlbtn" href="/vdl/${encodeURIComponent(rep.token)}/${encodeURIComponent(s.id)}" download data-vdl="${s.n}" title="Download WAV" aria-label="Download WAV: ${esc(s.title)}">${DL_ICON}</a>`;
+}
+
 // Tombol kirim ke FC sesuai status: Preparing… → Send to FC → Sent → Downloaded by FC.
 function sendButton(s) {
   const t = esc(s.title);
@@ -35,7 +43,7 @@ function render() {
       ? `<div class="row head cols-list play"><span>#</span><span>Date</span><span>Title</span><span></span></div>` +
         rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${!s.accepted_at && s.revision_requested_at ? ' <span class="badge rev">Revision requested</span>' : ''}</span>` +
           `<span class="pl">${s.accepted_at
-            ? `<button class="revbtn" data-revision="${s.n}" aria-label="Request a revision: ${esc(s.title)}" title="Request a revision">${REV_ICON}<span>Revision</span></button>` +
+            ? downloadButton(s) + `<button class="revbtn" data-revision="${s.n}" aria-label="Request a revision: ${esc(s.title)}" title="Request a revision">${REV_ICON}<span>Revision</span></button>` +
               sendButton(s)
             : `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`}<a class="btn playbtn${s.audio ? '' : ' noaudio'}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${s.audio ? '' : ' title="No audio yet"'}>▶</a></span></div>`).join('')
       : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
@@ -58,6 +66,7 @@ export function mount(report) {
       else toast('Revision is not available right now');
       return;
     }
+    if (e.target.closest('[data-vdl]')) { toast('Download started'); return; } // biarkan browser mengunduh
     const sb = e.target.closest('[data-send]');
     if (sb) {
       // Diteruskan ke modul Send to FC (nanti: kirim ke FC lewat WhatsApp). Modul tidak jalan → pesan saja.

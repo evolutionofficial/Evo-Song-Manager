@@ -54,7 +54,7 @@ function createWavWorker(cfg, db) {
   async function doDelete(job) {
     const gone = await drive.remove(job.drive_file_id);
     await db.wavReport({ id: job.id, status: 'deleted' });
-    log(`WAV "${job.title}": ${gone ? 'dihapus dari Drive' : 'sudah tidak ada di Drive'} (Revision).`);
+    log(`WAV "${job.title}": ${gone ? 'dihapus dari Drive' : 'sudah tidak ada di Drive'} (Revision / batas 40 file per vokalis).`);
   }
 
   async function runOnce() {

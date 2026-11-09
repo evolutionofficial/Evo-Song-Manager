@@ -771,3 +771,9 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 .sendbtn.sent svg { color: #ffb661; }
 .sendbtn.done { color: #c9f5e2; border-color: rgba(61, 220, 151, .4); background: rgba(61, 220, 151, .1); }
 .sendbtn.done svg { color: #3ddc97; }
+/* Unduh WAV untuk vokalis (kiri tombol Revision) */
+.dlbtn { width: 36px; height: 36px; min-height: 36px; padding: 0; justify-content: center; border-radius: 999px; color: #9fd0ff;
+  background: linear-gradient(135deg, rgba(46, 139, 255, .16), rgba(46, 139, 255, .05)); border-color: rgba(46, 139, 255, .38); }
+.dlbtn:hover { border-color: rgba(46, 139, 255, .8); box-shadow: 0 0 0 3px rgba(46, 139, 255, .15); }
+.dlbtn svg { transition: transform .25s var(--ease-out); }
+.dlbtn:hover svg { transform: translateY(2px); }
