@@ -7,7 +7,8 @@ const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle
 const NAME_RE = /^\s*([^-]+?)\s*-\s*(.+?)\s*\.m4a$/i;
 const SETTLE_MS = 15000; // file yang berubah < 15 detik lalu dianggap masih dirender
 
-function scanM4a(root) {
+function scanM4a(root, source = 'pc') {
+  const pre = source === 'pc' ? '' : source + ':';
   const found = [];
   let pending = 0;
   const now = Date.now();
@@ -25,7 +26,7 @@ function scanM4a(root) {
         if (!SKIP_DIRS.has(ent.name.toLowerCase())) walk(full, segs.concat(ent.name));
         continue;
       }
-      if (!ent.isFile() || !NAME_RE.test(ent.name)) continue;
+      if (!ent.isFile() || !NAME_RE.test(ent.name) || ent.name.startsWith('._')) continue;
       if (!segs.some((s) => s.toLowerCase() === 'mixdown')) continue;
       let st;
       try { st = fs.statSync(full); } catch (_) { continue; }
@@ -36,7 +37,7 @@ function scanM4a(root) {
         full,
         fileName: ent.name,
         wavName,
-        relWav: segs.concat(wavName || ent.name.replace(/\.m4a$/i, '.wav')).join('/'),
+        relWav: pre + segs.concat(wavName || ent.name.replace(/\.m4a$/i, '.wav')).join('/'),
         size: st.size,
         mtimeMs: st.mtimeMs,
       });

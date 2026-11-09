@@ -10,33 +10,47 @@ const { log } = require('./log');
 const REFRESH_MS = 10 * 60 * 1000; // kirim ulang minimal tiap 10 menit (tanda program masih hidup)
 
 function createAgent(cfg) {
-  let lastHash = null;
-  let lastPushAt = 0;
+  const sources = cfg.sources || [{ name: 'pc', root: cfg.root, archive: false, main: true }];
+  const last = new Map(); // nama sumber -> { hash, at }
+  const offline = new Set(); // sumber tambahan yang sedang tidak tersambung (drive dicabut)
   let running = false;
   let again = false;
+
+  async function syncSource(src, reason) {
+    if (!src.main && !fs.existsSync(src.root)) {
+      if (!offline.has(src.name)) { offline.add(src.name); log(`[${src.name}] ${src.root} tidak tersambung — dilewati (lagu-lagunya tidak diubah).`); }
+      return;
+    }
+    if (offline.delete(src.name)) log(`[${src.name}] ${src.root} tersambung lagi.`);
+    const snap = scan(src.root);
+    if (!src.main) snap.folders = [];
+    const hash = crypto.createHash('sha1').update(JSON.stringify([snap.folders, snap.files])).digest('hex');
+    const prev = last.get(src.name);
+    if (prev && prev.hash === hash && Date.now() - prev.at < REFRESH_MS) {
+      if (snap.pending) log(`[${src.name}] ${snap.pending} file masih baru/dirender, dicek lagi nanti`);
+      return;
+    }
+    const r = await push(cfg, snap, src);
+    last.set(src.name, { hash, at: Date.now() });
+    const bits = [`${r.files} file`];
+    if (src.main) bits.push(`${snap.folders.length} nama`);
+    if (r.new_vocalists) bits.push(`${r.new_vocalists} nama baru`);
+    if (r.new_songs) bits.push(`${r.new_songs} lagu baru`);
+    if (r.newly_missing) bits.push(`${r.newly_missing} file hilang`);
+    if (r.unmatched) bits.push(`${r.unmatched} perlu dicek`);
+    log(`Sync${sources.length > 1 ? ' [' + src.name + ']' : ''} (${reason}): ${bits.join(', ')}`);
+    if (snap.pending) log(`[${src.name}] ${snap.pending} file masih baru/dirender, dicek lagi nanti`);
+  }
 
   async function runOnce(reason) {
     if (running) { again = true; return true; }
     running = true;
     let ok = true;
     try {
-      const snap = scan(cfg.root);
-      const hash = crypto.createHash('sha1').update(JSON.stringify([snap.folders, snap.files])).digest('hex');
-      if (hash !== lastHash || Date.now() - lastPushAt > REFRESH_MS) {
-        const r = await push(cfg, snap);
-        lastHash = hash;
-        lastPushAt = Date.now();
-        const bits = [`${r.files} file`, `${snap.folders.length} nama`];
-        if (r.new_vocalists) bits.push(`${r.new_vocalists} nama baru`);
-        if (r.new_songs) bits.push(`${r.new_songs} lagu baru`);
-        if (r.newly_missing) bits.push(`${r.newly_missing} file hilang`);
-        if (r.unmatched) bits.push(`${r.unmatched} perlu dicek`);
-        log(`Sync (${reason}): ${bits.join(', ')}`);
+      for (const src of sources) {
+        try { await syncSource(src, reason); }
+        catch (e) { ok = false; log(`GAGAL${sources.length > 1 ? ' [' + src.name + ']' : ''}: ` + e.message); }
       }
-      if (snap.pending) log(`${snap.pending} file masih baru/dirender, dicek lagi nanti`);
-    } catch (e) {
-      ok = false;
-      log('GAGAL: ' + e.message);
     } finally {
       running = false;
       if (again) { again = false; setTimeout(() => runOnce('antrian'), 2000); }

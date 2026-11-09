@@ -3,7 +3,7 @@
 // Hanya tahu jaringan; tidak membaca disk.
 const TIMEOUT_MS = 60000;
 
-async function push(cfg, snap) {
+async function push(cfg, snap, source = { name: 'pc', archive: false }) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
@@ -15,7 +15,7 @@ async function push(cfg, snap) {
         apikey: cfg.anonKey,
         Authorization: 'Bearer ' + cfg.anonKey,
       },
-      body: JSON.stringify({ p_secret: cfg.syncSecret, p_folders: snap.folders, p_files: snap.files }),
+      body: JSON.stringify({ p_secret: cfg.syncSecret, p_folders: snap.folders, p_files: snap.files, p_source: source.name, p_archive: source.archive }),
     });
     const text = await res.text();
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);

@@ -11,3 +11,4 @@ drive/r2.txt
 drive/client_secret.json
 drive/media.log*
 drive/supervisor.pid
+sync/sources.json

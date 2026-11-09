@@ -31,3 +31,12 @@ PENJAGA OTOMATIS (sejak versi modular)
   Penjaga ini menyalakan lagi program sync kalau berhenti/crash,
   dengan jeda yang makin panjang kalau terus-terusan gagal.
 - Jalankan ulang install-autostart.bat sekali setelah update agar penjaga aktif.
+
+BANYAK SUMBER (PC, drive backup, MacBook)
+- sources.json (tanpa kunci, boleh dilihat) mengatur folder tambahan:
+    "main"  : nama sumber folder utama (PC = pc, MacBook = mac)
+    "extra" : folder lain, mis. drive backup G:\FIrst CLUB
+- "archive": true  = lagu baru dari folder itu langsung Paid (tanpa harga),
+  dan nama selain vokalis yang dikenal (Carla, Cia, Guna, Keket) diabaikan.
+- Kalau drive backup dicabut, lagunya tidak diubah; dibaca lagi saat dicolok.
+- Setelah mengubah sources.json, jalankan install-autostart.bat sekali lagi.

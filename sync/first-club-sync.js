@@ -16,7 +16,7 @@ const { log } = require('./lib/log');
 async function main() {
   const cfg = loadConfig();
   const once = process.argv.includes('--once');
-  log(`First Club Sync mulai. Folder: ${cfg.root}`);
+  log(`First Club Sync mulai. ${cfg.sources.map((x) => `[${x.name}${x.archive ? ', arsip' : ''}] ${x.root}`).join(' · ')}`);
   const agent = createAgent(cfg);
   const ok = await agent.runOnce('awal');
   if (once) { process.exitCode = ok ? 0 : 1; return; }

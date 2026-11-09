@@ -36,7 +36,19 @@ function loadConfig() {
     if (!cfg[k]) throw new Error(`pengaturan "${k}" tidak ditemukan (cek sync\\config.json)`);
   }
   cfg.r2 = parseR2(readR2());
+  cfg.sources = loadSyncSources(cfg);
   return cfg;
+}
+
+/** Sumber folder sama seperti First Club Sync (sync\\sources.json): PC, backup G:, MacBook. */
+function loadSyncSources(cfg) {
+  try {
+    const { loadSources } = require(path.join(DIR, '..', 'sync', 'lib', 'config.js'));
+    return loadSources({ root: cfg.root });
+  } catch (e) {
+    if (/sources\.json/.test(e.message)) throw e;
+    return [{ name: 'pc', root: cfg.root, archive: false, main: true }];
+  }
 }
 
 function readR2() {

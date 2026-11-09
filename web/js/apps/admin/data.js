@@ -10,7 +10,7 @@ export const state = {
   errors: {}, // { sumber: pesan } untuk sumber data yang gagal dimuat
 };
 
-const SONG_COLS = 'id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at,accepted_at,revision_requested_at,revision_note';
+const SONG_COLS = 'id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at,accepted_at,revision_requested_at,revision_note,source';
 
 const SOURCES = {
   vocalists: () => sb.from('vocalists').select('*').order('display_name'),

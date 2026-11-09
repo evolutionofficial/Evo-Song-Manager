@@ -29,7 +29,7 @@ function renderTable() {
   const all = vocSongs().map((s, i) => ({ ...s, n: i + 1 })).reverse();
   showDue($('due'), summarize(all).rest);
   const rows = all.filter((s) => (!q || norm(s.title).includes(q)) &&
-    (!st || (st === 'paid' ? s.paid : st === 'unpaid' ? !s.paid && s.price !== 0 : s.price == null)));
+    (!st || (st === 'paid' ? s.paid : st === 'unpaid' ? !s.paid && s.price !== 0 : s.price == null && !s.paid)));
   if (!all.length) { $('table').innerHTML = `<div class="empty">No songs for this vocalist yet.</div>`; return; }
   if (!rows.length) { $('table').innerHTML = `<div class="empty">No matching songs.</div>`; return; }
   $('table').innerHTML =
@@ -37,7 +37,7 @@ function renderTable() {
     rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
       <span class="no dim">${s.n}</span>
       <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
-      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${!s.accepted_at && s.revision_requested_at ? ` <span class="badge rev" title="Requested by the vocalist on ${esc(fmtDate(s.revision_requested_at))}">Revision requested</span>` : ''}${!s.accepted_at && s.revision_requested_at && s.revision_note ? `<span class="revnote">“${esc(s.revision_note)}”</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
+      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.source && s.source !== 'pc' ? ` <span class="badge muted src" title="From ${esc(s.source === 'backup' ? 'the backup drive' : s.source === 'mac' ? 'the MacBook' : s.source)}">${esc(s.source === 'backup' ? 'Backup' : s.source === 'mac' ? 'MacBook' : s.source)}</span>` : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${!s.accepted_at && s.revision_requested_at ? ` <span class="badge rev" title="Requested by the vocalist on ${esc(fmtDate(s.revision_requested_at))}">Revision requested</span>` : ''}${!s.accepted_at && s.revision_requested_at && s.revision_note ? `<span class="revnote">“${esc(s.revision_note)}”</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
       ${s.paid
         ? `<span class="price dim paid-price" title="Saved price: ${ribu(s.price)} (shows again if Paid is undone)">—</span>`
         : `<span class="price"><select data-price="${s.id}" aria-label="Price ${esc(s.title)}">

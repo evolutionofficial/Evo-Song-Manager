@@ -50,7 +50,7 @@ function scan(root) {
       if (ent.isDirectory()) {
         if (SKIP_DIRS.has(ent.name.toLowerCase())) continue;
         walk(full, segs.concat(ent.name));
-      } else if (ent.isFile() && /\.wav$/i.test(ent.name)) {
+      } else if (ent.isFile() && /\.wav$/i.test(ent.name) && !ent.name.startsWith('._')) { // ._ = file sampah macOS
         if (!segs.some((s) => s.toLowerCase() === 'mixdown')) continue;
         const m = ent.name.match(NAME_RE);
         if (!m) continue;

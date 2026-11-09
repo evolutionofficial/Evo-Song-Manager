@@ -1,0 +1,7 @@
+{
+  "_catatan": "Salin jadi sources.json. main = nama sumber folder utama (PC: pc, MacBook: mac). extra = folder tambahan; archive = lagu baru otomatis Paid dan nama tak dikenal diabaikan.",
+  "main": "pc",
+  "extra": [
+    { "name": "backup", "root": "G:\\FIrst CLUB", "archive": true }
+  ]
+}

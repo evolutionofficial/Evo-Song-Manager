@@ -21,7 +21,7 @@ const { createDb } = require('./lib/db');
 const { scanM4a } = require('./lib/scan');
 const { log } = require('./lib/log');
 
-const VERSION = '1.0';
+const VERSION = '1.1';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
@@ -75,7 +75,12 @@ function createAgent(cfg) {
     running = true;
     let ok = true;
     try {
-      const { found } = scanM4a(cfg.root);
+      const found = [];
+      for (const src of cfg.sources || [{ name: 'pc', root: cfg.root, main: true }]) {
+        if (!src.main && !fs.existsSync(src.root)) continue; // drive backup dicabut
+        try { found.push(...scanM4a(src.root, src.name).found); }
+        catch (e) { ok = false; log(`GAGAL [${src.name}]: ${e.message}`); }
+      }
       stats.waiting = 0;
       for (const f of found) {
         try {
