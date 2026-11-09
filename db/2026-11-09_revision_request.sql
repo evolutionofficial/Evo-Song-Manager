@@ -1,0 +1,8 @@
+-- Diterapkan 2026-11-09 (migrasi "revision_request").
+-- songs.revision_requested_at, songs.revision_note; status wav_uploads 'cancelled'.
+-- request_revision(token, song, note): vokalis membatalkan Accept + minta revisi.
+-- unlock_song(song): admin Unlock (undo Accept) — antrean upload WAV ikut dibersihkan.
+-- _cancel_wav_upload(song, revision): hapus antrean yang belum diunggah, selain itu tandai 'cancelled'.
+-- accept_song: menghapus tanda revisi; upload yang pernah dibatalkan diaktifkan lagi.
+-- Trigger songs_clear_revision_flag: revisi baru (Replace with revision) → tanda revisi dihapus.
+-- get_vocalist_report: menambahkan revision_requested_at.

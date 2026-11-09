@@ -1,6 +1,7 @@
 // ADMIN — modul Tabel lagu & harga: ringkasan, link vokalis, harga (pilihan + custom), Paid,
 // menu klik kanan / tekan lama di judul (Ganti revisi, Hapus).
 // "Ganti revisi" diteruskan ke modul revisi lewat ctx.openReplace().
+import { sb } from '/js/core/supabase.js';
 import { PRICES } from '/js/core/config.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
@@ -36,7 +37,7 @@ function renderTable() {
     rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
       <span class="no dim">${s.n}</span>
       <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
-      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
+      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${!s.accepted_at && s.revision_requested_at ? ` <span class="badge rev" title="Requested by the vocalist on ${esc(fmtDate(s.revision_requested_at))}">Revision requested</span>` : ''}${!s.accepted_at && s.revision_requested_at && s.revision_note ? `<span class="revnote">“${esc(s.revision_note)}”</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
       ${s.paid
         ? `<span class="price dim paid-price" title="Saved price: ${ribu(s.price)} (shows again if Paid is undone)">—</span>`
         : `<span class="price"><select data-price="${s.id}" aria-label="Price ${esc(s.title)}">
@@ -133,7 +134,11 @@ function openMenu(id, x, y) {
 async function unlockSong(id) {
   const s = state.songs.find((x) => x.id === id);
   if (!confirm(`Unlock "${s.title}"?\n\nThe vocalist's Accept is undone, so you can replace it with a revision again. The vocalist will need to Accept it again before sending it to FC.`)) return;
-  if (await updateSong(id, { accepted_at: null }, ctx.renderAll)) toast('Song unlocked');
+  const { error } = await sb.rpc('unlock_song', { p_song: id });
+  if (error) return toast('Failed: ' + error.message, 'bad');
+  s.accepted_at = null;
+  ctx.renderAll();
+  toast('Song unlocked');
 }
 
 async function deleteSong(id) {

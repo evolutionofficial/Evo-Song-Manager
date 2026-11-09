@@ -10,7 +10,7 @@ export const state = {
   errors: {}, // { sumber: pesan } untuk sumber data yang gagal dimuat
 };
 
-const SONG_COLS = 'id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at,accepted_at';
+const SONG_COLS = 'id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at,accepted_at,revision_requested_at,revision_note';
 
 const SOURCES = {
   vocalists: () => sb.from('vocalists').select('*').order('display_name'),
@@ -53,7 +53,7 @@ export async function updateSong(id, patch, onChange) {
   Object.assign(s, patch);
   onChange?.();
   const { data, error } = await sb.from('songs').update(patch).eq('id', id)
-    .select('id,price,paid,paid_at,deleted,deleted_at,accepted_at').single();
+    .select('id,price,paid,paid_at,deleted,deleted_at,accepted_at,revision_requested_at,revision_note').single();
   if (error) {
     Object.assign(s, before);
     onChange?.();
