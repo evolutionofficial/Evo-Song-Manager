@@ -44,7 +44,11 @@ audio.preload = 'metadata';
 
 // iPhone/iPad: Safari tidak mengizinkan web mengubah audio.volume (selalu 1). Di perangkat seperti
 // itu slider volume disembunyikan — volume diatur dari tombol HP; tombol mute tetap ada.
-const volumeLocked = (() => { try { const a = new Audio(); a.volume = 0.5; return a.volume !== 0.5; } catch { return false; } })();
+// Deteksi: (1) jenis perangkat iPhone/iPad/iPod (termasuk iPad yang mengaku "Macintosh"),
+// atau (2) browser yang menolak perubahan volume.
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+  (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const volumeLocked = isIOS || (() => { try { const a = new Audio(); a.volume = 0.5; return a.volume !== 0.5; } catch { return false; } })();
 
 /** URL audio untuk sebuah lagu, atau null kalau lagu ini belum punya M4A.
  *  ?v= berubah setiap ada file audio baru (revisi), supaya browser tidak memakai cache lama. */
