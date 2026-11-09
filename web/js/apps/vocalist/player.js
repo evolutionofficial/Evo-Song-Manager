@@ -10,6 +10,7 @@
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';
 import { esc, dateLabel } from '/js/core/format.js';
+import { photoUrl } from '/js/core/config.js';
 
 const I = {
   play: '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
@@ -36,6 +37,8 @@ const initials = (t) => {
   const w = String(t).replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter(Boolean);
   return (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '♪').slice(0, 2)).toUpperCase();
 };
+// Cover: foto vokalis kalau ada, kalau tidak inisial judul lagu.
+const cover = (s) => { const u = photoUrl(rep.photo); return u ? `<img src="${esc(u)}" alt="" draggable="false">` : esc(initials(s.title)); };
 const fmt = (s) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '–:––');
 
 // =================== ENGINE (satu-satunya bagian yang menyentuh suara) ===================
@@ -88,7 +91,9 @@ function select(n, autoplay) {
   render();
   window.dispatchEvent(new CustomEvent('fc:track', { detail: { n: st.n } }));
   if ('mediaSession' in navigator && cur()) {
-    try { navigator.mediaSession.metadata = new MediaMetadata({ title: cur().title, artist: rep.name, album: 'First Club' }); } catch {}
+    try { const art = photoUrl(rep.photo);
+      navigator.mediaSession.metadata = new MediaMetadata({ title: cur().title, artist: rep.name, album: 'First Club',
+        artwork: art ? [{ src: art, sizes: '640x640', type: 'image/jpeg' }] : [] }); } catch {}
   }
   if (autoplay) togglePlay(has);
 }
@@ -162,7 +167,7 @@ function render() {
   el.bar.hidden = false;
   el.bar.innerHTML = `
     <div class="mb-prog"><i style="width:${p.pct}%"></i></div>
-    <div class="mb-art" aria-hidden="true">${esc(initials(s.title))}</div>
+    <div class="mb-art ${rep.photo ? 'photo' : ''}" aria-hidden="true">${cover(s)}</div>
     <div class="mb-info"><div class="mb-title">${esc(s.title)}</div><div class="mb-sub">${esc(rep.name)} · ${esc(dateLabel(s))}</div></div>
     <div class="mb-ctrls">${controls('mini')}</div>
     <div class="mb-vol">${volume()}</div>`;
@@ -173,7 +178,7 @@ function render() {
       <span style="width:40px"></span>
     </div>
     <div class="fp-body">
-      <div class="cover fp-cover" aria-hidden="true">${esc(initials(s.title))}</div>
+      <div class="cover fp-cover ${rep.photo ? 'photo' : ''}" aria-hidden="true">${cover(s)}</div>
       <div class="fp-meta"><h2 class="p-title">${esc(s.title)}</h2><p class="p-sub">${esc(rep.name)} · ${esc(dateLabel(s))}</p></div>
       <div class="fp-prog"><div class="p-bar ${audio.src ? 'seek' : ''}" data-seek role="slider" tabindex="${audio.src ? 0 : -1}" aria-label="Position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p.pct)}"><div class="p-fill" style="width:${p.pct}%"></div><i class="p-knob" style="left:${p.pct}%"></i></div>
         <div class="p-times"><span>${p.cur}</span><span>${p.dur}</span></div></div>

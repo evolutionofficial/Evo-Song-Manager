@@ -4,6 +4,7 @@ import { sb } from '/js/core/supabase.js';
 import { $ } from '/js/core/ui.js';
 import { safe, loadModules, installGlobalHandlers, report } from '/js/core/guard.js';
 import { esc, dateLabel } from '/js/core/format.js';
+import { photoUrl } from '/js/core/config.js';
 
 installGlobalHandlers();
 
@@ -50,7 +51,9 @@ async function start() {
   if (!song) return fail('Song not found', 'This song is no longer on the list. Go back to the Songlist.');
 
   document.title = `${song.title} · ${rep.name}`;
-  $('cover').textContent = initials(song.title);
+  const art = photoUrl(rep.photo);
+  if (art) { const img = new Image(); img.src = art; img.alt = ''; $('cover').classList.add('photo'); $('cover').replaceChildren(img); }
+  else $('cover').textContent = initials(song.title);
   $('title').textContent = song.title;
   $('meta').innerHTML = `${esc(rep.name)} · ${esc(dateLabel(song))}`;
   $('app').classList.remove('hidden');
