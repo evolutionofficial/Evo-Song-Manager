@@ -23,7 +23,7 @@ function render() {
         rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}</span>` +
           `<span class="pl">${s.accepted_at
             ? `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${esc(s.title)}">${SEND_ICON}<span>Send to FC</span></button>`
-            : `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`}<a class="btn playbtn" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}">▶</a></span></div>`).join('')
+            : `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`}<a class="btn playbtn${s.audio ? '' : ' noaudio'}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${s.audio ? '' : ' title="No audio yet"'}>▶</a></span></div>`).join('')
       : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
 }
 

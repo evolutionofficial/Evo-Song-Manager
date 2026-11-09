@@ -6,3 +6,8 @@ node_modules/
 # wrangler
 .wrangler/
 sync/config.backup*.json
+drive/config.json
+drive/r2.txt
+drive/client_secret.json
+drive/media.log*
+drive/supervisor.pid

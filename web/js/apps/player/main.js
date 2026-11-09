@@ -56,7 +56,7 @@ async function start() {
   $('app').classList.remove('hidden');
 
   const player = {
-    song, songs, vocalist: rep.name,
+    song, songs, vocalist: rep.name, token,
     prevUrl: song.n > 1 ? songUrl(song.n - 1) : null,
     nextUrl: song.n < songs.length ? songUrl(song.n + 1) : null,
     songUrl,

@@ -5,5 +5,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "evo-song-manager",
   "compatibility_date": "2026-11-04",
-  "pages_build_output_dir": "web"
+  "pages_build_output_dir": "web",
+  // Bucket audio M4A untuk player (endpoint functions/audio/...). Bukan untuk WAV.
+  "r2_buckets": [{ "binding": "AUDIO", "bucket_name": "evo-audio" }]
 }

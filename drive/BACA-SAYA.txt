@@ -1,0 +1,34 @@
+EVO MEDIA AGENT
+===============
+Program kecil yang mengunggah audio player (M4A) ke Cloudflare R2,
+supaya lagu bisa diputar di halaman vokalis.
+
+CARA PAKAI SEHARI-HARI
+- Di Studio One, render lagu sebagai WAV dan M4A dengan nama yang sama,
+  ke folder Mixdown seperti biasa:
+      Carla - Judul.wav
+      Carla - Judul.m4a
+- Dalam beberapa detik (setelah Sync mencatat WAV-nya), M4A diunggah,
+  dicek sama persis, lalu DIHAPUS PERMANEN dari PC. WAV tidak disentuh.
+- Lagu lama: cukup taruh M4A bernama sama di folder Mixdown-nya,
+  kapan saja. Program yang mengurus sisanya.
+
+PASANG (sekali saja)
+1. Pastikan Node.js sudah terpasang (sama seperti First Club Sync).
+2. Double-click  install-autostart.bat
+   - Ia mengecek koneksi database dan R2 dulu.
+   - Setelah itu program jalan di background dan otomatis aktif
+     setiap Windows menyala.
+
+FILE LAIN
+- cek-sekarang.bat        : jalankan sekali secara manual (lihat hasilnya).
+- uninstall-autostart.bat : matikan dan lepas dari startup.
+- media.log               : catatan setiap upload / kegagalan.
+- r2.txt                  : kunci R2. JANGAN dibagikan ke orang lain.
+                            (Alamat database & kunci diambil dari ..\sync\config.json.)
+- client_secret.json      : untuk tahap Google Drive (belum dipakai).
+
+KALAU GAGAL
+- File M4A di PC tidak pernah dihapus sebelum upload terbukti berhasil.
+- Upload yang gagal dicoba lagi otomatis (30 detik, 1, 5, 15, 30 menit).
+- M4A tanpa WAV bernama sama tidak diunggah (ditunggu).

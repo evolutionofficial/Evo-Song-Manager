@@ -4,9 +4,9 @@
 // (kecuali tombol & volume) → tampilan penuh terbuka dari bawah. Tombol ⌄ / Esc / tombol Back HP
 // menutupnya kembali.
 //
-// Mesin audio belum punya sumber file (penyimpanan audio dibahas terpisah). Semua yang
-// berhubungan dengan suara ada di bagian ENGINE di bawah; bagian lain tidak perlu diubah
-// ketika audio sudah tersedia.
+// Audio: file M4A di Cloudflare R2, dialirkan lewat /audio/<token>/<idLagu> (endpoint itu
+// memeriksa bahwa lagu memang milik pemegang link). Lagu tanpa M4A → "No audio yet".
+// Semua yang berhubungan dengan suara ada di bagian ENGINE di bawah.
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';
 import { esc, dateLabel } from '/js/core/format.js';
@@ -42,8 +42,13 @@ const fmt = (s) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.fl
 const audio = new Audio();
 audio.preload = 'metadata';
 
-/** URL audio untuk sebuah lagu. Belum tersedia → null. Nanti diisi dari modul distribusi file. */
-function audioUrl(/* song */) { return null; }
+/** URL audio untuk sebuah lagu, atau null kalau lagu ini belum punya M4A.
+ *  ?v= berubah setiap ada file audio baru (revisi), supaya browser tidak memakai cache lama. */
+function audioUrl(song) {
+  if (!song || !song.audio || !rep.token) return null;
+  return `/audio/${encodeURIComponent(rep.token)}/${encodeURIComponent(song.id)}?v=${encodeURIComponent(song.audio)}`;
+}
+const hasAudio = (song) => !!audioUrl(song);
 
 function engineLoad(song) {
   const url = audioUrl(song);
@@ -52,8 +57,16 @@ function engineLoad(song) {
   return false;
 }
 async function enginePlay() {
-  if (!audio.src) { toast('Audio coming soon'); return false; }
-  try { await audio.play(); return true; } catch (e) { report('Player:play', e); toast("This song can't be played yet", 'bad'); return false; }
+  if (!audio.src) { toast('No audio yet for this song'); return false; }
+  try { await audio.play(); return true; } catch (e) {
+    if (e && e.name === 'AbortError') return false; // diganti lagu lain sebelum mulai — normal
+    report('Player:play', e); toast("This song can't be played right now", 'bad'); return false;
+  }
+}
+function engineSeek(frac) {
+  const d = audio.duration;
+  if (!Number.isFinite(d) || !d) return;
+  audio.currentTime = Math.min(Math.max(0, frac), 1) * d;
 }
 function enginePause() { audio.pause(); }
 function engineVolume() { audio.volume = st.volume; audio.muted = st.muted; }
@@ -74,7 +87,7 @@ function select(n, autoplay) {
 
 async function togglePlay(has = !!audio.src) {
   if (st.playing) { enginePause(); st.playing = false; return render(); }
-  if (!has) { toast('Audio coming soon'); return; }
+  if (!has) { toast('No audio yet for this song'); return; }
   st.playing = await enginePlay();
   render();
 }
@@ -95,14 +108,29 @@ function step(dir) {
   select(order[i].n, st.playing);
 }
 
+// Setelah lagu selesai: lanjut ke lagu berikutnya YANG PUNYA AUDIO (lewati yang belum ada).
+function advance() {
+  const cand = [];
+  for (let k = 1; k < order.length; k++) {
+    const i = pos() + k;
+    if (i > order.length - 1 && !st.repeat) break;
+    cand.push(order[i % order.length]);
+  }
+  const pool = st.shuffle ? order.filter((x) => x.n !== st.n && hasAudio(x)) : cand.filter(hasAudio);
+  if (!pool.length) { st.playing = false; return render(); }
+  const nxt = st.shuffle ? pool[Math.floor(Math.random() * pool.length)] : pool[0];
+  select(nxt.n, true);
+}
+
 // ---------- Tampilan ----------
 function controls(size) {
   const pp = st.playing ? I.pause : I.play;
   const noAudio = !audio.src;
+  const label = st.playing ? 'Pause' : 'Play';
   return `
     ${size === 'full' ? `<button class="pc tog ${st.shuffle ? 'on' : ''}" data-act="shuffle" aria-pressed="${st.shuffle}" aria-label="Shuffle">${I.shuffle}</button>` : ''}
     <button class="pc" data-act="prev" aria-label="Previous" ${isFirst() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
-    <button class="pc pp ${noAudio ? 'soon' : ''}" data-act="play" aria-label="${st.playing ? 'Pause' : 'Play'}" title="${noAudio ? 'Audio coming soon' : ''}">${pp}</button>
+    <button class="pc pp ${noAudio ? 'soon' : ''}" data-act="play" aria-label="${label}" title="${noAudio ? 'No audio yet' : label}">${pp}</button>
     <button class="pc" data-act="next" aria-label="Next" ${isLast() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
     ${size === 'full' ? `<button class="pc tog ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Repeat">${I.repeat}</button>` : ''}`;
 }
@@ -138,13 +166,13 @@ function render() {
     <div class="fp-body">
       <div class="cover fp-cover" aria-hidden="true">${esc(initials(s.title))}</div>
       <div class="fp-meta"><h2 class="p-title">${esc(s.title)}</h2><p class="p-sub">${esc(rep.name)} · ${esc(dateLabel(s))}</p></div>
-      <div class="fp-prog"><div class="p-bar"><div class="p-fill" style="width:${p.pct}%"></div></div>
+      <div class="fp-prog"><div class="p-bar ${audio.src ? 'seek' : ''}" data-seek role="slider" tabindex="${audio.src ? 0 : -1}" aria-label="Position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p.pct)}"><div class="p-fill" style="width:${p.pct}%"></div><i class="p-knob" style="left:${p.pct}%"></i></div>
         <div class="p-times"><span>${p.cur}</span><span>${p.dur}</span></div></div>
       <div class="fp-ctrls">${controls('full')}</div>
       <div class="fp-vol">${volume()}</div>
-      ${audio.src ? '' : '<p class="p-soon">Audio is coming soon. For now the player shows song info and the queue.</p>'}
+      ${audio.src ? '' : '<p class="p-soon">No audio yet for this song.</p>'}
       <section class="p-queue"><h2>Queue · ${songs.length} songs</h2><div class="table">
-        ${order.map((x) => `<button class="row qrow ${x.n === st.n ? 'cur' : ''}" data-q="${x.n}"><span class="no">${x.n === st.n ? '▶' : x.n}</span><span class="title">${esc(x.title)}</span></button>`).join('')}
+        ${order.map((x) => `<button class="row qrow ${x.n === st.n ? 'cur' : ''}" data-q="${x.n}"><span class="no">${x.n === st.n ? '▶' : x.n}</span><span class="title">${esc(x.title)}</span>${hasAudio(x) ? '' : '<span class="noaudio">No audio yet</span>'}</button>`).join('')}
       </div></section>
     </div>`;
 }
@@ -209,6 +237,25 @@ export function mount(report_) {
     if (e.target.closest('.mb-ctrls, .mb-vol')) return; // area tombol & volume tidak membuka player
     setOpen(true); // klik di mana saja selain tombol → buka tampilan penuh
   });
+  // Geser posisi lagu: klik / seret di progress bar tampilan penuh, atau tombol panah.
+  let dragging = false;
+  const seekAt = (bar, clientX) => {
+    const r = bar.getBoundingClientRect();
+    engineSeek((clientX - r.left) / r.width);
+    paintProgress();
+  };
+  on(el.sheet, 'pointerdown', L, (e) => {
+    const bar = e.target.closest('[data-seek]'); if (!bar || !audio.src) return;
+    dragging = true; bar.setPointerCapture?.(e.pointerId); seekAt(bar, e.clientX);
+  });
+  on(el.sheet, 'pointermove', L, (e) => { if (dragging) { const bar = el.sheet.querySelector('[data-seek]'); if (bar) seekAt(bar, e.clientX); } });
+  on(el.sheet, 'pointerup', L, () => { dragging = false; });
+  on(el.sheet, 'pointercancel', L, () => { dragging = false; });
+  on(el.sheet, 'keydown', L, (e) => {
+    if (!e.target.matches('[data-seek]') || !Number.isFinite(audio.duration)) return;
+    if (e.key === 'ArrowRight') { audio.currentTime = Math.min(audio.duration, audio.currentTime + 5); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { audio.currentTime = Math.max(0, audio.currentTime - 5); e.preventDefault(); }
+  });
   on(el.sheet, 'click', L, (e) => {
     const q = e.target.closest('[data-q]'); if (q) return select(Number(q.dataset.q), st.playing);
     const b = e.target.closest('[data-act]'); if (b && b.dataset.act !== 'vol') act(b.dataset.act, b);
@@ -225,18 +272,35 @@ export function mount(report_) {
     if (e.code === 'Space' && cur() && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) { e.preventDefault(); togglePlay(); }
   });
 
-  for (const ev of ['timeupdate', 'loadedmetadata', 'durationchange']) audio.addEventListener(ev, () => {
+  function paintProgress() {
     const p = progress();
     el.bar.querySelector('.mb-prog i')?.style.setProperty('width', p.pct + '%');
     const f = el.sheet.querySelector('.p-fill'); if (f) f.style.width = p.pct + '%';
+    const k = el.sheet.querySelector('.p-knob'); if (k) k.style.left = p.pct + '%';
+    el.sheet.querySelector('[data-seek]')?.setAttribute('aria-valuenow', String(Math.round(p.pct)));
     const t = el.sheet.querySelectorAll('.p-times span'); if (t.length) { t[0].textContent = p.cur; t[1].textContent = p.dur; }
+    if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && Number.isFinite(audio.duration) && audio.duration) {
+      try { navigator.mediaSession.setPositionState({ duration: audio.duration, position: Math.min(audio.currentTime, audio.duration), playbackRate: 1 }); } catch {}
+    }
+  }
+  for (const ev of ['timeupdate', 'loadedmetadata', 'durationchange', 'seeked']) audio.addEventListener(ev, paintProgress);
+  audio.addEventListener('ended', () => { st.playing = false; if (!isLast() || st.repeat || st.shuffle) advance(); else render(); });
+  // Diputar/dijeda dari luar (tombol di lock screen, headset) → samakan tampilan.
+  audio.addEventListener('play', () => { if (!st.playing) { st.playing = true; render(); } });
+  audio.addEventListener('pause', () => { if (st.playing && !audio.ended) { st.playing = false; render(); } });
+  audio.addEventListener('error', () => {
+    if (!audio.getAttribute('src')) return;
+    st.playing = false; render();
+    toast("This song can't be played right now", 'bad');
   });
-  audio.addEventListener('ended', () => { st.playing = false; if (!isLast() || st.repeat || st.shuffle) step(1); else render(); });
 
   if ('mediaSession' in navigator) {
     try {
       navigator.mediaSession.setActionHandler('previoustrack', () => step(-1));
       navigator.mediaSession.setActionHandler('nexttrack', () => step(1));
+      navigator.mediaSession.setActionHandler('play', () => { if (!st.playing) togglePlay(); });
+      navigator.mediaSession.setActionHandler('pause', () => { if (st.playing) togglePlay(); });
+      navigator.mediaSession.setActionHandler('seekto', (d) => { if (Number.isFinite(d.seekTime)) audio.currentTime = d.seekTime; });
     } catch {}
   }
 

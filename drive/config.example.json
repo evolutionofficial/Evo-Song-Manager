@@ -1,0 +1,5 @@
+{
+  "_catatan": "OPSIONAL. Tanpa file ini, alamat database & kunci diambil dari ..\\sync\\config.json.",
+  "bucket": "evo-audio",
+  "intervalSeconds": 15
+}

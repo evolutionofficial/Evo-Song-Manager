@@ -676,3 +676,20 @@ header.top.vtop { justify-content: flex-start; gap: 10px; margin-bottom: 14px; }
 dialog.confirm { width: min(420px, calc(100vw - 32px)); }
 dialog.confirm h2 { margin: 0 0 6px; font-size: 18px; color: #fff; }
 dialog.confirm .cf-title { margin: 0 0 8px; font-weight: 650; color: #9fd0ff; }
+
+/* ---------- Tahap 2: audio ---------- */
+.playbtn.noaudio { opacity: .45; }
+.playbtn.noaudio:hover { opacity: .8; }
+.p-queue .noaudio { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, .1); border-radius: 99px; }
+.p-bar { position: relative; overflow: visible; }
+.p-bar .p-fill { border-radius: inherit; }
+.p-bar.seek { cursor: pointer; touch-action: none; }
+.p-bar.seek::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; bottom: -10px; } /* area sentuh lebih besar */
+.p-knob { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 0 4px rgba(46, 139, 255, .35), 0 2px 8px rgba(0, 0, 0, .5);
+  opacity: 0; transition: opacity .15s; pointer-events: none; }
+.p-bar:not(.seek) .p-knob { display: none; }
+.p-bar.seek:hover .p-knob, .p-bar.seek:focus-visible .p-knob, .p-bar.seek:active .p-knob { opacity: 1; }
+@media (hover: none) { .p-bar.seek .p-knob { opacity: 1; } }
+.p-bar.seek:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
