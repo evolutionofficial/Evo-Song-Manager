@@ -31,7 +31,7 @@ echo "== Cek Evo Media Agent =="
 mkdir -p "$LA"
 install_agent () { # label folder script
   local label="$1" wd="$2" script="$3" plist="$LA/$1.plist"
-  launchctl bootout "gui/$UIDN/$label" >/dev/null 2>&1
+  launchctl bootout "gui/$UIDN/$label" >/dev/null 2>&1 && sleep 1
   rm -f "$wd/supervisor.pid"
   cat > "$plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -47,7 +47,13 @@ install_agent () { # label folder script
   <key>StandardErrorPath</key><string>$wd/launchd-error.log</string>
 </dict></plist>
 PLIST
-  launchctl bootstrap "gui/$UIDN" "$plist"
+  # launchd kadang butuh sebentar setelah bootout; coba beberapa kali.
+  for i in 1 2 3 4 5; do
+    launchctl bootstrap "gui/$UIDN" "$plist" 2>/dev/null && return 0
+    sleep 1
+  done
+  launchctl kickstart -k "gui/$UIDN/$label" >/dev/null 2>&1 && return 0
+  echo "Peringatan: $label belum bisa dijalankan otomatis. Jalankan perintah ini sekali lagi."
 }
 install_agent id.evolution.firstclub.sync "$SYNC" first-club-supervisor.js
 install_agent id.evolution.firstclub.media "$MEDIA" evo-media-supervisor.js
