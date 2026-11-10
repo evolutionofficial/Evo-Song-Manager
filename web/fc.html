@@ -4,25 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>First Club · Downloads</title>
+<title>Evo Song Manager · Downloads</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 <div class="wrap">
-  <header class="top vtop"><div class="brand">First Club</div></header>
+  <header class="top vtop"><div class="brand">Evo Song Manager</div></header>
   <h1>Downloads</h1>
   <p class="sub" id="sub">Loading…</p>
 
   <div id="app" class="hidden">
-    <div class="op-bar">
-      <span class="op-count" id="newCount"></span>
-      <button class="primary op-all" id="allBtn" hidden>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
-        <span>Download all new</span>
-      </button>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-tab="new" aria-selected="true">New<span id="newCount"></span></button>
+      <button class="tab" role="tab" data-tab="folders" aria-selected="false">Folders</button>
     </div>
-    <div class="table" id="list"></div>
-    <p class="note op-note">Songs appear here after the vocalist presses <b>Send to FC</b>. Older songs are removed automatically once a newer one is downloaded.</p>
+
+    <!-- Laporan lagu baru yang barusan masuk (belum di-download) -->
+    <section id="paneNew" role="tabpanel">
+      <div class="op-bar">
+        <span class="op-count" id="newReport"></span>
+        <button class="primary op-all" id="allBtn" hidden>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+          <span>Download all new</span>
+        </button>
+      </div>
+      <div class="table" id="list"></div>
+    </section>
+
+    <!-- Satu folder per vokalis: lagu yang sudah di-download pindah ke sini -->
+    <section id="paneFolders" role="tabpanel" hidden>
+      <div id="folders"></div>
+    </section>
+
+    <p class="note op-note">Songs appear under <b>New</b> after the vocalist presses <b>Send to FC</b>. Once downloaded, a song moves into its vocalist's folder. Older songs are removed automatically once a newer one is downloaded.</p>
   </div>
 
   <div id="msg" class="empty-card hidden"><h2 id="msgTitle"></h2><p id="msgSub"></p></div>
