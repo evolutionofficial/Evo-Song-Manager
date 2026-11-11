@@ -21,6 +21,8 @@ let songs = [];
 let names = []; // semua vokalis → folder selalu tampil walau masih kosong
 let view = 'new'; // 'new' | nama vokalis
 let timer = null;
+let tab = 'new';
+const openFolders = new Set(); // folder yang sedang dibuka (tetap terbuka saat daftar dimuat ulang)
 
 const mb = (b) => (b ? `${(b / 1048576).toFixed(0)} MB` : '');
 const dateOf = (s) => (s.date ? fmtDate(s.date + 'T12:00:00+07:00') : '');
@@ -153,6 +155,12 @@ function start() {
     if (f) { view = f.dataset.folder; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (e.target.closest('[data-back]')) { view = 'new'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   });
+  // Ingat folder mana yang dibuka supaya tidak menutup sendiri saat daftar dimuat ulang.
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.classList || !d.classList.contains('op-folder')) return;
+    if (d.open) openFolders.add(d.dataset.voc); else openFolders.delete(d.dataset.voc);
+  }, true);
   $('allBtn').addEventListener('click', async () => {
     const list = fresh();
     toast(`Downloading ${list.length} songs…`);
