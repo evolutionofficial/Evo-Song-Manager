@@ -67,6 +67,18 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | Uji | salinan skema di Postgres lokal; bandingkan `get_vocalist_report` sebelum dan sesudah — harus identik |
 | Rollback | kolom dan tabel baru tidak dibaca kode lama; cukup dikosongkan |
 
+### Hasil penerapan F1+F2 (11 Nov 2026)
+
+- Perangkat `Evolution` (Windows, sumber `pc` + `backup`) terdaftar; kedua programnya melapor.
+- Sidik jari: 107 kandidat untuk sumber `pc` (selesai), `backup` dicicil karena drive USB lambat.
+- Backfill: **89 versi warisan** dibuat untuk lagu yang sudah punya audio; **22 unggahan WAV**
+  terikat ke versinya, **0 MD5 tidak cocok** (artinya semua WAV di Drive masih sama persis dengan
+  file di komputer).
+- Belum punya versi: 20 lagu `mac` (MacBook mati; menyusul sendiri) dan 3 lagu yang pernah
+  di-Accept tetapi tidak punya M4A sama sekali (`Intro`, `Medley - Opening`, `不再犹豫`).
+  Ketiganya mendapat versi saat difinalisasi di F3.
+- MacBook belum dipasangi program F0–F2; dipasang saat tersambung lagi.
+
 ## F3 — Manual Finalization
 
 | | |
