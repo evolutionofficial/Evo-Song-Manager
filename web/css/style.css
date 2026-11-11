@@ -49,6 +49,9 @@ input[type=search], input[type=text], input[type=email], input[type=password], s
   border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 38px; width: 100%;
 }
 input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Tombol ber-atribut hidden harus benar-benar hilang: display:inline-flex di bawah ini
+   mengalahkan aturan bawaan [hidden], jadi tombol yang disembunyikan tetap tampil tanpa ini. */
+button[hidden], .btn[hidden] { display: none; }
 button, .btn {
   font: inherit; font-size: 14px; color: var(--text); background: var(--card);
   border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; min-height: 36px;
@@ -747,7 +750,6 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 
 /* ---------- Halaman operator FC (unduhan) ---------- */
 .op-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; min-height: 38px; }
-.op-all[hidden] { display: none; }
 .op-all { gap: 8px; border-radius: 999px; padding: 0 16px; min-height: 38px; background: var(--grad-blue); border: 0;
   box-shadow: 0 6px 22px rgba(46, 139, 255, .35); }
 .op-row { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 16px; }
