@@ -79,7 +79,7 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
   Ketiganya mendapat versi saat difinalisasi di F3.
 - MacBook belum dipasangi program F0–F2; dipasang saat tersambung lagi.
 
-## F3 — Manual Finalization
+## F3 — Manual Finalization — KODE SELESAI 11 Nov 2026, saklar masih mati
 
 | | |
 |---|---|
@@ -92,6 +92,29 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | Risiko | M4A tertinggal saat hanya WAV dirender ulang (diberi peringatan, K10); M4A menumpuk di folder Mixdown sampai admin memfinalisasi; salah memilih kandidat |
 | Uji | uji agent dengan R2 palsu: klik ganda → satu pekerjaan; mati di tiap tahap → lanjut; fingerprint berubah → needs admin; M4A tidak ada → ditolak; M4A lebih lama → peringatan; R2 menolak → retry. Uji nyata dengan satu lagu uji di PC dan satu di MacBook sebelum saklar dinyalakan |
 | Rollback | matikan saklar: jalur M4A lama aktif lagi; versi yang sudah dibuat tetap sah |
+
+### Keadaan F3 (11 Nov 2026)
+
+Database dan program sudah terpasang; perilaku lama masih berlaku karena
+`app_settings.manual_finalization` masih `false`.
+
+- Database: 13 fungsi diterapkan. Diverifikasi dengan membandingkan definisi fungsi di database
+  asli terhadap salinan uji lokal (setelah komentar dibuang, keduanya identik).
+- MacBook: Evo Media Agent **2.0** berjalan.
+- PC: masih **1.3** — perlu diperbarui saat sesi tersambung ke PC. Aman dibiarkan sementara:
+  program lama tidak memanggil `claim_jobs`, dan `sync_files` menerima file tanpa data M4A.
+
+Tiga langkah tersisa sebelum F3 benar-benar hidup:
+
+1. Perbarui program di PC ke 2.0.
+2. Nyalakan saklar `manual_finalization`. **Ini momen "go live"**: sejak itu M4A tidak lagi
+   diunggah otomatis di semua komputer, dan menumpuk di folder Mixdown sampai difinalisasi.
+3. Uji satu lagu dari ujung ke ujung: render WAV + M4A → pilih kandidat → Finalize & Upload →
+   vokalis bisa mendengarkan.
+
+Catatan: `finalize_song` berfungsi walau saklar mati, tetapi tanpa saklar program masih mengunggah
+dan menghapus M4A otomatis beberapa detik setelah render, jadi tidak ada yang bisa difinalisasi.
+Karena itu uji coba harus dilakukan setelah saklar menyala.
 
 ## F4 — Accept terikat versi
 
