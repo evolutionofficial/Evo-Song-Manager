@@ -256,9 +256,8 @@ Titik pemeriksaan yang disimpan:
 | Titik | Disimpan di | Catatan |
 |---|---|---|
 | File detected | `file_candidates` | bukan tahap pekerjaan; cukup data hasil pindai |
-| File validated | `jobs.stage = validated` | |
+| File validated (WAV + M4A) | `jobs.stage = validated` | |
 | Finalization started | `jobs` dibuat, `song_versions.status = finalizing` | |
-| M4A conversion completed | `jobs.stage = converted` + MD5 M4A | |
 | R2 upload started | `jobs.stage = uploading` | |
 | R2 upload verified | `jobs.stage = verified` | |
 | Database updated | `song_versions.status = active` | |

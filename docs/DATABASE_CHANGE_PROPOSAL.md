@@ -115,7 +115,7 @@ create table public.jobs (
   idempotency_key text not null unique,
   status          text not null default 'queued' check (status in
                     ('queued','running','done','failed','needs_admin','cancelled')),
-  stage           text,                                  -- validated / converted / uploading / verified …
+  stage           text,                                  -- validated / uploading / verified …
   attempts        int  not null default 0,
   next_attempt_at timestamptz,
   not_before      timestamptz,                           -- untuk r2_remove yang ditunda 24 jam
