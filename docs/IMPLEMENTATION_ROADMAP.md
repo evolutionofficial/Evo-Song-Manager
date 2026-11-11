@@ -230,6 +230,42 @@ Perbaikan di luar rencana yang muncul saat pengerjaan:
   diputar vokalis. Ditemukan dari log PC, bukan dari tes. Sudah diperbaiki dan diberi tes.
 - Tombol ber-atribut `hidden` tidak benar-benar hilang karena `display:inline-flex` pada `button`.
 
+## F8 — Listen Together — SELESAI 11 Nov 2026
+
+Fitur besar terakhir dari daftar: menyimak mixdown bersama vokalis tanpa kualitas musiknya turun.
+Rancangan lengkap dan angka ketepatannya ada di `VIDEO_CALL_DESIGN.md`.
+
+| Bagian | Isi |
+|---|---|
+| Database | `listen_rooms`, `listen_open/close/active/room_for/songs`; `get_audio_key` menerima kode ruang |
+| Mesin | `web/js/core/listen.js` — selisih jam, ramalan posisi, koreksi hanyutan |
+| Sisi admin | dok di bawah layar + pemutar pertama di halaman admin |
+| Sisi vokalis | undangan muncul sendiri, tombol Join, pemutar mengikuti pemimpin |
+
+Keputusan rancangan yang penting: **kode ruang diperlakukan sama seperti `share_token` vokalis
+di dalam `get_audio_key`.** Jadi tidak ada aturan izin kedua yang bisa menyimpang dari yang
+pertama; lagu yang dihapus, sedang revisi, atau belum punya audio tetap tertutup. Diperiksa pada
+data produksi: sidik jari kunci audio untuk 263 pasangan vokalis/lagu identik sebelum dan sesudah.
+
+Tes: 32 pemeriksaan database (termasuk bahwa kode ruang TIDAK bisa menembus penjagaan), 34
+pemeriksaan mesin di node (termasuk jam yang berbeda 37 detik), dan 36 pemeriksaan dua halaman
+sungguhan lewat Playwright. Seluruh 216 pemeriksaan yang sudah ada tetap lolos.
+
+Dua hal yang ditemukan karena diuji, bukan karena dibaca ulang:
+- `gen_random_bytes` ada di skema `extensions` di Supabase, jadi **tidak terbaca** dari fungsi
+  ber-`search_path` kosong. Diganti ke `gen_random_uuid` yang ada di `pg_catalog`. Kalau tidak
+  diuji, `listen_open` akan gagal di produksi.
+- Membuka tampilan penuh pemutar saat vokalis ikut menutupi spanduk, sehingga tombol **Leave**
+  tidak bisa dijangkau. Pembukaan otomatis itu dibuang.
+
+Juga: tambalan `[hidden]` yang ketiga diganti satu aturan umum untuk seluruh stylesheet, karena
+bug yang sama sudah muncul tiga kali (tombol operator, "Finalize all ready", spanduk Listen
+together).
+
+**Masih menunggu keputusan Jeffry:** suara ngobrolnya lewat mana — WhatsApp seperti biasa
+(rekomendasi saya) atau dibangun di dalam aplikasi (WebRTC). Bagian 5 di `VIDEO_CALL_DESIGN.md`.
+Penyelarasan pemutaran yang sudah jadi tidak berubah apa pun di kedua pilihan.
+
 ### Yang sengaja TIDAK dikerjakan
 
 - Penggabungan otomatis lagu berjudul sama. Halaman Conflicts hanya menyajikan kandidat; admin
@@ -237,3 +273,6 @@ Perbaikan di luar rencana yang muncul saat pengerjaan:
 - Menyimpan sesi unggah Google Drive agar bisa dilanjutkan di tengah jalan (K4/D-sisa). Unggahan
   yang putus diulang dari awal: soal waktu, bukan duplikasi.
 - Pembersihan tabel sisa WhatsApp (`deliveries`, `recipients`) dan kolom `operator_hidden_at`.
+- Suara ngobrol di dalam aplikasi (WebRTC). Menunggu keputusan; WhatsApp sudah menanganinya
+  sekarang dan tidak bisa rusak.
+- Keserempakan sampai tingkat sampel. Tidak perlu untuk dua orang berjauhan dengan headphone.

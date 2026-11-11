@@ -1,4 +1,7 @@
-# Listen Together — rancangan (11 Nov 2026)
+# Listen Together — rancangan & hasil (11 Nov 2026)
+
+> **Status: penyelarasan pemutaran SUDAH JADI dan terpasang.** Bagian 5 (suara ngobrolnya
+> lewat mana) masih menunggu keputusan Jeffry; itu tidak menghalangi apa pun yang sudah jadi.
 
 Tujuan yang dipilih Jeffry: **mendengarkan mixdown bersama vokalis sambil mengobrol, tanpa
 kualitas musiknya turun.**
@@ -39,18 +42,50 @@ di kedua telinga karena tidak pernah dikompres ulang.
 | **Pemimpin** | Jeffry. Hanya pemimpin yang boleh menekan play/pause/geser; vokalis ikut. Ini menghindari dua orang saling rebut kendali. |
 | **Penyelarasan jam** | Kedua sisi menukar cap waktu beberapa kali untuk menghitung selisih jam, seperti cara jam komputer disetel ke internet. Target meleset di bawah 100 milidetik — tidak terasa untuk menyimak bersama. |
 | **Perintah** | `play(lagu, posisi, pada_waktu)`, `pause(posisi)`, `seek(posisi)`. Dikirim lewat Supabase Realtime (sudah tersedia, tidak perlu layanan baru). |
-| **Pemutar admin** | **Belum ada.** Halaman admin sekarang tidak bisa memutar lagu sama sekali. Ini bagian pekerjaan yang paling besar. |
+| **Pemutar admin** | Sudah ada sekarang, berupa dok di bawah layar yang tetap jalan sambil pindah tab. Ini sekaligus pemutar pertama di sisi admin. |
 
 Catatan jujur soal ketepatan: ini **bukan** sinkronisasi sempurna sampai tingkat sampel. Kalau
 keduanya memutar lagu yang sama di ruangan yang sama, akan terdengar gema tipis. Untuk dua orang
 di kota berbeda yang masing-masing memakai headphone, selisih di bawah 100 md tidak terasa.
 
-## 4. Yang perlu disiapkan sistem
+## 4. Yang sudah dikerjakan
 
-- Pemutar di halaman admin (memakai ulang logika pemutar vokalis yang sudah ada).
-- Admin perlu bisa mengambil kunci audio tanpa token vokalis — fungsi baru khusus admin.
-- Tabel ruang + fungsi untuk membuat, bergabung, dan menutup ruang.
-- Tombol "Listen together" di halaman admin, dan undangan yang muncul di halaman vokalis.
+Semuanya sudah terpasang dan terpakai:
+
+- Tabel `listen_rooms` + fungsi `listen_open` / `listen_close` / `listen_active` /
+  `listen_room_for` / `listen_songs`.
+- **Izin audionya tidak digandakan.** Kode ruang diperlakukan persis seperti `share_token`
+  vokalis di dalam `get_audio_key`, jadi lagu yang dihapus, yang sedang revisi, atau yang belum
+  punya audio tetap tertutup — tanpa aturan kedua yang bisa menyimpang dari yang pertama.
+  Diperiksa pada data sungguhan: sidik jari kunci audio untuk ke-263 pasangan vokalis/lagu
+  **tidak berubah sama sekali** sebelum dan sesudah penggantian fungsinya.
+- Mesin penyelarasan `web/js/core/listen.js`, dengan bagian matematikanya dipisah supaya bisa
+  diuji tanpa browser.
+- Dok "Listen together" di halaman admin, dan undangan yang muncul sendiri di halaman vokalis.
+
+### Ketepatan yang terukur
+
+| Diukur | Hasil |
+|---|---|
+| Perkiraan selisih jam, jaringan bagus | meleset tengah **1 ms** |
+| Perkiraan selisih jam, seluler biasa | **8 ms** |
+| Perkiraan selisih jam, seluler jelek | **22 ms**, terburuk 40 ms |
+| Dua halaman sungguhan, saat mulai | **59 ms** |
+| Dua halaman sungguhan, setelah 4 detik berjalan | **111 ms** |
+| Dua halaman sungguhan, sesudah digeser | **3 ms** |
+
+Angka dua baris pertama adalah ketepatan perkiraan jam; tiga baris terakhir adalah selisih posisi
+lagu yang sebenarnya antara dua halaman di satu browser. Di perangkat berbeda akan sedikit lebih
+besar karena setiap browser punya jeda audionya sendiri, tapi semuanya jauh di bawah ambang yang
+terdengar sebagai "tidak serempak" lewat headphone.
+
+### Yang tidak dilakukan, dan sebabnya
+
+- **Vokalis tidak bisa menekan play/jeda/geser selama sesi.** Satu pemimpin menghindarkan
+  tarik-menarik kendali. Volume dan mute tetap miliknya karena tidak menggeser posisi lagu.
+- **Bukan serempak sampai tingkat sampel.** Kalau kalian berada di ruangan yang sama dan memutar
+  lagu yang sama, akan terdengar gema tipis. Untuk dua orang berjauhan dengan headphone, tidak
+  terasa.
 
 ## 5. PERSIMPANGAN: suara ngobrolnya lewat mana?
 
