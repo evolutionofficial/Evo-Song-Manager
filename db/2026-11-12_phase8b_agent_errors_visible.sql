@@ -55,3 +55,16 @@ language sql stable security definer set search_path to '' as $function$
                         where status = 'active' and verified_at > now() - interval '12 hours'))
   ) end;
 $function$;
+
+-- FASE 9 — dipakai /turn untuk memastikan hanya orang yang sedang ada di ruang menyimak
+-- yang bisa meminta kredensial relay (TURN berbayar per GB, jadi tidak boleh terbuka).
+create or replace function public.listen_room_live(p_code text)
+returns boolean
+language sql stable security definer set search_path to '' as $$
+  select exists (
+    select 1 from public.listen_rooms r
+     where r.code = p_code and length(p_code) > 0
+       and r.closed_at is null and r.expires_at > now());
+$$;
+
+grant execute on function public.listen_room_live(text) to anon, authenticated;

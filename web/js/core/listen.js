@@ -77,6 +77,10 @@ const RESYNC_MS = 30000;    // selisih jam dihitung ulang tiap 30 detik
 
 const rid = () => Math.random().toString(36).slice(2, 10);
 
+// Pesan panggilan suara yang boleh lewat saluran ini. Daftar tertutup supaya tidak ada
+// jenis pesan tak terduga yang ikut terkirim.
+const SIGNALS = ['rtc-desc', 'rtc-ice', 'rtc-call', 'rtc-ready', 'rtc-bye'];
+
 /**
  * Saluran satu sesi menyimak bersama.
  *
@@ -84,7 +88,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
  * itu bisa ikut mendengarkan. Itu setingkat dengan link vokalis yang sudah ada — siapa pun yang
  * punya linknya bisa membuka halamannya — dan kode ruang jauh lebih pendek umurnya.
  */
-export function createSession({ code, role, onState, onPeers, onClock, onReport, onError, clock }) {
+export function createSession({ code, role, onState, onPeers, onClock, onReport, onSignal, onError, clock }) {
   if (!code) throw new Error('code wajib');
   // Jam bisa disuntik supaya dua sisi dengan jam berbeda bisa diuji tanpa browser.
   const now = clock || (() => Date.now());
@@ -162,6 +166,17 @@ export function createSession({ code, role, onState, onPeers, onClock, onReport,
       });
       // Semua pendengar dipasang SEBELUM subscribe: menambahkannya sesudah itu tidak dijamin terpasang.
       if (onReport) ch.on('broadcast', { event: 'report' }, ({ payload }) => onReport(payload));
+      // Pesan panggilan suara (WebRTC) menumpang saluran yang SAMA. Saluran kedua hanya
+      // menambah titik gagal, dan urutan pesannya tidak lagi terjamin.
+      if (onSignal) {
+        for (const ev of SIGNALS) {
+          ch.on('broadcast', { event: ev }, ({ payload }) => {
+            if (!payload || payload.from === me) return;
+            if (payload.to && payload.to !== me) return;
+            onSignal(ev, payload);
+          });
+        }
+      }
 
       await new Promise((resolve, reject) => {
         ch.subscribe((status, err) => {
@@ -191,6 +206,18 @@ export function createSession({ code, role, onState, onPeers, onClock, onReport,
 
     /** Penumpang: kabarkan apakah lagunya sudah termuat dan seberapa meleset. */
     report(info) { if (!isHost) say('report', { from: me, ...info }); },
+
+    /** Siapa saya di saluran ini — dipakai pesan panggilan untuk saling menyebut. */
+    get me() { return me; },
+
+    /** Kode ruang: dipakai modul panggilan untuk meminta kredensial relay. */
+    get code() { return code; },
+
+    /** Kirim satu pesan panggilan suara. 'to' kosong berarti ke semua. */
+    signal(event, payload) {
+      if (!SIGNALS.includes(event)) throw new Error('pesan tidak dikenal: ' + event);
+      say(event, { ...payload, from: me });
+    },
 
     async leave() {
       closed = true;
