@@ -3,7 +3,7 @@
 import { $, toast } from '/js/core/ui.js';
 import { safe, on, loadModules, installGlobalHandlers } from '/js/core/guard.js';
 import { esc, timeAgo } from '/js/core/format.js';
-import { state, loadAll } from './data.js';
+import { state, loadAll, curVoc } from './data.js';
 
 installGlobalHandlers();
 
@@ -17,6 +17,7 @@ const MODULES = [
   { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
   { key: 'conflicts', label: 'Conflicts', path: '/js/apps/admin/conflicts.js', el: 'cfList' },
   { key: 'system', label: 'System', path: '/js/apps/admin/system.js', el: 'sysList' },
+  { key: 'listen', label: 'Listen together', path: '/js/apps/admin/listen.js', el: 'listenDock' },
   { key: 'settings', label: 'Settings', path: '/js/apps/admin/settings.js', el: 'setBody' },
 ];
 const spec = (k) => MODULES.find((m) => m.key === k);
@@ -51,6 +52,7 @@ const ctx = {
     runMod('finalize', 'open', id);
   },
   finalizeAction(name, id) { runMod('finalize', name, id); },
+  vocalists() { return state.vocalists; },
   finalizeReady() { return (mods.finalize && mods.finalize.readyCount()) || 0; },
   /** Lencana status finalisasi untuk baris lagu (kosong kalau modulnya tidak jalan). */
   finalizeBadge(s) { return (mods.finalize && mods.finalize.badge(s)) || ''; },
@@ -59,6 +61,9 @@ const ctx = {
 async function enterApp() {
   $('appView').classList.remove('hidden');
   await reload();
+  // Sesi menyimak yang masih terbuka disambung lagi, supaya halaman yang dimuat ulang
+  // tidak meninggalkan ruang menggantung tanpa pemimpin.
+  runMod('listen', 'resume');
 }
 
 async function reload() {
@@ -70,6 +75,7 @@ function renderAll() {
   safe('Sync status', renderSyncInfo);
   safe('Sidebar', renderTabs);
   safe('View', renderView);
+  runMod('listen', 'render');
 }
 
 function renderSyncInfo() {
@@ -168,6 +174,12 @@ async function start() {
   });
   safe('Sidebar', initSide);
   on($('reloadBtn'), 'click', 'Reload', reload);
+  on($('listenBtn'), 'click', 'Listen together', () => {
+    const v = curVoc();
+    if (!v) return toast('Open a vocalist first');
+    if (!mods.listen) return toast('Listen together is having problems. Everything else still works.', 'bad');
+    runMod('listen', 'open', v.id);
+  });
   on($('logoutBtn'), 'click', 'Log out', () => (mods.auth ? mods.auth.logout() : location.reload()));
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && !$('appView').classList.contains('hidden')) safe('Reload', reload);

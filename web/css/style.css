@@ -49,9 +49,13 @@ input[type=search], input[type=text], input[type=email], input[type=password], s
   border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 38px; width: 100%;
 }
 input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* Tombol ber-atribut hidden harus benar-benar hilang: display:inline-flex di bawah ini
-   mengalahkan aturan bawaan [hidden], jadi tombol yang disembunyikan tetap tampil tanpa ini. */
-button[hidden], .btn[hidden] { display: none; }
+/* Apa pun yang diberi atribut hidden harus benar-benar hilang.
+   Aturan bawaan browser untuk [hidden] kalah oleh aturan apa pun yang menyebut display
+   (misalnya .minibar { display: grid } atau button { display: inline-flex }), jadi tanpa baris
+   ini elemen yang disembunyikan dari JavaScript tetap tampil. Bug itu sudah muncul tiga kali di
+   aplikasi ini — sekali di tombol operator, sekali di "Finalize all ready", sekali di spanduk
+   Listen together — jadi aturannya dibuat umum sekali di sini, bukan ditambal per elemen. */
+[hidden] { display: none !important; }
 button, .btn {
   font: inherit; font-size: 14px; color: var(--text); background: var(--card);
   border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; min-height: 36px;
@@ -469,7 +473,6 @@ body.has-player .wrap { padding-bottom: 120px; }
   box-shadow: 0 20px 50px rgba(0, 0, 0, .6), 0 0 30px rgba(46, 139, 255, .14), 0 1px 0 rgba(255, 255, 255, .07) inset;
   animation: mb-in .5s var(--ease-out) both; overflow: hidden;
 }
-.minibar[hidden] { display: none; }
 @keyframes mb-in { from { transform: translateY(130%); opacity: 0; } to { transform: none; opacity: 1; } }
 .mb-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, .07); }
 .mb-prog i { display: block; height: 100%; background: var(--grad-blue); box-shadow: 0 0 10px rgba(46, 139, 255, .9); transition: width .25s linear; }
@@ -653,7 +656,6 @@ header.top.vtop { justify-content: flex-start; gap: 10px; margin-bottom: 14px; }
 .paid-price { color: var(--faint); padding-left: 12px; }
 
 /* Total "Belum dibayar" di samping filter (hanya tampil kalau ada yang belum dibayar) */
-.due[hidden] { display: none; }
 .due {
   display: inline-flex; align-items: baseline; gap: 8px; min-height: 38px; padding: 7px 14px; border-radius: 10px; white-space: nowrap;
   background: linear-gradient(135deg, rgba(255, 181, 71, .16), rgba(255, 181, 71, .05)); border: 1px solid rgba(255, 181, 71, .38);
@@ -830,3 +832,50 @@ dialog.fin form { max-width: 560px; }
 .sys-stats div { display: flex; flex-direction: column; }
 .sys-stats b { font-size: 22px; font-weight: 650; }
 .sys-stats span { font-size: 12.5px; color: var(--muted); }
+
+/* ===== Listen together (admin) =====
+   Dok di bawah layar, senada dengan minibar di halaman vokalis tapi tanpa cover:
+   yang penting di sini bukan lagunya, melainkan apakah vokalisnya sudah ikut dan serempak. */
+.lt-start { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.lt-start .sub { margin: 0; font-size: 12.5px; }
+
+body.has-listen .main { padding-bottom: 104px; }
+.listen-dock {
+  position: fixed; z-index: 71; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  max-width: 980px; margin: 0 auto; border-radius: 16px; overflow: hidden;
+  background: var(--stripe-top) top / 100% 1px no-repeat,
+    linear-gradient(120deg, rgba(46, 139, 255, .16), rgba(255, 255, 255, .03) 45%, rgba(0, 200, 255, .06)), rgba(14, 16, 22, .78);
+  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .6), 0 0 30px rgba(46, 139, 255, .14), 0 1px 0 rgba(255, 255, 255, .07) inset;
+  animation: mb-in .45s var(--ease-out) both;
+}
+.lt-prog { height: 4px; background: rgba(255, 255, 255, .08); cursor: pointer; }
+.lt-prog[aria-disabled="true"] { cursor: default; }
+.lt-prog i { display: block; height: 100%; background: var(--grad-blue); box-shadow: 0 0 10px rgba(46, 139, 255, .9); transition: width .25s linear; }
+.lt-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.lt-pp {
+  width: 40px; height: 40px; min-height: 0; flex: none; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; background: var(--grad-blue); color: #fff; border: 0;
+}
+.lt-mid { min-width: 0; flex: 1 1 auto; }
+.lt-title { font-weight: 650; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lt-dim { color: var(--muted); font-weight: 400; }
+.lt-sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lt-wait { color: #ffcf6a; }
+.lt-on { color: #5ee6a0; }
+.lt-time { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); flex: none; }
+.lt-pick { width: auto; max-width: 190px; min-height: 0; padding: 6px 8px; flex: none; }
+.lt-end { min-height: 0; padding: 7px 12px; flex: none; }
+@media (max-width: 700px) {
+  .lt-time, .lt-pick { display: none; }
+}
+
+/* ===== Listen together (vokalis) — spanduk undangan ===== */
+.listen-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.listen-banner.on { border-color: rgba(94, 230, 160, .35); }
+.lb-main { min-width: 0; flex: 1 1 260px; display: flex; flex-direction: column; gap: 3px; }
+.lb-main b { color: #fff; }
+.lb-main .sub { margin: 0; font-size: 12.5px; }
+.lb-join { background: var(--grad-blue); color: #fff; border: 0; flex: none; }
+.lb-leave { flex: none; }

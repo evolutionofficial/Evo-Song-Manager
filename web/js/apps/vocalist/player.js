@@ -168,7 +168,9 @@ function render() {
   el.bar.innerHTML = `
     <div class="mb-prog"><i style="width:${p.pct}%"></i></div>
     <div class="mb-art ${rep.photo ? 'photo' : ''}" aria-hidden="true">${cover(s)}</div>
-    <div class="mb-info"><div class="mb-title">${esc(s.title)}</div><div class="mb-sub">${esc(rep.name)} · ${esc(dateLabel(s))}</div></div>
+    <div class="mb-info"><div class="mb-title">${esc(s.title)}</div><div class="mb-sub">${
+      locked ? '<span class="lt-on">Listening with Jeffry</span>' : `${esc(rep.name)} · ${esc(dateLabel(s))}`
+    }</div></div>
     <div class="mb-ctrls">${controls('mini')}</div>
     <div class="mb-vol">${volume()}</div>`;
   el.sheet.innerHTML = `
@@ -207,6 +209,12 @@ function setOpen(open, fromHistory) {
 }
 
 function act(name, target) {
+  // Saat menyimak bersama, yang memegang kendali adalah sisi admin. Tombol volume & mute
+  // tetap milik vokalis — itu tidak mengubah posisi lagu, jadi tidak merusak keserempakan.
+  if (locked && ['play', 'prev', 'next', 'shuffle', 'repeat'].includes(name)) {
+    toast('Jeffry is leading while you listen together');
+    return;
+  }
   switch (name) {
     case 'play': return togglePlay();
     case 'prev': return step(-1);
@@ -259,14 +267,14 @@ export function mount(report_) {
     paintProgress();
   };
   on(el.sheet, 'pointerdown', L, (e) => {
-    const bar = e.target.closest('[data-seek]'); if (!bar || !audio.src) return;
+    const bar = e.target.closest('[data-seek]'); if (!bar || !audio.src || locked) return;
     dragging = true; bar.setPointerCapture?.(e.pointerId); seekAt(bar, e.clientX);
   });
   on(el.sheet, 'pointermove', L, (e) => { if (dragging) { const bar = el.sheet.querySelector('[data-seek]'); if (bar) seekAt(bar, e.clientX); } });
   on(el.sheet, 'pointerup', L, () => { dragging = false; });
   on(el.sheet, 'pointercancel', L, () => { dragging = false; });
   on(el.sheet, 'keydown', L, (e) => {
-    if (!e.target.matches('[data-seek]') || !Number.isFinite(audio.duration)) return;
+    if (!e.target.matches('[data-seek]') || !Number.isFinite(audio.duration) || locked) return;
     if (e.key === 'ArrowRight') { audio.currentTime = Math.min(audio.duration, audio.currentTime + 5); e.preventDefault(); }
     if (e.key === 'ArrowLeft') { audio.currentTime = Math.max(0, audio.currentTime - 5); e.preventDefault(); }
   });
@@ -276,6 +284,7 @@ export function mount(report_) {
   });
   on(root, 'input', L, (e) => { if (e.target.dataset.act === 'vol') onVol(e.target); });
   on(window, 'fc:play', L, (e) => {
+    if (locked) { toast('Jeffry is leading while you listen together'); return; }
     const n = e.detail.n;
     if (n === st.n && cur()) return togglePlay();
     select(n, true);
@@ -283,7 +292,7 @@ export function mount(report_) {
   on(window, 'popstate', L, () => { if (st.open) setOpen(false, true); });
   on(document, 'keydown', L, (e) => {
     if (e.key === 'Escape' && st.open) setOpen(false);
-    if (e.code === 'Space' && cur() && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) { e.preventDefault(); togglePlay(); }
+    if (e.code === 'Space' && cur() && !locked && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) { e.preventDefault(); togglePlay(); }
   });
 
   function paintProgress() {
@@ -319,4 +328,70 @@ export function mount(report_) {
   }
 
   window.FC_PLAYER = { ready: true, volumeSlider: !volumeLocked };
+  mounted = true;
 }
+
+// ======================= REMOTE: untuk Listen together =======================
+// Kendali sempit supaya modul menyimak bersama bisa mengarahkan pemutar ini TANPA membuat
+// jalur suara kedua. Semuanya tetap lewat ENGINE di atas, jadi hanya ada satu pemutar.
+let locked = false;
+let mounted = false;
+
+/** Tunggu sampai posisi lagu bisa diubah (metadata sudah terbaca). */
+function whenSeekable(ms = 8000) {
+  if (audio.readyState >= 1) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const done = (v) => { audio.removeEventListener('loadedmetadata', ok); clearTimeout(t); resolve(v); };
+    const ok = () => done(true);
+    const t = setTimeout(() => done(false), ms);
+    audio.addEventListener('loadedmetadata', ok, { once: true });
+  });
+}
+
+export const remote = {
+  get mounted() { return mounted; },
+  get locked() { return locked; },
+
+  /** Kunci tombol-tombol transport (pemimpinnya sisi admin). */
+  lock(on) { locked = !!on; if (mounted && cur()) render(); },
+
+  /** Lagu ini ada di daftar saya? */
+  has(id) { return !!songs?.some((x) => x.id === id && hasAudio(x)); },
+
+  /** Ikuti pemimpin: lagu ini, di detik ini, sedang jalan atau jeda. */
+  async goto(id, pos, playing) {
+    const s = songs?.find((x) => x.id === id);
+    if (!s) return { ok: false, reason: 'unknown' };
+    if (!hasAudio(s)) return { ok: false, reason: 'noaudio' };
+
+    if (s.n !== st.n) select(s.n, false);
+    const seekable = await whenSeekable();
+    if (!seekable) return { ok: false, reason: 'slow' };
+
+    if (Number.isFinite(pos) && Math.abs(audio.currentTime - pos) > 0.05) {
+      try { audio.currentTime = pos; } catch { /* diulang di putaran berikutnya */ }
+    }
+    if (playing && audio.paused) { st.playing = await enginePlay(); render(); }
+    if (!playing && !audio.paused) { enginePause(); st.playing = false; render(); }
+    return { ok: true };
+  },
+
+  /** Kejar/tahan sedikit tanpa melompat, supaya tidak ada potongan di tengah lagu. */
+  rate(r) {
+    const v = Number.isFinite(r) ? Math.min(1.08, Math.max(0.92, r)) : 1;
+    if (audio.playbackRate !== v) audio.playbackRate = v;
+  },
+
+  info() {
+    return {
+      songId: cur()?.id || null,
+      pos: audio.currentTime || 0,
+      dur: audio.duration,
+      // readyState 3 = cukup data untuk terus berjalan, bukan hanya metadata.
+      ready: audio.readyState >= 3 && !audio.seeking,
+      paused: audio.paused,
+    };
+  },
+
+  stop() { enginePause(); this.rate(1); locked = false; if (mounted && cur()) render(); },
+};
