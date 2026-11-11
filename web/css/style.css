@@ -789,3 +789,11 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 .top-right .logo { margin-left: 0; }
 .maintop .logo { margin-left: 8px; }
 .p-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* Admin: daftar komputer studio */
+.dv { padding: 11px 0; border-top: 1px solid var(--line); }
+.dv:first-child { border-top: 0; padding-top: 2px; }
+.dv-name { font-weight: 650; font-size: 15px; }
+.dv-meta { margin-top: 3px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.dv-on { color: var(--ok); }
+.dv-off { color: var(--warn); }

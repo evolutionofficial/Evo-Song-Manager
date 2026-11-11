@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { loadDevice } = require('./device');
+
 const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 const SOURCES_PATH = path.join(__dirname, '..', 'sources.json');
 
@@ -43,6 +45,7 @@ function loadConfig() {
     if (!cfg[k]) throw new Error(`config.json: "${k}" belum diisi`);
   }
   cfg.intervalSeconds = Number(cfg.intervalSeconds) || 60;
+  cfg.device = loadDevice();
   cfg.sources = loadSources(cfg);
   cfg.root = cfg.sources[0].root;
   return cfg;

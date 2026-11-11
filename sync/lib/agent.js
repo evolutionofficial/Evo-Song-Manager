@@ -4,15 +4,19 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { scan } = require('./scanner');
-const { push } = require('./pusher');
+const { push, hello } = require('./pusher');
+const { createFingerprints } = require('./fingerprint');
 const { log } = require('./log');
 
 const REFRESH_MS = 10 * 60 * 1000; // kirim ulang minimal tiap 10 menit (tanda program masih hidup)
 
 function createAgent(cfg) {
   const sources = cfg.sources || [{ name: 'pc', root: cfg.root, archive: false, main: true }];
+  const fp = createFingerprints(path.join(__dirname, '..'));
   const last = new Map(); // nama sumber -> { hash, at }
+  let said = false;       // sapaan perangkat sudah terkirim
   const offline = new Set(); // sumber tambahan yang sedang tidak tersambung (drive dicabut)
+  const seen = new Set();
   let running = false;
   let again = false;
 
@@ -24,6 +28,8 @@ function createAgent(cfg) {
     if (offline.delete(src.name)) log(`[${src.name}] ${src.root} tersambung lagi.`);
     const snap = scan(src.root);
     if (!src.main) snap.folders = [];
+    const fpStat = await fp.fill(snap, src);
+    for (const f of snap.files) seen.add(fp.keyOf(src, f.rel_path));
     const hash = crypto.createHash('sha1').update(JSON.stringify([snap.folders, snap.files])).digest('hex');
     const prev = last.get(src.name);
     if (prev && prev.hash === hash && Date.now() - prev.at < REFRESH_MS) {
@@ -38,6 +44,7 @@ function createAgent(cfg) {
     if (r.new_songs) bits.push(`${r.new_songs} lagu baru`);
     if (r.newly_missing) bits.push(`${r.newly_missing} file hilang`);
     if (r.unmatched) bits.push(`${r.unmatched} perlu dicek`);
+    if (fpStat.left) bits.push(`${fpStat.left} isi file belum dibaca`);
     log(`Sync${sources.length > 1 ? ' [' + src.name + ']' : ''} (${reason}): ${bits.join(', ')}`);
     if (snap.pending) log(`[${src.name}] ${snap.pending} file masih baru/dirender, dicek lagi nanti`);
   }
@@ -46,6 +53,12 @@ function createAgent(cfg) {
     if (running) { again = true; return true; }
     running = true;
     let ok = true;
+    seen.clear();
+    fp.startRun();
+    if (!said) {
+      try { await hello(cfg); said = true; }
+      catch (e) { log('Pendaftaran komputer gagal (dicoba lagi nanti): ' + e.message); }
+    }
     try {
       for (const src of sources) {
         try { await syncSource(src, reason); }
@@ -53,6 +66,9 @@ function createAgent(cfg) {
       }
     } finally {
       running = false;
+      // Catatan sidik jari hanya dibersihkan kalau semua sumber benar-benar terbaca.
+      if (ok && sources.every((s) => s.main || fs.existsSync(s.root))) fp.prune(seen);
+      fp.save();
       if (again) { again = false; setTimeout(() => runOnce('antrian'), 2000); }
     }
     return ok;

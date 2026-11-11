@@ -2,7 +2,7 @@
 import { sb } from '/js/core/supabase.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
-import { esc } from '/js/core/format.js';
+import { esc, fmtDate, timeAgo } from '/js/core/format.js';
 import { state } from './data.js';
 import { photoUrl } from '/js/core/config.js';
 
@@ -41,7 +41,34 @@ async function setPhoto(v, file) {
 
 const fcUrl = () => (state.settings?.fc_token ? `${location.origin}/fc/${state.settings.fc_token}` : '');
 
+const STALE_MS = 10 * 60 * 1000;
+const PLATFORM = { win32: 'Windows PC', darwin: 'MacBook' };
+
+// Satu baris per komputer: kapan masing-masing program terakhir terlihat.
+function seen(label, at) {
+  if (!at) return `<span class="dv-off">${label}: never</span>`;
+  const late = Date.now() - new Date(at).getTime() > STALE_MS;
+  return `<span class="${late ? 'dv-off' : 'dv-on'}" title="${esc(fmtDate(at))}">${label}: ${esc(timeAgo(at))}</span>`;
+}
+
+function renderDevices() {
+  if (state.errors.devices) { $('devices').innerHTML = '<div class="empty">Could not load the computer list. Press Reload.</div>'; return; }
+  $('devices').innerHTML = state.devices.length
+    ? state.devices.map((d) => `
+      <div class="dv">
+        <div class="dv-name">${esc(d.name)}${d.platform ? ` <span class="badge muted">${esc(PLATFORM[d.platform] || d.platform)}</span>` : ''}</div>
+        <div class="dv-meta">
+          ${d.sources?.length ? `<span>Folders: ${d.sources.map(esc).join(', ')}</span>` : ''}
+          ${seen('Sync', d.sync_seen)}
+          ${seen('Media', d.media_seen)}
+          ${d.media_info?.version ? `<span class="dim">Media Agent ${esc(d.media_info.version)}</span>` : ''}
+        </div>
+      </div>`).join('')
+    : '<div class="empty">No computer has reported yet.<br><span class="op-hint">They appear here once First Club Sync has been updated and run.</span></div>';
+}
+
 export function render() {
+  renderDevices();
   $('showPrices').checked = !!state.settings?.show_prices_public;
   $('fcLink').value = fcUrl() || 'Not available — press Reload';
   $('fcOpen').href = fcUrl() || '#';

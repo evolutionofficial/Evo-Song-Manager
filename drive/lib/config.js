@@ -31,6 +31,7 @@ function loadConfig() {
     root: own.root || sync.root || path.resolve(DIR, '..', '..'),
     bucket: own.bucket || 'evo-audio',
     intervalSeconds: Number(own.intervalSeconds) || 15,
+    device: require(path.join(DIR, '..', 'sync', 'lib', 'device.js')).loadDevice(),
   };
   for (const k of ['supabaseUrl', 'anonKey', 'agentSecret']) {
     if (!cfg[k]) throw new Error(`pengaturan "${k}" tidak ditemukan (cek sync\\config.json)`);

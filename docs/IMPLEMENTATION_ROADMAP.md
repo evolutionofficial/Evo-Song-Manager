@@ -42,7 +42,7 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | Uji | uji halaman yang ada + kasus baru: Revision → Accept selalu `waiting`; folder `Cancel Song` tidak terbaca |
 | Rollback | kembalikan fungsi lama dari `db/`; revert commit |
 
-## F1 — Identitas perangkat dan fingerprint (hanya mengumpulkan data)
+## F1 — Identitas perangkat dan fingerprint (hanya mengumpulkan data) — SELESAI 11 Nov 2026
 
 | | |
 |---|---|
@@ -56,7 +56,7 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | Uji | uji agent: nama sama isi beda → dua kandidat; file sedang ditulis → dilewati; cache dipakai. Uji migrasi di Postgres lokal dengan Sync lama dan baru bersamaan |
 | Rollback | Sync lama tetap kompatibel; tabel baru boleh dibiarkan kosong |
 
-## F2 — Versi dan backfill
+## F2 — Versi dan backfill — SELESAI 11 Nov 2026
 
 | | |
 |---|---|

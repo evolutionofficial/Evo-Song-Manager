@@ -3,6 +3,7 @@
 const TIMEOUT_MS = 30000;
 
 function createDb(cfg) {
+  const device = cfg.device || {};
   async function rpc(name, args) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -27,7 +28,13 @@ function createDb(cfg) {
   return {
     target: (relPath) => rpc('audio_target', { p_rel_path: relPath }),
     register: (a) => rpc('register_audio', { p_rel_path: a.relPath, p_key: a.key, p_file_name: a.fileName, p_size: a.size, p_md5: a.md5 }),
-    heartbeat: (info) => rpc('agent_heartbeat', { p_agent: 'media', p_info: info }),
+    heartbeat: async (info) => {
+      await rpc('agent_heartbeat', { p_agent: 'media', p_info: info });
+      if (device.id) {
+        await rpc('device_hello', { p_device: device.id, p_name: device.name, p_platform: device.platform,
+          p_sources: (cfg.sources || []).map((s) => s.name), p_agent: 'media', p_info: info });
+      }
+    },
     vocalists: () => rpc('agent_vocalists', {}),
     wavJobs: (sources) => rpc('wav_jobs', { p_sources: sources }),
     wavReport: (r) => rpc('wav_report', { p_id: r.id, p_status: r.status, p_drive_file_id: r.driveFileId || null,

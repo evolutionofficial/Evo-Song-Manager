@@ -5,7 +5,7 @@ import { report } from '/js/core/guard.js';
 import { toast } from '/js/core/ui.js';
 
 export const state = {
-  vocalists: [], songs: [], unmatched: [], settings: null, wav: [],
+  vocalists: [], songs: [], unmatched: [], settings: null, wav: [], devices: [],
   tab: null,
   errors: {}, // { sumber: pesan } untuk sumber data yang gagal dimuat
 };
@@ -17,6 +17,7 @@ const SOURCES = {
   songs: () => sb.from('songs').select(SONG_COLS).order('sort_date', { ascending: true, nullsFirst: false }),
   unmatched: () => sb.from('unmatched_files').select('*').order('file_mtime'),
   settings: () => sb.from('app_settings').select('*').eq('id', 1).single(),
+  devices: () => sb.from('devices').select('*').order('name'),
   wav: () => sb.from('wav_uploads').select('id,song_id,revision,status,attempts,last_error,uploaded_at,size_bytes,drive_deleted_at,cleanup_eligible_at,sent_at,downloaded_at'),
 };
 
