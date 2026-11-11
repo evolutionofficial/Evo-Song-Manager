@@ -122,7 +122,7 @@ function createWavWorker(cfg, db) {
     for (const n of names || []) await drive.folderPath([ROOT_FOLDER, n]);
   }
 
-  return { runOnce, check: () => drive.token(), ensureFolders };
+  return { runOnce, check: () => drive.token(), ensureFolders, drive };
 }
 
 module.exports = { createWavWorker };

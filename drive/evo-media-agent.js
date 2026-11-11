@@ -24,6 +24,7 @@ const { createWavWorker } = require('./lib/wav');
 const { createJobs } = require('./lib/jobs');
 const { createFinalizer, NeedsAdmin } = require('./lib/finalize');
 const { createArchiver } = require('./lib/archive');
+const { createReconciler } = require('./lib/reconcile');
 const { hasToken } = require('./lib/gdrive');
 
 const VERSION = '2.0';
@@ -37,6 +38,7 @@ function createAgent(cfg) {
   const jobs = createJobs(cfg, db.rpc);
   const finalizer = createFinalizer(cfg, jobs, r2);
   const archiver = createArchiver(cfg);
+  const reconciler = createReconciler(cfg, db, r2, wav.drive);
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
   const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0 };
@@ -158,6 +160,7 @@ function createAgent(cfg) {
       running = false;
     }
     if (!(await runJobs())) ok = false;
+    if (!(await reconciler.runOnce())) ok = false;
     if (!(await wav.runOnce())) ok = false;
     if (Date.now() - lastBeat > HEARTBEAT_MS) {
       lastBeat = Date.now();

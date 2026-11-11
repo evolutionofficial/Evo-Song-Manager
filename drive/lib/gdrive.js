@@ -143,6 +143,20 @@ function createDrive() {
   }
 
   /**
+   * Keterangan satu file. null = benar-benar tidak ada (404). File di Trash dianggap tidak ada,
+   * karena bagi vokalis dan operator memang sudah tidak bisa dipakai.
+   * Galat lain dilempar supaya pemeriksa TIDAK salah menyimpulkan file hilang saat jaringan bermasalah.
+   */
+  async function info(id) {
+    const res = await req(`${API}/files/${encodeURIComponent(id)}?fields=id,md5Checksum,size,trashed&supportsAllDrives=true`,
+      { headers: await auth() });
+    if (res.status === 404) return null;
+    if (!res.ok) throw await fail(res, 'Drive (cek file)');
+    const f = await res.json();
+    return f.trashed ? null : f;
+  }
+
+  /**
    * Pindahkan ke Trash, bukan hapus permanen (keputusan K2): masih bisa dikembalikan 30 hari
    * kalau ternyata salah. Dipakai untuk WAV yang dicabut karena Revision atau batas 40 file.
    */
@@ -166,7 +180,7 @@ function createDrive() {
     return true;
   }
 
-  return { token, folderPath, findByJob, upload, remove, trash };
+  return { token, folderPath, findByJob, upload, remove, trash, info };
 }
 
 /** MD5 file tanpa memuat seluruh file ke memori. */

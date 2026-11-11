@@ -132,7 +132,7 @@ Catatan: `finalize_song` berfungsi walau saklar mati, tetapi tanpa saklar progra
 dan menghapus M4A otomatis beberapa detik setelah render, jadi tidak ada yang bisa difinalisasi.
 Karena itu uji coba harus dilakukan setelah saklar menyala.
 
-## F4 — Accept terikat versi
+## F4 — Accept terikat versi — SELESAI 11 Nov 2026
 
 | | |
 |---|---|
@@ -144,7 +144,7 @@ Karena itu uji coba harus dilakukan setelah saklar menyala.
 | Uji | uji agent: file diganti di antara Accept dan unggah → berhenti; file dipindah tapi isi sama → ditemukan |
 | Rollback | saklar mati → perilaku lama (cari lewat path) |
 
-## F5 — Revision dan Cancel Song
+## F5 — Revision dan Cancel Song — SELESAI 11 Nov 2026
 
 | | |
 |---|---|
@@ -158,7 +158,7 @@ Karena itu uji coba harus dilakukan setelah saklar menyala.
 | Uji | uji agent di folder sementara: tujuan sudah ada (isi sama / beda), file terkunci, mati di antara link dan hapus, fingerprint tidak cocok → tidak dipindah. Uji nyata pertama dengan lagu uji, bukan lagu klien |
 | Rollback | saklar kedua `archive_on_revision`: bila mati, Revision tidak memindah file. File yang sudah diarsipkan tinggal dipindah kembali dengan tangan; path-nya tercatat |
 
-## F6 — Konflik multi-perangkat
+## F6 — Konflik multi-perangkat — SELESAI 11 Nov 2026
 
 | | |
 |---|---|
@@ -169,7 +169,7 @@ Karena itu uji coba harus dilakukan setelah saklar menyala.
 | Uji | dua sumber, nama sama, isi beda / isi sama; satu perangkat offline lalu online |
 | Rollback | penggabungan hanya terjadi saat admin memilih; view bisa dihapus tanpa akibat |
 
-## F7 — Recovery, rekonsiliasi, pembersihan
+## F7 — Recovery, rekonsiliasi, pembersihan — SELESAI 11 Nov 2026
 
 | | |
 |---|---|
@@ -209,3 +209,31 @@ Karena itu uji coba harus dilakukan setelah saklar menyala.
 | F5 | sedang | **memindah WAV** |
 | F6 | sedang | tidak |
 | F7 | sedang | tidak |
+
+
+---
+
+## Keadaan setelah F7 (11 Nov 2026)
+
+Seluruh fase kode selesai dan terpasang di produksi. Database diverifikasi dengan membandingkan
+definisi tiap fungsi terhadap salinan uji yang lulus (setelah komentar dibuang: identik).
+
+Satu hal yang masih menunggu Jeffry: **saklar `manual_finalization` masih mati.** Sampai saklar itu
+dinyalakan, M4A tetap diunggah otomatis dan tombol "Finalize & Upload" tidak akan pernah menemukan
+M4A untuk difinalisasi. Semua perilaku lain dari F4–F7 sudah hidup sekarang, termasuk alur Revision
+yang baru, arsip Cancel Song, halaman Conflicts dan halaman System.
+
+Perbaikan di luar rencana yang muncul saat pengerjaan:
+- **3b** — 149 lagu lama hampir tersangkut tanpa versi; dan `finalize_song` menolak mengunggah M4A
+  kalau render ulang menghasilkan WAV yang isinya sama persis.
+- **5b** — syarat yang terlalu ketat membuat lagu baru (yang dibuat selagi saklar mati) tidak bisa
+  diputar vokalis. Ditemukan dari log PC, bukan dari tes. Sudah diperbaiki dan diberi tes.
+- Tombol ber-atribut `hidden` tidak benar-benar hilang karena `display:inline-flex` pada `button`.
+
+### Yang sengaja TIDAK dikerjakan
+
+- Penggabungan otomatis lagu berjudul sama. Halaman Conflicts hanya menyajikan kandidat; admin
+  yang memutuskan, karena penggabungan yang salah tidak bisa dibatalkan.
+- Menyimpan sesi unggah Google Drive agar bisa dilanjutkan di tengah jalan (K4/D-sisa). Unggahan
+  yang putus diulang dari awal: soal waktu, bukan duplikasi.
+- Pembersihan tabel sisa WhatsApp (`deliveries`, `recipients`) dan kolom `operator_hidden_at`.

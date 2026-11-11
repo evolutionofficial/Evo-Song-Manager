@@ -15,6 +15,8 @@ const MODULES = [
   { key: 'finalize', label: 'Finalize', path: '/js/apps/admin/finalize.js', el: null },
   { key: 'requests', label: 'Revisions', path: '/js/apps/admin/requests.js', el: 'rrList' },
   { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
+  { key: 'conflicts', label: 'Conflicts', path: '/js/apps/admin/conflicts.js', el: 'cfList' },
+  { key: 'system', label: 'System', path: '/js/apps/admin/system.js', el: 'sysList' },
   { key: 'settings', label: 'Settings', path: '/js/apps/admin/settings.js', el: 'setBody' },
 ];
 const spec = (k) => MODULES.find((m) => m.key === k);
@@ -94,11 +96,16 @@ function renderTabs() {
     <span class="nav-name">Revisions${rr ? ` <span class="badge rev count" aria-label="${rr} new">${rr}</span>` : ''}</span></button>`);
   items.push(`<button class="nav-item ${un ? 'alert' : ''}" style="--i:${k + 1}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
     <span class="nav-name">Needs review${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
-  items.push(`<button class="nav-item" style="--i:${k + 2}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
+  const cf = (state.conflicts || []).length;
+  items.push(`<button class="nav-item ${cf ? 'alert' : ''}" style="--i:${k + 2}" aria-current="${state.tab === 'cf' ? 'page' : 'false'}" data-tab="cf">
+    <span class="nav-name">Conflicts${cf ? ` <span class="badge warn">${cf}</span>` : ''}</span></button>`);
+  items.push(`<button class="nav-item" style="--i:${k + 3}" aria-current="${state.tab === 'sys' ? 'page' : 'false'}" data-tab="sys">
+    <span class="nav-name">System</span></button>`);
+  items.push(`<button class="nav-item" style="--i:${k + 4}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
     <span class="nav-name">Settings</span></button>`);
   $('tabs').innerHTML = items.join('');
   // Titik notifikasi di tombol menu (saat sidebar tertutup / di HP).
-  const total = rr + un;
+  const total = rr + un + cf;
   $('menuBtn').dataset.count = total ? String(total) : '';
   $('menuBtn').classList.toggle('has-count', !!total);
 }
@@ -134,12 +141,16 @@ function renderView() {
   $('vocView').classList.toggle('hidden', !t.startsWith('v:'));
   $('unView').classList.toggle('hidden', t !== 'un');
   $('rrView').classList.toggle('hidden', t !== 'rr');
+  $('cfView').classList.toggle('hidden', t !== 'cf');
+  $('sysView').classList.toggle('hidden', t !== 'sys');
   $('setView').classList.toggle('hidden', t !== 'set');
   if (t.startsWith('v:')) {
     runMod('songs', 'render');
     runMod('trash', 'render');
   } else if (t === 'un') runMod('unmatched', 'render');
   else if (t === 'rr') runMod('requests', 'render');
+  else if (t === 'cf') runMod('conflicts', 'render');
+  else if (t === 'sys') runMod('system', 'render');
   else runMod('settings', 'render');
 }
 
