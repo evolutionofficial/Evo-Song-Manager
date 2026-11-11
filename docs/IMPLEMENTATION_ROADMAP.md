@@ -101,8 +101,7 @@ Database dan program sudah terpasang; perilaku lama masih berlaku karena
 - Database: 13 fungsi diterapkan. Diverifikasi dengan membandingkan definisi fungsi di database
   asli terhadap salinan uji lokal (setelah komentar dibuang, keduanya identik).
 - MacBook: Evo Media Agent **2.0** berjalan.
-- PC: masih **1.3** — perlu diperbarui saat sesi tersambung ke PC. Aman dibiarkan sementara:
-  program lama tidak memanggil `claim_jobs`, dan `sync_files` menerima file tanpa data M4A.
+- PC: Evo Media Agent **2.0** berjalan (diperbarui 11 Nov 09.41).
 
 **Perbaikan 3b (11 Nov).** Dua jebakan ditemukan sebelum saklar dinyalakan dan sudah ditutup:
 
@@ -121,12 +120,12 @@ Ditambahkan juga tombol **"Finalize all ready"** per vokalis: memfinalisasi lagu
 (tepat satu file yang ada, punya M4A, M4A tidak ketinggalan), dan melewati yang ambigu sambil
 menyebut alasannya satu per satu.
 
-Tiga langkah tersisa sebelum F3 benar-benar hidup:
+Dua langkah tersisa sebelum F3 benar-benar hidup, keduanya menunggu Jeffry:
 
-1. Perbarui program di PC ke 2.0.
-2. Nyalakan saklar `manual_finalization`. **Ini momen "go live"**: sejak itu M4A tidak lagi
-   diunggah otomatis di semua komputer, dan menumpuk di folder Mixdown sampai difinalisasi.
-3. Uji satu lagu dari ujung ke ujung: render WAV + M4A → pilih kandidat → Finalize & Upload →
+1. Nyalakan saklar `manual_finalization`. **Ini momen "go live"**: sejak itu M4A tidak lagi
+   diunggah otomatis di semua komputer, dan menunggu di folder Mixdown sampai difinalisasi.
+   Ditunda atas permintaan Jeffry sampai ia siap merender lagu uji (11 Nov).
+2. Uji satu lagu dari ujung ke ujung: render WAV + M4A → pilih kandidat → Finalize & Upload →
    vokalis bisa mendengarkan.
 
 Catatan: `finalize_song` berfungsi walau saklar mati, tetapi tanpa saklar program masih mengunggah
