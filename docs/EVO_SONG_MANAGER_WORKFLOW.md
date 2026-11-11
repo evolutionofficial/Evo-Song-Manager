@@ -41,14 +41,13 @@ Database (satu transaksi):
         │
         ▼
 Evo Media Agent di perangkat pemilik mengklaim pekerjaan (sewa 5 menit, diperpanjang)
-  1 VALIDATE   file ada; ukuran dan mtime sama dua kali berturut-turut selang 5 detik;
-               header WAV benar dan panjang data cocok dengan ukuran file;
-               fingerprint dihitung ulang = fingerprint kandidat
-  2 CONVERT    WAV → M4A (AAC) ke folder sementara agent
-  3 UPLOAD     PUT ke R2: m4a/<id lagu>/<id versi>.m4a  (lewati kalau HEAD sudah cocok)
-  4 VERIFY     HEAD: ukuran dan MD5 sama
-  5 ACTIVATE   database: versi → active, versi lama → superseded, lagu → Ready
-  6 CLEANUP    hapus M4A sementara
+  1 VALIDATE   WAV dan M4A ada; ukuran dan mtime masing-masing sama dua kali berturut-turut
+               selang 5 detik; header WAV benar dan panjang data cocok dengan ukuran file;
+               fingerprint keduanya dihitung ulang = fingerprint yang dipilih admin
+  2 UPLOAD     PUT M4A apa adanya ke R2: m4a/<id lagu>/<id versi>.m4a (lewati kalau HEAD sudah cocok)
+  3 VERIFY     HEAD: ukuran dan MD5 sama
+  4 ACTIVATE   database: versi → active, versi lama → superseded, lagu → Ready
+  5 CLEANUP    hapus M4A di komputer (seperti sekarang; salinannya sudah aman di R2)
 ```
 
 Aturan:
@@ -65,19 +64,38 @@ Aturan:
   sebenarnya ada di database, bukan di tombol.
 - Kalau perangkat pemilik mati: status **"Waiting for <nama perangkat>"**.
 
-### Konversi WAV → M4A
+### Dari mana M4A berasal (keputusan K1, 11 Nov 2026)
 
-Sekarang Jeffry mengekspor M4A sendiri dari DAW. Target: agent yang mengonversi, supaya M4A pasti
-berasal dari WAV yang dipilih.
+**Jeffry merender WAV dan M4A sekaligus dari Studio One** dalam satu kali ekspor (Studio One bisa
+mengeluarkan lebih dari satu format sekali render). Sistem **tidak mengonversi apa pun**: tidak ada
+`ffmpeg` di PC, tidak ada `afconvert` di Mac, dan tidak ada tahap CONVERT.
 
-| Perangkat | Alat | Catatan |
+Keuntungannya: M4A dan WAV berasal dari render yang sama, jadi memang satu take. Yang perlu dijaga
+hanyalah kalau suatu saat hanya salah satu yang dirender ulang.
+
+Karena itu satu kandidat menyimpan sidik jari **dua file**:
+
+| | WAV | M4A |
 |---|---|---|
-| MacBook | `afconvert` (bawaan macOS) | tidak perlu memasang apa pun |
-| PC Windows | `ffmpeg.exe` | satu file yang ditaruh di folder agent |
+| Dipakai untuk | Google Drive (operator & vokalis) | player vokalis (R2) |
+| Disimpan di kandidat | `sha256`, `md5`, ukuran, mtime | `m4a_sha256`, `m4a_md5`, ukuran, mtime |
 
-Agent memeriksa alatnya saat menyala. Kalau tidak ada, finalisasi di perangkat itu berstatus
-needs admin dengan pesan cara memasangnya. **Ini butuh keputusan**, lihat `IMPLEMENTATION_ROADMAP.md`
-bagian Keputusan.
+Aturan pemeriksaan saat finalisasi:
+
+- **Tidak ada M4A** → tidak bisa difinalisasi. Admin melihat "M4A belum ada — render ulang dengan
+  dua format". Lagunya tetap bisa di-Accept? Tidak: tanpa versi aktif tidak ada Accept.
+- **M4A jauh lebih lama dari WAV** (selisih mtime lebih dari 2 menit) → tombol finalisasi tetap
+  bisa ditekan, tetapi admin melihat peringatan jelas: "M4A dirender 2 hari lebih dulu dari WAV —
+  kemungkinan hanya WAV yang dirender ulang." Ini satu-satunya cara WAV dan M4A bisa berbeda take.
+- **Keduanya berubah bersama** (selisih beberapa detik, seperti hasil render Studio One) → tidak
+  ada peringatan.
+
+M4A di komputer tetap dihapus setelah terunggah dan terverifikasi, seperti sekarang, tetapi
+**baru setelah admin memfinalisasi**, bukan begitu filenya terdeteksi.
+
+Agar admin bisa melihat ini tanpa Media Agent harus hidup, **First Club Sync** yang melaporkan
+keberadaan M4A: saat memindai WAV, ia juga melihat file `.m4a` bernama sama di folder yang sama,
+lalu menghitung sidik jarinya (jauh lebih kecil dari WAV, jadi murah).
 
 ## 3. Accept
 
@@ -197,10 +215,11 @@ Untuk setiap pekerjaan milik perangkat ini yang belum selesai, atau yang sewanya
 
  finalize
    tahap ≤ VALIDATE   → mulai dari VALIDATE
-   tahap CONVERT      → M4A sementara ada dan utuh? lanjut UPLOAD; kalau tidak, ulang CONVERT
    tahap UPLOAD/VERIFY→ HEAD R2: objek ada dengan MD5 yang dicatat? → langsung ACTIVATE
-                        tidak ada → ulang UPLOAD (dari M4A sementara, atau ulang CONVERT)
+                        tidak ada → ulang UPLOAD (M4A masih di folder Mixdown; kalau sudah tidak
+                        ada dan R2 juga kosong → needs admin: "render ulang WAV + M4A")
    tahap ACTIVATE     → tanya database: versi sudah aktif? selesai. belum → ACTIVATE lagi (idempoten)
+                        lalu CLEANUP: hapus M4A di komputer
 
  unggah WAV
    cari di Drive lewat label evoUploadId

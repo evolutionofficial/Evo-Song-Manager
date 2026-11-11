@@ -48,6 +48,12 @@ create table public.file_candidates (
   file_mtime  timestamptz not null,
   sha256      text not null,
   md5         text not null,
+  -- M4A pasangan (dirender bersama WAV dari Studio One). Null = belum ada M4A.
+  m4a_name    text,
+  m4a_size    bigint,
+  m4a_mtime   timestamptz,
+  m4a_sha256  text,
+  m4a_md5     text,
   present     boolean not null default true, -- masih ada di disk pada pindai terakhir
   first_seen  timestamptz not null default now(),
   last_seen   timestamptz not null default now(),

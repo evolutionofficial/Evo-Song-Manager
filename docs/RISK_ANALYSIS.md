@@ -14,7 +14,8 @@ tetap ada setelah mitigasi.
 | R5 | Pembersih R2 menghapus audio yang masih dipakai | Rendah | Tinggi | Hanya menghapus kunci milik versi `superseded`/`cancelled`, ditunda 24 jam, dan dicek ulang bahwa bukan versi aktif tepat sebelum hapus | Sangat kecil |
 | R6 | File Drive terhapus salah | Rendah | Sedang | Pindah ke Trash, bukan hapus permanen (K2) | Kecil; Trash dikosongkan Google setelah 30 hari |
 | R7 | Backfill salah memasangkan lagu dengan versi | Rendah | Sedang | Jalankan dulu sebagai laporan; bandingkan laporan vokalis sebelum dan sesudah | Kecil |
-| R8 | M4A lokal dihapus padahal belum aman (perilaku sekarang) | Rendah | Rendah | Di sistem target M4A dibuat agent di folder sementara; ekspor DAW tidak lagi dihapus | Hilang |
+| R8 | M4A lokal dihapus sebelum admin memfinalisasi (perilaku sekarang: dihapus begitu terunggah) | Sedang hari ini | Rendah | Di sistem target penghapusan baru terjadi setelah finalisasi dan verifikasi | Hilang |
+| R9 | **Hanya WAV yang dirender ulang, M4A tertinggal** → vokalis mendengar take lama sementara operator menerima take baru | Rendah (Studio One merender keduanya sekaligus) | Sedang | Kandidat menyimpan sidik jari dan waktu render kedua file; finalisasi memberi peringatan kalau selisihnya lebih dari 2 menit | Kecil: admin bisa melanjutkan sengaja |
 
 ## 2. Unggah ganda
 
@@ -95,4 +96,4 @@ lingkup ini: ekspor database berkala.
 
 1. **R1** — WAV lama tertimpa sebelum diarsipkan. Tidak bisa dihapus sepenuhnya tanpa salinan per versi.
 2. **F5 memindahkan file klien.** Fase ini dirilis terakhir di antara fitur inti, dengan saklar sendiri, dan diuji dulu pada lagu uji.
-3. **Konversi M4A di PC** bergantung pada satu program tambahan (`ffmpeg.exe`). Kalau tidak diinginkan, K1 jatuh ke alternatif: tetap ekspor M4A dari DAW.
+3. **M4A dan WAV berasal dari render yang sama** hanya selama Studio One mengeluarkan keduanya sekali jalan. Kalau suatu saat hanya WAV dirender ulang, sistem memberi peringatan tetapi tidak menolak (K10).

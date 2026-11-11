@@ -84,13 +84,13 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | | |
 |---|---|
 | Tujuan | Unggah M4A hanya setelah admin menekan "Selesaikan & Upload" |
-| Modul | baru `web/js/apps/admin/finalize.js` (modul terpisah, mengikuti aturan `ARCHITECTURE.md`); `admin/main.js`, `admin/data.js`, `admin/songs.js` (badge status); baru `drive/lib/finalize.js`, `drive/lib/convert.js`, `drive/lib/jobs.js`; `drive/lib/r2.js` (+ `remove`); `drive/evo-media-agent.js` |
+| Modul | baru `web/js/apps/admin/finalize.js` (modul terpisah, mengikuti aturan `ARCHITECTURE.md`); `admin/main.js`, `admin/data.js`, `admin/songs.js` (badge status); baru `drive/lib/finalize.js`, `drive/lib/jobs.js`; `drive/lib/r2.js` (+ `remove`); `drive/evo-media-agent.js`; `sync/lib/scanner.js` + `fingerprint.js` (melaporkan M4A pasangan) |
 | Database | `list_candidates`, `finalize_song`, `cancel_finalize`, `retry_job`, `claim_jobs`, `job_progress`, `job_finish`, `activate_version`; `get_audio_key` dan `get_vocalist_report` membaca versi aktif |
 | Functions | `/audio` tidak berubah bentuk (kunci datang dari database) |
 | Agent | Media Agent 2.0: pekerja finalisasi; jalur "M4A otomatis" **dimatikan saat saklar menyala** dan tetap ada saat saklar mati |
 | UI | Admin: panel kandidat per lagu, tombol "Selesaikan & Upload", status Finalizing / Finalize failed / Waiting for device. Vokalis: tidak berubah |
-| Risiko | Alat konversi tidak ada di PC; kualitas M4A berbeda dari ekspor DAW; salah memilih kandidat |
-| Uji | uji agent dengan R2 palsu: klik ganda → satu pekerjaan; mati di tiap tahap → lanjut; fingerprint berubah → needs admin; R2 menolak → retry. Uji nyata dengan satu lagu uji di PC dan satu di MacBook sebelum saklar dinyalakan |
+| Risiko | M4A tertinggal saat hanya WAV dirender ulang (diberi peringatan, K10); M4A menumpuk di folder Mixdown sampai admin memfinalisasi; salah memilih kandidat |
+| Uji | uji agent dengan R2 palsu: klik ganda → satu pekerjaan; mati di tiap tahap → lanjut; fingerprint berubah → needs admin; M4A tidak ada → ditolak; M4A lebih lama → peringatan; R2 menolak → retry. Uji nyata dengan satu lagu uji di PC dan satu di MacBook sebelum saklar dinyalakan |
 | Rollback | matikan saklar: jalur M4A lama aktif lagi; versi yang sudah dibuat tetap sah |
 
 ## F4 — Accept terikat versi
@@ -148,7 +148,8 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 
 | # | Pertanyaan | Rekomendasi | Alasan |
 |---|---|---|---|
-| K1 | Siapa yang membuat M4A? | Agent mengonversi dari WAV (`afconvert` di Mac, `ffmpeg.exe` di PC) | Menjamin audio yang didengar berasal dari WAV yang dipilih. Alternatif: tetap ekspor M4A dari DAW, dan finalisasi menolak kalau M4A-nya tidak ada |
+| K10 | Kalau hanya WAV yang dirender ulang (M4A tertinggal) | Finalisasi tetap boleh, tapi admin diberi peringatan selisih waktu render | Menolak otomatis berisiko menghalangi pekerjaan yang sebenarnya benar |
+| ~~K1~~ | Siapa yang membuat M4A? | **DIJAWAB 11 Nov: Jeffry merender WAV + M4A sekaligus dari Studio One.** Sistem tidak mengonversi; finalisasi memakai M4A apa adanya dan menolak kalau M4A tidak ada | Lebih sederhana: tidak ada `ffmpeg`/`afconvert`, tidak ada tahap CONVERT, dan M4A memang satu render dengan WAV |
 | K2 | File Drive saat Revision | Pindah ke Trash | Bisa dikembalikan 30 hari; sekarang dihapus permanen |
 | K3 | Nama di `Cancel Song` saat bentrok | Subfolder `<tanggal> v<nomor>/` berisi nama asli | Nama file tetap bersih, tidak pernah menimpa |
 | K4 | Salinan WAV per versi di disk | Tidak | MacBook hampir penuh; diganti pemeriksaan fingerprint |
@@ -156,7 +157,6 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | K6 | Lagu lama (258) | Tetap seperti sekarang lewat versi warisan | Tidak ada pekerjaan ulang |
 | K7 | Replace with revision (nama file lain) | Dipertahankan, dialirkan lewat finalisasi | Untuk file yang terlanjur dinamai berbeda |
 | K9 | Dismiss permintaan revisi | Menjadi "Restore previous version" (kembalikan WAV dari Cancel Song, aktifkan lagi versi lama) | Alternatif lebih sederhana: Dismiss dihapus, admin cukup memfinalisasi ulang file yang sama |
-| K8 | Bitrate M4A | AAC 256 kbps | Perlu disamakan dengan ekspor DAW yang dipakai sekarang |
 
 ## Perkiraan ukuran pekerjaan
 
