@@ -21,9 +21,11 @@ const { createDb } = require('./lib/db');
 const { scanM4a } = require('./lib/scan');
 const { log } = require('./lib/log');
 const { createWavWorker } = require('./lib/wav');
+const { createJobs } = require('./lib/jobs');
+const { createFinalizer, NeedsAdmin } = require('./lib/finalize');
 const { hasToken } = require('./lib/gdrive');
 
-const VERSION = '1.3';
+const VERSION = '2.0';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
@@ -31,11 +33,14 @@ function createAgent(cfg) {
   const r2 = createR2(cfg.r2, cfg.bucket);
   const db = createDb(cfg);
   const wav = createWavWorker(cfg, db);
+  const jobs = createJobs(cfg, db.rpc);
+  const finalizer = createFinalizer(cfg, jobs, r2);
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
-  const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0 };
+  const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0 };
   let running = false;
   let lastBeat = 0;
+  let manual = false;   // saklar Manual Finalization (dibaca dari database tiap putaran)
 
   const sayOnce = (full, sig, msg) => { if (said.get(full) !== sig + msg) { said.set(full, sig + msg); log(msg); } };
 
@@ -73,11 +78,38 @@ function createAgent(cfg) {
     return 'done';
   }
 
+  /** Pekerjaan dari admin: "Selesaikan & Upload". */
+  async function runJobs() {
+    let ok = true;
+    let list;
+    try { list = await jobs.claim(['finalize'], 2); }
+    catch (e) { log('GAGAL mengambil pekerjaan: ' + e.message); return false; }
+    for (const job of list || []) {
+      try {
+        const res = await finalizer.run(job);
+        if (res === 'done') { stats.finalized++; await jobs.finish(job.id, 'done', { key: job.m4a_key }, null); }
+        else if (res === 'stale') await jobs.finish(job.id, 'done', { cancelled: true }, null);
+        // 'lost' → sewa diambil komputer lain; tidak melapor apa-apa.
+      } catch (e) {
+        ok = false;
+        const admin = e instanceof NeedsAdmin;
+        log(`${admin ? 'PERLU ADMIN' : 'GAGAL'} finalisasi "${job.file_name}": ${e.message}`);
+        await jobs.finish(job.id, admin ? 'needs_admin' : 'failed', null, e.message).catch(() => {});
+        if (!admin) { stats.failed++; stats.lastError = `${job.file_name}: ${e.message}`; }
+      }
+    }
+    return ok;
+  }
+
   async function runOnce() {
     if (running) return true;
     running = true;
     let ok = true;
     try {
+      try { manual = !!(await db.config())?.manual_finalization; }
+      catch (e) { log('Pengaturan tidak terbaca, memakai yang terakhir: ' + e.message); }
+      // Saklar menyala: M4A tidak lagi diunggah otomatis — hanya lewat tombol admin.
+      if (manual) { stats.waiting = 0; throw { __skipAuto: true }; }
       const found = [];
       for (const src of cfg.sources || [{ name: 'pc', root: cfg.root, main: true }]) {
         if (!src.main && !fs.existsSync(src.root)) continue; // drive backup dicabut
@@ -102,15 +134,18 @@ function createAgent(cfg) {
       }
       for (const k of retry.keys()) if (!found.some((f) => f.full === k)) retry.delete(k);
     } catch (e) {
-      ok = false; stats.lastError = e.message;
-      log('GAGAL: ' + e.message);
+      if (!e || !e.__skipAuto) {
+        ok = false; stats.lastError = e.message;
+        log('GAGAL: ' + e.message);
+      }
     } finally {
       running = false;
     }
+    if (!(await runJobs())) ok = false;
     if (!(await wav.runOnce())) ok = false;
     if (Date.now() - lastBeat > HEARTBEAT_MS) {
       lastBeat = Date.now();
-      db.heartbeat({ version: VERSION, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
+      db.heartbeat({ version: VERSION, manual, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
     }
     return ok;
   }

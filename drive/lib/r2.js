@@ -54,6 +54,14 @@ function createR2(r2, bucket) {
       if (!res.ok) throw new Error(await why(res));
       return { etag: String(res.headers.get('etag') || '').replace(/"/g, '').toLowerCase(), size: Number(res.headers.get('content-length')) };
     },
+    /** Hapus objek. Dipakai untuk membuang audio versi lama (dan sisa unggahan yang batal). */
+    async remove(key) {
+      const res = await request('DELETE', key);
+      if (res.status === 404) return false;
+      if (!res.ok && res.status !== 204) throw new Error(await why(res));
+      await res.arrayBuffer().catch(() => {});
+      return true;
+    },
     /** Unggah. R2 sendiri memeriksa Content-MD5, jadi file rusak di jalan ditolak. */
     async put(key, buf, md5hex, contentType) {
       const res = await request('PUT', key, {

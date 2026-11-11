@@ -46,6 +46,8 @@ function scan(root) {
   const walk = (dir, segs) => {
     let entries;
     try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { return; }
+    // Nama file di folder ini, untuk mencari M4A yang bernama sama dengan WAV-nya.
+    const names = new Map(entries.filter((e) => e.isFile()).map((e) => [e.name.toLowerCase(), e.name]));
     for (const ent of entries) {
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) {
@@ -58,6 +60,16 @@ function scan(root) {
         let st;
         try { st = fs.statSync(full); } catch (_) { continue; }
         if (now - st.mtimeMs < SETTLE_MS) { pending++; continue; }
+        // M4A pasangan: dipakai player vokalis. Tidak ada = lagu belum bisa difinalisasi.
+        let m4a = null;
+        const m4aName = names.get(ent.name.replace(/\.wav$/i, '.m4a').toLowerCase()) || null;
+        if (m4aName) {
+          try {
+            const ms = fs.statSync(path.join(dir, m4aName));
+            if (now - ms.mtimeMs >= SETTLE_MS) m4a = { name: m4aName, size: ms.size, mtime: new Date(ms.mtimeMs).toISOString() };
+            else pending++;
+          } catch (_) { /* hilang di antara readdir dan stat */ }
+        }
         files.push({
           rel_path: segs.concat(ent.name).join('/'),
           file_name: ent.name,
@@ -66,6 +78,9 @@ function scan(root) {
           session_label: sessionLabel(segs),
           file_size: st.size,
           file_mtime: new Date(st.mtimeMs).toISOString(),
+          m4a_name: m4a ? m4a.name : null,
+          m4a_size: m4a ? m4a.size : null,
+          m4a_mtime: m4a ? m4a.mtime : null,
         });
       }
     }

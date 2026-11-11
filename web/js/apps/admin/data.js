@@ -5,7 +5,7 @@ import { report } from '/js/core/guard.js';
 import { toast } from '/js/core/ui.js';
 
 export const state = {
-  vocalists: [], songs: [], unmatched: [], settings: null, wav: [], devices: [],
+  vocalists: [], songs: [], unmatched: [], settings: null, wav: [], devices: [], versions: [], jobs: [],
   tab: null,
   errors: {}, // { sumber: pesan } untuk sumber data yang gagal dimuat
 };
@@ -18,8 +18,18 @@ const SOURCES = {
   unmatched: () => sb.from('unmatched_files').select('*').order('file_mtime'),
   settings: () => sb.from('app_settings').select('*').eq('id', 1).single(),
   devices: () => sb.from('devices').select('*').order('name'),
+  versions: () => sb.from('song_versions').select('id,song_id,version_no,status,file_name,sha256,m4a_key,legacy,activated_at')
+    .in('status', ['active', 'finalizing']),
+  jobs: () => sb.from('jobs').select('id,kind,song_id,version_id,status,stage,attempts,last_error,updated_at')
+    .in('status', ['queued', 'running', 'failed', 'needs_admin']),
   wav: () => sb.from('wav_uploads').select('id,song_id,revision,status,attempts,last_error,uploaded_at,size_bytes,drive_deleted_at,cleanup_eligible_at,sent_at,downloaded_at'),
 };
+
+/** Versi yang sedang aktif / sedang difinalisasi untuk satu lagu. */
+export const versionOf = (s) => state.versions.find((v) => v.song_id === s.id && v.status === 'active') || null;
+export const finalizingOf = (s) => state.versions.find((v) => v.song_id === s.id && v.status === 'finalizing') || null;
+/** Pekerjaan finalisasi yang belum selesai untuk satu lagu. */
+export const jobOf = (s) => state.jobs.find((j) => j.song_id === s.id && j.kind === 'finalize') || null;
 
 /** Status upload WAV untuk revisi lagu saat ini, atau null. */
 export const wavOf = (s) => state.wav.find((w) => w.song_id === s.id && w.revision === s.revision) || null;

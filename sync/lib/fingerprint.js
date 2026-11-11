@@ -48,33 +48,49 @@ function createFingerprints(dir) {
     } catch (e) { log('Catatan sidik jari tidak bisa disimpan: ' + e.message); }
   }
 
+  /** Satu file: pakai cache kalau ukuran+waktu sama, kalau tidak hitung (selama jatah cukup). */
+  async function one(key, full, size, mtime, label) {
+    const hit = cache[key];
+    if (hit && hit.size === size && hit.mtime === mtime && hit.sha256 && hit.md5) return { hit: true, h: hit };
+    if (budget <= 0) return { later: true };
+    budget--;
+    try {
+      const h = await hashFile(full);
+      const st = fs.statSync(full);
+      // Berubah saat dibaca (sedang dirender ulang) → jangan disimpan; diulang putaran berikutnya.
+      if (st.size !== size || new Date(st.mtimeMs).toISOString() !== mtime) return { later: true };
+      cache[key] = { size, mtime, sha256: h.sha256, md5: h.md5 };
+      dirty = true;
+      return { h };
+    } catch (e) {
+      log(`Sidik jari ${label} gagal dibaca: ${e.message}`);
+      return { later: true };
+    } finally {
+      await new Promise((r) => setImmediate(r)); // beri napas ke proses lain
+    }
+  }
+
   /**
-   * Melengkapi snap.files dengan sha256/md5. File yang belum sempat dihitung dibiarkan kosong
-   * dan akan diambil pada putaran berikutnya; database menerima file tanpa sidik jari.
+   * Melengkapi snap.files dengan sha256/md5 (WAV dan M4A pasangannya). File yang belum sempat
+   * dihitung dibiarkan kosong dan diambil putaran berikutnya; database menerima file tanpa sidik jari.
    */
   async function fill(snap, src) {
     let fromCache = 0, computed = 0, left = 0;
     for (const f of snap.files) {
       const key = keyOf(src, f.rel_path);
-      const hit = cache[key];
-      if (fresh(hit, f)) { f.sha256 = hit.sha256; f.md5 = hit.md5; fromCache++; continue; }
-      if (budget <= 0) { left++; continue; }
-      budget--;
       const full = path.join(src.root, ...f.rel_path.split('/'));
-      try {
-        const h = await hashFile(full);
-        // File yang berubah saat dibaca tidak disimpan; diulang putaran berikutnya.
-        const st = fs.statSync(full);
-        if (st.size !== f.file_size || new Date(st.mtimeMs).toISOString() !== f.file_mtime) { left++; continue; }
-        cache[key] = { size: f.file_size, mtime: f.file_mtime, sha256: h.sha256, md5: h.md5 };
-        dirty = true;
-        f.sha256 = h.sha256; f.md5 = h.md5;
-        computed++;
-      } catch (e) {
-        left++;
-        log(`Sidik jari ${f.file_name} gagal dibaca: ${e.message}`);
-      }
-      await new Promise((r) => setImmediate(r)); // beri napas ke proses lain
+      const r = await one(key, full, f.file_size, f.file_mtime, f.file_name);
+      if (r.later) { left++; continue; }
+      f.sha256 = r.h.sha256; f.md5 = r.h.md5;
+      r.hit ? fromCache++ : computed++;
+
+      // M4A pasangannya (kecil, jadi murah). Tanpa ini lagu tidak bisa difinalisasi.
+      if (!f.m4a_name) continue;
+      const mFull = path.join(path.dirname(full), f.m4a_name);
+      const mr = await one(key + '#m4a', mFull, f.m4a_size, f.m4a_mtime, f.m4a_name);
+      if (mr.later) { left++; continue; }
+      f.m4a_sha256 = mr.h.sha256; f.m4a_md5 = mr.h.md5;
+      if (!mr.hit) computed++;
     }
     if (computed && !announced && left) {
       announced = true;
@@ -85,7 +101,9 @@ function createFingerprints(dir) {
 
   /** Buang catatan file yang sudah tidak ada di sumber mana pun (cache tidak menggelembung). */
   function prune(seen) {
-    for (const k of Object.keys(cache)) if (!seen.has(k)) { delete cache[k]; dirty = true; }
+    for (const k of Object.keys(cache)) {
+      if (!seen.has(k.replace(/#m4a$/, ''))) { delete cache[k]; dirty = true; }
+    }
   }
 
   return {

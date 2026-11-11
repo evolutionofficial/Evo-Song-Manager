@@ -6,7 +6,7 @@ import { PRICES } from '/js/core/config.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
 import { rupiah, ribu, esc, norm, dateLabel, summarize, fmtDate } from '/js/core/format.js';
-import { state, curVoc, vocSongs, shareUrl, updateSong, wavOf } from './data.js';
+import { state, curVoc, vocSongs, shareUrl, updateSong, wavOf, versionOf, finalizingOf, jobOf } from './data.js';
 
 let ctx;
 
@@ -37,7 +37,7 @@ function renderTable() {
     rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
       <span class="no dim">${s.n}</span>
       <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
-      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.source && s.source !== 'pc' ? ` <span class="badge muted src" title="From ${esc(s.source === 'backup' ? 'the backup drive' : s.source === 'mac' ? 'the MacBook' : s.source)}">${esc(s.source === 'backup' ? 'Backup' : s.source === 'mac' ? 'MacBook' : s.source)}</span>` : ''}${s.accepted_at ? wavBadge(s) : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${!s.accepted_at && s.revision_requested_at ? ` <span class="badge rev" title="Requested by the vocalist on ${esc(fmtDate(s.revision_requested_at))}">Revision requested</span>` : ''}${!s.accepted_at && s.revision_requested_at && s.revision_note ? `<span class="revnote">“${esc(s.revision_note)}”</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
+      <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.source && s.source !== 'pc' ? ` <span class="badge muted src" title="From ${esc(s.source === 'backup' ? 'the backup drive' : s.source === 'mac' ? 'the MacBook' : s.source)}">${esc(s.source === 'backup' ? 'Backup' : s.source === 'mac' ? 'MacBook' : s.source)}</span>` : ''}${ctx.finalizeBadge(s)}${s.accepted_at ? wavBadge(s) : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${!s.accepted_at && s.revision_requested_at ? ` <span class="badge rev" title="Requested by the vocalist on ${esc(fmtDate(s.revision_requested_at))}">Revision requested</span>` : ''}${!s.accepted_at && s.revision_requested_at && s.revision_note ? `<span class="revnote">“${esc(s.revision_note)}”</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
       ${s.paid
         ? `<span class="price dim paid-price" title="Saved price: ${ribu(s.price)} (shows again if Paid is undone)">—</span>`
         : `<span class="price"><select data-price="${s.id}" aria-label="Price ${esc(s.title)}">
@@ -116,6 +116,7 @@ function openMenu(id, x, y) {
       ? `<button role="menuitem" data-act="rep" disabled title="Accepted by the vocalist — unlock first">Replace with revision… (locked)</button>
          <button role="menuitem" data-act="unlock">Unlock (undo Accept)</button>`
       : '<button role="menuitem" data-act="rep">Replace with revision…</button>'}
+    ${finalizeItems(s)}
     ${wavOf(s)?.status === 'failed' ? '<button role="menuitem" data-act="retry">Retry WAV upload</button>' : ''}
     <button role="menuitem" data-act="del" class="danger">Remove from list</button>`;
   document.body.appendChild(menuEl);
@@ -129,8 +130,26 @@ function openMenu(id, x, y) {
     if (act === 'del') deleteSong(id);
     if (act === 'unlock') unlockSong(id);
     if (act === 'retry') retryWav(id);
+    if (act === 'fin') ctx.openFinalize(id);
+    if (act === 'fincancel') ctx.finalizeAction('cancel', id);
+    if (act === 'finretry') ctx.finalizeAction('retry', id);
   });
   menuEl.querySelector('button').focus();
+}
+
+/** Pilihan menu yang berhubungan dengan finalisasi, sesuai keadaan lagu. */
+function finalizeItems(s) {
+  const j = jobOf(s);
+  const out = [];
+  if (finalizingOf(s)) {
+    out.push('<button role="menuitem" data-act="fincancel">Cancel finalizing</button>');
+  } else if (!s.accepted_at) {
+    out.push(`<button role="menuitem" data-act="fin">${versionOf(s) ? 'Finalize another file…' : 'Finalize &amp; Upload…'}</button>`);
+  }
+  if (j && (j.status === 'failed' || j.status === 'needs_admin')) {
+    out.push('<button role="menuitem" data-act="finretry">Try finalizing again</button>');
+  }
+  return out.join('\n    ');
 }
 
 function wavBadge(s) {
