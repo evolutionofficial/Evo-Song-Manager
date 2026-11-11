@@ -3,7 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle.bin', 'system volume information']);
+// 'cancel song' = arsip WAV versi lama (hasil Revision); isinya bukan lagu baru.
+const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle.bin', 'system volume information', 'cancel song']);
 const NAME_RE = /^\s*([^-]+?)\s*-\s*(.+?)\s*\.m4a$/i;
 const SETTLE_MS = 15000; // file yang berubah < 15 detik lalu dianggap masih dirender
 

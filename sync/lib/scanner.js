@@ -4,7 +4,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle.bin', 'system volume information']);
+// 'cancel song' = arsip WAV versi lama (hasil Revision); isinya bukan lagu baru.
+const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle.bin', 'system volume information', 'cancel song']);
 const MONTHS = '(jan|januari|feb|februari|mar|maret|apr|april|mei|may|jun|juni|jul|juli|agu|agt|ags|agustus|aug|august|sep|sept|september|okt|oktober|oct|october|nov|november|des|desember|dec|december)';
 const DATE_RE = new RegExp('\\b(\\d{1,2})\\s*' + MONTHS + '\\b', 'i');
 const NAME_RE = /^\s*([^-]+?)\s*-\s*(.+?)\s*\.wav$/i;

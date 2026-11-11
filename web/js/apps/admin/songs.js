@@ -116,6 +116,7 @@ function openMenu(id, x, y) {
       ? `<button role="menuitem" data-act="rep" disabled title="Accepted by the vocalist — unlock first">Replace with revision… (locked)</button>
          <button role="menuitem" data-act="unlock">Unlock (undo Accept)</button>`
       : '<button role="menuitem" data-act="rep">Replace with revision…</button>'}
+    ${wavOf(s)?.status === 'failed' ? '<button role="menuitem" data-act="retry">Retry WAV upload</button>' : ''}
     <button role="menuitem" data-act="del" class="danger">Remove from list</button>`;
   document.body.appendChild(menuEl);
   const r = menuEl.getBoundingClientRect();
@@ -127,6 +128,7 @@ function openMenu(id, x, y) {
     if (act === 'rep') ctx.openReplace(id);
     if (act === 'del') deleteSong(id);
     if (act === 'unlock') unlockSong(id);
+    if (act === 'retry') retryWav(id);
   });
   menuEl.querySelector('button').focus();
 }
@@ -139,11 +141,13 @@ function wavBadge(s) {
     waiting: ['warn', 'WAV waiting', 'Waiting for the studio computer that has this WAV to upload it to Google Drive'],
     uploading: ['warn', 'WAV uploading…', 'Uploading to Google Drive'],
     complete: ['wav ok', 'On Drive', `WAV uploaded to Google Drive ${fmtDate(w.uploaded_at)}${mb}`],
-    failed: ['bad', 'WAV failed', `Upload failed (try ${w.attempts}), retrying automatically: ${w.last_error || ''}`],
+    failed: w.attempts >= 8
+      ? ['bad', 'WAV failed — stopped', `Upload failed ${w.attempts} times and stopped: ${w.last_error || ''}. Right-click the title → Retry WAV upload.`]
+      : ['bad', 'WAV failed', `Upload failed (try ${w.attempts}), retrying automatically: ${w.last_error || ''}`],
     cancelled: ['muted', 'WAV cancelled', 'Cancelled by Revision / Unlock'],
   };
   if (w.status === 'complete' && (w.drive_deleted_at || w.cleanup_eligible_at)) {
-    map.complete = ['muted', 'Cleaned from Drive', 'Removed from Google Drive after a newer song was downloaded by FC (the WAV on the computer is kept)'];
+    map.complete = ['muted', 'Cleaned from Drive', 'Removed from Google Drive (limit of 40 files per vocalist). The WAV on the computer is kept.'];
   } else if (w.status === 'complete' && w.downloaded_at) {
     map.complete = ['wav ok', 'Downloaded by FC', `FC downloaded it ${fmtDate(w.downloaded_at)}${mb}`];
   } else if (w.status === 'complete' && w.sent_at) {
@@ -151,6 +155,13 @@ function wavBadge(s) {
   }
   const [cls, label, tip] = map[w.status] || ['muted', w.status, ''];
   return ` <span class="badge ${cls}" title="${esc(tip)}">${esc(label)}</span>`;
+}
+
+async function retryWav(id) {
+  const { error } = await sb.rpc('retry_wav', { p_song: id });
+  if (error) return toast('Failed: ' + error.message, 'bad');
+  toast('WAV upload queued again');
+  ctx.reload();
 }
 
 async function unlockSong(id) {

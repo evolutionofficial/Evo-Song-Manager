@@ -1,7 +1,7 @@
 // UNDUH OPERATOR — /dl/<tokenOperator>/<idUpload>
 // WAV diambil langsung dari Google Drive dan dikirim sebagai unduhan "Vokalis - Judul.wav".
 // Operator tidak pernah melihat Drive; file di Drive tetap privat.
-// Unduhan pertama menyembunyikan lagu lama vokalis yang sama dari halaman operator (filenya tetap di Drive).
+// Setelah diunduh, lagu pindah ke folder vokalisnya di halaman operator (filenya tetap di Drive).
 import { UUID_RE, page, rpc, configured, streamDriveFile } from '../../../edge/drive.js';
 
 export async function onRequest({ request, env, params }) {
