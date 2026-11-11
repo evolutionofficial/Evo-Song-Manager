@@ -31,12 +31,23 @@ export async function render() {
   data = d || {};
   const c = data.counts || {};
 
-  const devices = (data.devices || []).map((x) => `<div class="dv">
+  const devices = (data.devices || []).map((x) => {
+    // Terunggah tapi file lokalnya masih terkunci BUKAN kegagalan: lagunya sudah aman di R2,
+    // hanya file di komputernya belum bisa dihapus (biasanya masih dibuka Studio One).
+    const locked = x.locked || 0;
+    const failed = x.failed || 0;
+    return `<div class="dv">
       <div class="dv-name">${esc(x.name)}${x.platform ? ` <span class="badge muted">${esc(PLATFORM[x.platform] || x.platform)}</span>` : ''}
-        ${x.version ? `<span class="badge muted">Agent ${esc(x.version)}</span>` : ''}</div>
+        ${x.version ? `<span class="badge muted">Agent ${esc(x.version)}</span>` : ''}
+        ${failed ? `<span class="badge bad">${failed} failing</span>` : ''}
+        ${locked ? `<span class="badge warn">${locked} to tidy up</span>` : ''}</div>
       <div class="dv-meta">${x.sources?.length ? `<span>Folders: ${x.sources.map(esc).join(', ')}</span>` : ''}
         ${seen('Sync', x.sync_seen)}${seen('Media', x.media_seen)}</div>
-    </div>`);
+      ${locked ? `<div class="dv-meta">Songs are safe in storage; the files on that computer are
+        still open in another program and will be removed once it lets go.</div>` : ''}
+      ${failed && x.last_error ? `<div class="sys-err">${esc(x.last_error)}</div>` : ''}
+    </div>`;
+  });
 
   const jobs = (data.jobs || []).map((j) => `<div class="sys-row">
       <div><b>${esc(j.song || '(no song)')}</b> <span class="badge ${j.status === 'needs_admin' ? 'bad' : 'warn'}">${esc(j.kind)} · ${esc(j.status)}</span></div>

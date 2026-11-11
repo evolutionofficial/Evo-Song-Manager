@@ -9,7 +9,10 @@
 //   1. tanya database: lagu mana? (kalau WAV-nya belum tercatat oleh Sync, tunggu)
 //   2. unggah ke R2 → cek file di R2 sama persis (ukuran + MD5)
 //   3. catat di database → hapus M4A di PC (permanen)
-// Gagal di langkah mana pun → file di PC TIDAK dihapus, dicoba lagi nanti.
+// Gagal di langkah 1-3 → file di PC TIDAK dihapus, dicoba lagi nanti.
+// Kalau unggahannya sudah berhasil dan terverifikasi tapi file lokalnya TERKUNCI (Windows
+// menahan file yang masih dibuka Studio One), itu BUKAN kegagalan: lagunya sudah aman di R2.
+// File lokalnya ditinggal dan dibereskan putaran berikutnya setelah kuncinya dilepas.
 // Biasanya dijalankan oleh evo-media-supervisor.js, yang menyalakannya lagi kalau mati.
 'use strict';
 
@@ -27,7 +30,9 @@ const { createArchiver } = require('./lib/archive');
 const { createReconciler } = require('./lib/reconcile');
 const { hasToken } = require('./lib/gdrive');
 
-const VERSION = '2.0';
+// Dinaikkan setiap kali perilaku agen berubah, supaya halaman System bisa menunjukkan
+// komputer mana yang masih memakai kode lama.
+const VERSION = '2.1';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
@@ -41,7 +46,7 @@ function createAgent(cfg) {
   const reconciler = createReconciler(cfg, db, r2, wav.drive);
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
-  const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0 };
+  const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0, locked: 0 };
   let running = false;
   let lastBeat = 0;
   let manual = false;   // saklar Manual Finalization (dibaca dari database tiap putaran)
@@ -75,10 +80,28 @@ function createAgent(cfg) {
     // Hapus hanya kalau file tidak berubah sejak dibaca (misalnya sedang dirender ulang).
     const now = fs.statSync(f.full);
     if (now.size !== f.size || now.mtimeMs !== f.mtimeMs) { log(`${f.fileName} berubah saat diunggah; diproses lagi nanti.`); return 'later'; }
-    fs.unlinkSync(f.full);
-    retry.delete(f.full); said.delete(f.full);
+    // Sampai sini unggahannya SUDAH berhasil, sudah dicocokkan dengan R2, dan sudah tercatat.
+    // Jadi apa pun yang terjadi pada penghapusan file lokal, ini bukan kegagalan lagu.
     stats.uploaded++; stats.lastUpload = new Date().toISOString();
-    log(`Terunggah: ${f.fileName} (${(buf.length / 1048576).toFixed(1)} MB, revisi ${reg?.revision ?? t.revision}). M4A di PC dihapus.`);
+    const mb = (buf.length / 1048576).toFixed(1);
+    const rev = reg?.revision ?? t.revision;
+
+    try {
+      fs.unlinkSync(f.full);
+    } catch (e) {
+      // EBUSY/EPERM di Windows: file masih dibuka program lain (biasanya Studio One).
+      // Dulu ini dihitung GAGAL, padahal lagunya sudah aman — jadi halaman System
+      // menampilkan kegagalan untuk lagu yang sebenarnya tidak apa-apa.
+      stats.locked++;
+      sayOnce(f.full, sig, `Terunggah: ${f.fileName} (${mb} MB, revisi ${rev}). ` +
+        `M4A di komputer belum bisa dihapus (${e.code || e.message}) — biasanya file masih ` +
+        `dibuka Studio One. Lagunya sudah aman; filenya dibereskan nanti setelah ditutup.`);
+      retry.delete(f.full);
+      return 'kept';
+    }
+
+    retry.delete(f.full); said.delete(f.full);
+    log(`Terunggah: ${f.fileName} (${mb} MB, revisi ${rev}). M4A di PC dihapus.`);
     return 'done';
   }
 
@@ -134,7 +157,7 @@ function createAgent(cfg) {
         try { found.push(...scanM4a(src.root, src.name).found); }
         catch (e) { ok = false; log(`GAGAL [${src.name}]: ${e.message}`); }
       }
-      stats.waiting = 0;
+      stats.waiting = 0; stats.locked = 0;
       for (const f of found) {
         try {
           const res = await handle(f);
