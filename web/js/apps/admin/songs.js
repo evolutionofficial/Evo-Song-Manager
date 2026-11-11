@@ -28,6 +28,9 @@ function renderTable() {
   // Nomor = urutan dibuat (1 = paling lama); tampil terbaru di atas.
   const all = vocSongs().map((s, i) => ({ ...s, n: i + 1 })).reverse();
   showDue($('due'), summarize(all).rest);
+  const ready = ctx.finalizeReady();
+  $('finAll').hidden = !ready;
+  $('finAll').textContent = `Finalize all ready (${ready})`;
   const rows = all.filter((s) => (!q || norm(s.title).includes(q)) &&
     (!st || (st === 'paid' ? s.paid : st === 'unpaid' ? !s.paid && s.price !== 0 : s.price == null && !s.paid)));
   if (!all.length) { $('table').innerHTML = `<div class="empty">No songs for this vocalist yet.</div>`; return; }
@@ -204,6 +207,7 @@ export function init(c) {
   ctx = c;
   const L = 'Song table';
 
+  on($('finAll'), 'click', L, () => ctx.finalizeAction('all'));
   on($('q'), 'input', L, renderTable);
   on($('status'), 'change', L, renderTable);
 

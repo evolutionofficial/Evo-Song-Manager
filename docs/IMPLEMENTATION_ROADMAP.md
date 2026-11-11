@@ -104,6 +104,23 @@ Database dan program sudah terpasang; perilaku lama masih berlaku karena
 - PC: masih **1.3** — perlu diperbarui saat sesi tersambung ke PC. Aman dibiarkan sementara:
   program lama tidak memanggil `claim_jobs`, dan `sync_files` menerima file tanpa data M4A.
 
+**Perbaikan 3b (11 Nov).** Dua jebakan ditemukan sebelum saklar dinyalakan dan sudah ditutup:
+
+1. 149 lagu lama tidak punya versi aktif karena M4A-nya sudah dihapus program lama. Kalau saklar
+   menyala, lagu-lagu itu tidak akan bisa di-Accept vokalis, dan tidak mungkin difinalisasi
+   (M4A-nya hilang). Sekarang mereka punya versi warisan **tanpa** `m4a_key`: WAV-nya terikat
+   sidik jari, audionya tetap tidak ada persis seperti sekarang, dan Accept tetap jalan.
+2. Kalau Studio One merender ulang WAV dengan isi yang sama persis, sidik jarinya tidak berubah,
+   dan `finalize_song` akan menjawab "already_active" sehingga M4A baru tidak pernah diunggah.
+   Sekarang "already_active" hanya berlaku kalau versi aktif itu memang sudah punya audio.
+
+Setelah 3b: **258 dari 258 lagu punya versi aktif** (109 dengan audio, 149 tanpa audio), dan
+semua unggahan WAV terikat ke versinya dengan 0 MD5 tidak cocok.
+
+Ditambahkan juga tombol **"Finalize all ready"** per vokalis: memfinalisasi lagu yang jelas
+(tepat satu file yang ada, punya M4A, M4A tidak ketinggalan), dan melewati yang ambigu sambil
+menyebut alasannya satu per satu.
+
 Tiga langkah tersisa sebelum F3 benar-benar hidup:
 
 1. Perbarui program di PC ke 2.0.

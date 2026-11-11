@@ -49,6 +49,7 @@ const ctx = {
     runMod('finalize', 'open', id);
   },
   finalizeAction(name, id) { runMod('finalize', name, id); },
+  finalizeReady() { return (mods.finalize && mods.finalize.readyCount()) || 0; },
   /** Lencana status finalisasi untuk baris lagu (kosong kalau modulnya tidak jalan). */
   finalizeBadge(s) { return (mods.finalize && mods.finalize.badge(s)) || ''; },
 };

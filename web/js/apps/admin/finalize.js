@@ -4,7 +4,7 @@ import { sb } from '/js/core/supabase.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
 import { esc, fmtDate, timeAgo } from '/js/core/format.js';
-import { state, versionOf, finalizingOf, jobOf } from './data.js';
+import { state, curVoc, vocSongs, versionOf, finalizingOf, jobOf } from './data.js';
 
 let ctx, dlg, song, picked, cands = [];
 
@@ -106,6 +106,9 @@ async function submit(e) {
   }
 }
 
+/** Versi aktif yang benar-benar punya audio (lagu warisan tanpa M4A tidak dihitung). */
+const versionHasAudio = (s) => !!versionOf(s)?.m4a_key;
+
 /** Dipakai modul Song table untuk menampilkan status di baris lagu. */
 export function badge(s) {
   const j = jobOf(s);
@@ -113,7 +116,7 @@ export function badge(s) {
     return ` <span class="badge bad" title="${esc(j.last_error || '')}">Finalize ${j.status === 'needs_admin' ? 'needs you' : 'failed'}</span>`;
   }
   if (finalizingOf(s)) return ' <span class="badge warn">Finalizing…</span>';
-  if (!versionOf(s)) return ' <span class="badge muted" title="No final version yet — pick one with Finalize…">Not finalized</span>';
+  if (!versionHasAudio(s)) return ' <span class="badge muted" title="No audio yet — render WAV + M4A, then Finalize">No audio</span>';
   return '';
 }
 
@@ -132,6 +135,24 @@ export async function retry(id) {
   const { error } = await sb.rpc('retry_job', { p_job: j.id });
   if (error) return toast('Failed: ' + error.message, 'bad');
   toast('Trying again');
+  await ctx.reload();
+}
+
+/** Berapa lagu vokalis ini yang jelas bisa langsung difinalisasi (perkiraan untuk tombol). */
+export function readyCount() {
+  return vocSongs().filter((s) => !s.accepted_at && !finalizingOf(s) && !versionHasAudio(s)).length;
+}
+
+export async function all() {
+  const v = curVoc(); if (!v) return;
+  if (!confirm(`Finalize every ready song for ${v.display_name}?\n\nOnly songs with exactly one file and a matching M4A are done. Anything unclear is skipped and listed afterwards.`)) return;
+  const { data, error } = await sb.rpc('finalize_ready', { p_vocalist: v.id });
+  if (error) return toast('Failed: ' + error.message, 'bad');
+  const skipped = data?.skipped || [];
+  toast(data?.queued ? `Finalizing ${data.queued} song${data.queued > 1 ? 's' : ''}` : 'Nothing was ready to finalize');
+  if (skipped.length) {
+    alert(`Skipped ${skipped.length}:\n\n` + skipped.map((x) => `• ${x.title} — ${x.why}`).join('\n'));
+  }
   await ctx.reload();
 }
 
