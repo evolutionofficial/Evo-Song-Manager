@@ -168,7 +168,7 @@ begin
   if c.id is null then raise exception 'file not found for this song'; end if;
   if not c.present then raise exception 'that file is no longer on the computer'; end if;
   if c.m4a_name is null or c.m4a_sha256 is null then
-    raise exception 'there is no M4A next to this WAV — render both from the DAW, then try again';
+    raise exception 'there is no M4A next to this WAV - render both from the DAW, then try again';
   end if;
 
   -- Sudah aktif dengan isi yang sama → tidak ada yang perlu dikerjakan.
