@@ -266,6 +266,44 @@ together).
 (rekomendasi saya) atau dibangun di dalam aplikasi (WebRTC). Bagian 5 di `VIDEO_CALL_DESIGN.md`.
 Penyelarasan pemutaran yang sudah jadi tidak berubah apa pun di kedua pilihan.
 
+## F9 — Panggilan suara di dalam ruang menyimak — SELESAI 12 Nov 2026
+
+Jeffry memilih membangun suara di dalam aplikasi (bukan memakai WhatsApp), jadi ruang menyimak
+sekarang membawa panggilan WebRTC sungguhan berdampingan dengan musik yang diselaraskan.
+
+**Musiknya tetap TIDAK lewat panggilan.** Codec panggilan dibuat untuk suara bicara; kalau musik
+ikut dikirim lewat sana hasilnya lebih buruk daripada memutar salinan sendiri. Jadi panggilan hanya
+membawa suara orang, dan musik tetap ditangani F8.
+
+| Bagian | Isi |
+|---|---|
+| Perundingan | menumpang saluran realtime F8 — tidak ada sambungan kedua yang bisa gagal sendiri |
+| Relay | `/turn` membuat kredensial TURN Cloudflare berumur pendek, dijaga kode ruang |
+| Mesin | `web/js/core/voice.js` — pola sopan/tidak sopan, mikrofon, kamera opsional |
+| Antarmuka | baris panggilan di dok admin dan di spanduk vokalis |
+
+`/turn` dijaga kode ruang karena TURN dibayar per GB: endpoint terbuka berarti kuota Jeffry bisa
+dipakai siapa saja. Tanpa kunci TURN ia mengembalikan STUN saja dan mengatakannya, supaya tombolnya
+tetap berguna di jaringan ramah alih-alih mati tanpa keterangan.
+
+Dua bug nyata yang ditemukan tes dua-halaman, dan keduanya akan sangat sulit dilacak di produksi:
+
+1. **Tawaran hilang.** Sisi yang membuat sambungan lebih dulu mengirim tawaran ke ruang yang belum
+   ada penjawabnya, dan tidak ada yang pernah menawarkan lagi — panggilan menggantung selamanya.
+   Sambungan sekarang dibuat hanya setelah KEDUA sisi punya mikrofon, dan pesan yang datang terlalu
+   cepat disangga, bukan dibuang.
+2. **Objek browser hidup dikirim lewat saluran.** `RTCSessionDescription` dan `RTCIceCandidate`
+   tidak bisa disalin antar-konteks; transport yang kebetulan bisa mengubahnya sendiri hanya akan
+   menyembunyikan kesalahan ini. Keduanya kini dikirim sebagai data biasa.
+
+Tes: 51 pemeriksaan di dua halaman sungguhan dengan mikrofon tiruan Chromium. Panggilan mencapai
+`live` di kedua sisi, track suara sungguhan diterima, bisu bekerja, dan **musik tetap serempak
+selama panggilan (23 ms) dan setelah ditutup (2 ms)** — panggilan yang gagal tidak boleh menyentuh
+musik, dan itu sekarang diuji, bukan diandaikan.
+
+**Menunggu Jeffry:** kunci TURN harus dibuat di dashboard Cloudflare dan disimpan sebagai secret.
+Langkahnya ada di `TURN_SETUP.md`. Aku tidak memegang kuncinya dan tidak membutuhkannya.
+
 ### Yang sengaja TIDAK dikerjakan
 
 - Penggabungan otomatis lagu berjudul sama. Halaman Conflicts hanya menyajikan kandidat; admin
@@ -273,6 +311,4 @@ Penyelarasan pemutaran yang sudah jadi tidak berubah apa pun di kedua pilihan.
 - Menyimpan sesi unggah Google Drive agar bisa dilanjutkan di tengah jalan (K4/D-sisa). Unggahan
   yang putus diulang dari awal: soal waktu, bukan duplikasi.
 - Pembersihan tabel sisa WhatsApp (`deliveries`, `recipients`) dan kolom `operator_hidden_at`.
-- Suara ngobrol di dalam aplikasi (WebRTC). Menunggu keputusan; WhatsApp sudah menanganinya
-  sekarang dan tidak bisa rusak.
 - Keserempakan sampai tingkat sampel. Tidak perlu untuk dua orang berjauhan dengan headphone.

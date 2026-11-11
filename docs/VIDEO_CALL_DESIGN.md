@@ -1,7 +1,8 @@
 # Listen Together — rancangan & hasil (11 Nov 2026)
 
-> **Status: penyelarasan pemutaran SUDAH JADI dan terpasang.** Bagian 5 (suara ngobrolnya
-> lewat mana) masih menunggu keputusan Jeffry; itu tidak menghalangi apa pun yang sudah jadi.
+> **Status: SELESAI.** Penyelarasan pemutaran dan panggilan suara di dalam aplikasi keduanya
+> sudah terpasang. Jeffry memilih pilihan B di bagian 5 (suara dibangun di dalam aplikasi).
+> Satu langkah pengaturan masih perlu dia lakukan sendiri: kunci TURN — lihat `TURN_SETUP.md`.
 
 Tujuan yang dipilih Jeffry: **mendengarkan mixdown bersama vokalis sambil mengobrol, tanpa
 kualitas musiknya turun.**
@@ -99,7 +100,10 @@ Ini keputusan yang mengubah besar pekerjaan, dan belum diputuskan.
 | Risiko gagal tersambung | Tidak ada | Nyata: sebagian jaringan seluler memblokir sambungan langsung, perlu server relay (TURN) berbayar |
 | Kualitas musik | Mutu penuh | Mutu penuh (sama, karena musik tetap tidak lewat panggilan) |
 
-**Rekomendasi: A.** Kalian berdua sudah memakai WhatsApp setiap hari untuk pekerjaan ini, dan
+**Rekomendasi saya waktu itu A; Jeffry memilih B, dan B yang dibangun.** Catatan di bawah
+dibiarkan apa adanya sebagai rekaman pertimbangannya.
+
+**Alasan rekomendasi A:** Kalian berdua sudah memakai WhatsApp setiap hari untuk pekerjaan ini, dan
 panggilan WhatsApp tahan di jaringan jelek. Membangun suara sendiri menambah banyak bagian yang
 bisa rusak tanpa membuat ngobrolnya terdengar lebih baik. Musiknya — satu-satunya yang benar-benar
 butuh mutu tinggi — sudah ditangani oleh penyelarasan pemutaran, dan itu sama saja di kedua pilihan.
