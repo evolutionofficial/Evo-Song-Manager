@@ -116,7 +116,10 @@ export function badge(s) {
     return ` <span class="badge bad" title="${esc(j.last_error || '')}">Finalize ${j.status === 'needs_admin' ? 'needs you' : 'failed'}</span>`;
   }
   if (finalizingOf(s)) return ' <span class="badge warn">Finalizing…</span>';
-  if (!versionHasAudio(s)) return ' <span class="badge muted" title="No audio yet — render WAV + M4A, then Finalize">No audio</span>';
+  // Belum punya versi sama sekali: lagu ini masih berjalan dengan cara lama dan belum dipilih
+  // versi finalnya. Audionya mungkin sudah ada (diunggah otomatis), jadi jangan bilang "No audio".
+  if (!versionOf(s)) return ' <span class="badge muted" title="No final version has been picked yet. Right-click → Finalize &amp; Upload…">Not finalized</span>';
+  if (!versionHasAudio(s)) return ' <span class="badge muted" title="This version has no M4A yet — render WAV + M4A together, then Finalize">No audio</span>';
   return '';
 }
 
