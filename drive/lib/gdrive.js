@@ -142,6 +142,23 @@ function createDrive() {
     } finally { fs.closeSync(fd); }
   }
 
+  /**
+   * Pindahkan ke Trash, bukan hapus permanen (keputusan K2): masih bisa dikembalikan 30 hari
+   * kalau ternyata salah. Dipakai untuk WAV yang dicabut karena Revision atau batas 40 file.
+   */
+  async function trash(id) {
+    const res = await req(`${API}/files/${encodeURIComponent(id)}?supportsAllDrives=true`, {
+      method: 'PATCH',
+      headers: { ...(await auth()), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trashed: true }),
+    });
+    if (res.status === 404) return false; // sudah tidak ada
+    if (!res.ok) throw await fail(res, 'Drive (ke Trash)');
+    await res.json().catch(() => {});
+    return true;
+  }
+
+  /** Hapus permanen. Hanya untuk sampah kita sendiri: sisa unggahan yang gagal/terpotong. */
   async function remove(id) {
     const res = await req(`${API}/files/${encodeURIComponent(id)}`, { method: 'DELETE', headers: await auth() });
     if (res.status === 404) return false; // sudah tidak ada
@@ -149,7 +166,7 @@ function createDrive() {
     return true;
   }
 
-  return { token, folderPath, findByJob, upload, remove };
+  return { token, folderPath, findByJob, upload, remove, trash };
 }
 
 /** MD5 file tanpa memuat seluruh file ke memori. */

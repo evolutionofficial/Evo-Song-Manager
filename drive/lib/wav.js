@@ -3,9 +3,15 @@
 // (First Club / Vokalis / "YYYY-MM-DD Vokalis - Judul.wav", tanggal = tanggal Accept supaya urut),
 // dicek MD5-nya, lalu dilaporkan.
 // Kalau vokalis menekan Revision, file di Drive dihapus. WAV di komputer TIDAK pernah dihapus.
+//
+// Sejak fase 4: sebelum mengunggah, isi file dicocokkan dengan sidik jari versi yang di-Accept.
+// Kalau WAV di komputer ternyata sudah berbeda (dirender ulang setelah Accept), unggahan
+// DIBATALKAN dan admin diberi tahu — jauh lebih baik daripada diam-diam mengirim versi yang salah.
 const fs = require('fs');
 const path = require('path');
 const { createDrive, md5File, hasToken } = require('./gdrive');
+const { hashFile } = require('../../sync/lib/fingerprint');
+const { NeedsAdmin } = require('./finalize');
 const { log } = require('./log');
 
 const ROOT_FOLDER = 'First Club';
@@ -15,22 +21,44 @@ function createWavWorker(cfg, db) {
   const sources = new Map((cfg.sources || []).map((s) => [s.name, s]));
   let warnedLogin = false, running = false;
 
-  function localPath(job) {
+  function localPath(job, relPath) {
     const src = sources.get(job.source);
     if (!src) return null;
-    const rel = job.source === 'pc' ? job.rel_path : job.rel_path.slice(job.source.length + 1);
-    return path.join(src.root, ...rel.split('/'));
+    const rel = relPath || job.rel_path;
+    const prefix = job.source + ':';   // sumber selain "pc" memakai awalan di rel_path
+    const bare = rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+    return path.join(src.root, ...bare.split('/'));
+  }
+
+  /**
+   * File mana yang benar-benar diunggah. Dicari lewat ISI, bukan sekadar nama: kalau file di
+   * tempat biasanya hilang atau sudah berbeda, tempat lain dengan isi yang sama tetap diterima.
+   */
+  async function resolveFile(job) {
+    const first = localPath(job);
+    const tried = [];
+    for (const rel of [job.rel_path, ...(job.alt_paths || [])]) {
+      const file = localPath(job, rel);
+      if (!file || !fs.existsSync(file)) { tried.push(file || rel); continue; }
+      if (!job.expected_sha256) return { file, sha: null };   // lagu lama: tidak ada yang bisa dicocokkan
+      const h = await hashFile(file);
+      if (h.sha256 === job.expected_sha256) return { file, sha: h.sha256 };
+      tried.push(file);
+    }
+    const src = sources.get(job.source);
+    if (src && !src.main && !fs.existsSync(src.root)) {
+      throw new Error(`${src.root} tidak tersambung`);       // dicoba lagi nanti, bukan salah admin
+    }
+    if (!fs.existsSync(first)) {
+      throw new NeedsAdmin('file WAV tidak ditemukan di komputer ini');
+    }
+    throw new NeedsAdmin('WAV di komputer sudah berbeda dari versi yang di-Accept — finalisasi ulang file yang sekarang, lalu minta vokalis Accept lagi');
   }
 
   async function doUpload(job) {
-    const file = localPath(job);
-    const name = path.basename(file || job.rel_path);
+    const { file } = await resolveFile(job);
+    const name = path.basename(job.rel_path);
     const driveName = `${job.upload_date} ${name}`; // nama di Drive diawali tanggal supaya urut
-    if (!fs.existsSync(file)) {
-      const src = sources.get(job.source);
-      const why = src && !src.main && !fs.existsSync(src.root) ? `${src.root} tidak tersambung` : 'file WAV tidak ditemukan di komputer ini';
-      throw new Error(why);
-    }
     const st = await db.wavReport({ id: job.id, status: 'uploading' });
     if (st === 'cancelled') { log(`WAV ${name}: dibatalkan (Revision) sebelum diunggah.`); return; }
 
@@ -54,9 +82,10 @@ function createWavWorker(cfg, db) {
   }
 
   async function doDelete(job) {
-    const gone = await drive.remove(job.drive_file_id);
+    // Ke Trash, bukan hapus permanen: masih bisa dikembalikan 30 hari kalau ternyata salah.
+    const gone = await drive.trash(job.drive_file_id);
     await db.wavReport({ id: job.id, status: 'deleted' });
-    log(`WAV "${job.title}": ${gone ? 'dihapus dari Drive' : 'sudah tidak ada di Drive'} (Revision / batas 40 file per vokalis).`);
+    log(`WAV "${job.title}": ${gone ? 'dipindahkan ke Trash Google Drive' : 'sudah tidak ada di Drive'} (Revision / batas 40 file per vokalis).`);
   }
 
   async function runOnce() {
@@ -75,8 +104,11 @@ function createWavWorker(cfg, db) {
           else await doUpload(job);
         } catch (e) {
           ok = false;
-          log(`GAGAL WAV "${job.title}": ${e.message}`);
-          if (job.action === 'upload') await db.wavReport({ id: job.id, status: 'failed', error: e.message }).catch(() => {});
+          const admin = e instanceof NeedsAdmin;
+          log(`${admin ? 'PERLU ADMIN' : 'GAGAL'} WAV "${job.title}": ${e.message}`);
+          if (job.action === 'upload') {
+            await db.wavReport({ id: job.id, status: admin ? 'needs_admin' : 'failed', error: e.message }).catch(() => {});
+          }
         }
       }
     } catch (e) {

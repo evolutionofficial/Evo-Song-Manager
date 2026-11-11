@@ -7,7 +7,8 @@
 import { SUPABASE_URL, SUPABASE_KEY } from '../../../web/js/core/config.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const KEY_TTL_MS = 60_000;
+// Pendek supaya pencabutan akses (Revision) terasa dalam hitungan detik, bukan menit.
+const KEY_TTL_MS = 10_000;
 const keyCache = new Map(); // token|song -> { key, at } (per isolate, berumur pendek)
 
 function fail(status, msg) {
@@ -56,7 +57,10 @@ export async function onRequest({ request, env, params }) {
   if (!h.get('content-type')) h.set('content-type', 'audio/mp4');
   h.set('etag', obj.httpEtag);
   h.set('accept-ranges', 'bytes');
-  h.set('cache-control', 'private, max-age=3600');
+  // no-cache = browser boleh menyimpan, tapi WAJIB bertanya dulu tiap kali diputar. Dengan ETag,
+  // jawabannya biasanya 304 kecil, jadi tetap hemat — tapi lagu yang dicabut langsung berhenti
+  // bisa diputar, tidak menunggu cache kedaluwarsa.
+  h.set('cache-control', 'private, no-cache');
   h.set('x-content-type-options', 'nosniff');
 
   if (request.method === 'HEAD') {

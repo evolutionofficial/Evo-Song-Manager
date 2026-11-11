@@ -23,6 +23,7 @@ const { log } = require('./lib/log');
 const { createWavWorker } = require('./lib/wav');
 const { createJobs } = require('./lib/jobs');
 const { createFinalizer, NeedsAdmin } = require('./lib/finalize');
+const { createArchiver } = require('./lib/archive');
 const { hasToken } = require('./lib/gdrive');
 
 const VERSION = '2.0';
@@ -35,6 +36,7 @@ function createAgent(cfg) {
   const wav = createWavWorker(cfg, db);
   const jobs = createJobs(cfg, db.rpc);
   const finalizer = createFinalizer(cfg, jobs, r2);
+  const archiver = createArchiver(cfg);
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
   const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0 };
@@ -82,10 +84,24 @@ function createAgent(cfg) {
   async function runJobs() {
     let ok = true;
     let list;
-    try { list = await jobs.claim(['finalize'], 2); }
+    try { list = await jobs.claim(['finalize', 'archive_wav', 'r2_remove'], 3); }
     catch (e) { log('GAGAL mengambil pekerjaan: ' + e.message); return false; }
     for (const job of list || []) {
       try {
+        if (job.kind === 'archive_wav') {
+          const r = await archiver.run(job);
+          await jobs.finish(job.id, 'done', r, null);
+          continue;
+        }
+        if (job.kind === 'r2_remove') {
+          // Pengaman terakhir: jangan pernah menghapus audio yang ternyata masih dipakai.
+          const st = await jobs.progress(job.id, 'removing');
+          if (st === 'lost') continue;
+          if (st === 'active') { await jobs.finish(job.id, 'done', { skipped: 'version is active' }, null); continue; }
+          if (job.m4a_key) await r2.remove(job.m4a_key);
+          await jobs.finish(job.id, 'done', { removed: job.m4a_key }, null);
+          continue;
+        }
         const res = await finalizer.run(job);
         if (res === 'done') { stats.finalized++; await jobs.finish(job.id, 'done', { key: job.m4a_key }, null); }
         else if (res === 'stale') await jobs.finish(job.id, 'done', { cancelled: true }, null);
@@ -93,7 +109,7 @@ function createAgent(cfg) {
       } catch (e) {
         ok = false;
         const admin = e instanceof NeedsAdmin;
-        log(`${admin ? 'PERLU ADMIN' : 'GAGAL'} finalisasi "${job.file_name}": ${e.message}`);
+        log(`${admin ? 'PERLU ADMIN' : 'GAGAL'} ${job.kind === 'archive_wav' ? 'arsip' : 'finalisasi'} "${job.file_name}": ${e.message}`);
         await jobs.finish(job.id, admin ? 'needs_admin' : 'failed', null, e.message).catch(() => {});
         if (!admin) { stats.failed++; stats.lastError = `${job.file_name}: ${e.message}`; }
       }

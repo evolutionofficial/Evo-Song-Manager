@@ -25,6 +25,31 @@ function downloadButton(s) {
 }
 
 // Tombol kirim ke FC sesuai status: Preparing… → Send to FC → Sent → Downloaded by FC.
+/**
+ * Selama lagu dalam revisi, semua tombolnya mati: versi lama sudah dicabut dan versi barunya
+ * belum ada, jadi tidak ada yang bisa diputar, diunduh, atau dikirim.
+ */
+/** Satu sumber kebenaran: lagu sedang direvisi selama revision_requested_at terisi. */
+const onRevision = (s) => !!s.revision_requested_at;
+
+function buttons(s) {
+  if (onRevision(s)) {
+    return '<button class="sendbtn wait" disabled title="The studio is working on your revision">On revision</button>';
+  }
+  if (s.accepted_at) {
+    return downloadButton(s)
+      + `<button class="revbtn" data-revision="${s.n}" aria-label="Request a revision: ${esc(s.title)}" title="Request a revision">${REV_ICON}<span>Revision</span></button>`
+      + sendButton(s);
+  }
+  return `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`;
+}
+
+function playButton(s) {
+  const off = onRevision(s) || !s.audio;
+  const why = onRevision(s) ? 'Being revised — the new version is not ready yet' : (s.audio ? '' : 'No audio yet');
+  return `<a class="btn playbtn${off ? ' noaudio' : ''}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${why ? ` title="${esc(why)}"` : ''}>▶</a>`;
+}
+
 function sendButton(s) {
   const t = esc(s.title);
   if (s.fc_downloaded_at) return `<button class="sendbtn done" disabled title="FC downloaded this song" aria-label="${t}: downloaded by FC">${CHECK_ICON}<span>Downloaded</span></button>`;
@@ -41,11 +66,8 @@ function render() {
   const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).reverse().filter((s) => !q || norm(s.title).includes(q));
   $('songsTable').innerHTML = rows.length
       ? `<div class="row head cols-list play"><span>#</span><span>Date</span><span>Title</span><span></span></div>` +
-        rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${!s.accepted_at && s.revision_requested_at ? ' <span class="badge rev">Revision requested</span>' : ''}</span>` +
-          `<span class="pl">${s.accepted_at
-            ? downloadButton(s) + `<button class="revbtn" data-revision="${s.n}" aria-label="Request a revision: ${esc(s.title)}" title="Request a revision">${REV_ICON}<span>Revision</span></button>` +
-              sendButton(s)
-            : `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`}<a class="btn playbtn${s.audio ? '' : ' noaudio'}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${s.audio ? '' : ' title="No audio yet"'}>▶</a></span></div>`).join('')
+        rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${onRevision(s) ? ' <span class="badge rev">On revision</span>' : ''}</span>` +
+          `<span class="pl">${buttons(s)}${playButton(s)}</span></div>`).join('')
       : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
 }
 

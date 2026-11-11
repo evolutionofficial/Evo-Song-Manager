@@ -120,7 +120,7 @@ function openMenu(id, x, y) {
          <button role="menuitem" data-act="unlock">Unlock (undo Accept)</button>`
       : '<button role="menuitem" data-act="rep">Replace with revision…</button>'}
     ${finalizeItems(s)}
-    ${wavOf(s)?.status === 'failed' ? '<button role="menuitem" data-act="retry">Retry WAV upload</button>' : ''}
+    ${['failed', 'needs_admin'].includes(wavOf(s)?.status) ? '<button role="menuitem" data-act="retry">Retry WAV upload</button>' : ''}
     <button role="menuitem" data-act="del" class="danger">Remove from list</button>`;
   document.body.appendChild(menuEl);
   const r = menuEl.getBoundingClientRect();
@@ -166,6 +166,7 @@ function wavBadge(s) {
     failed: w.attempts >= 8
       ? ['bad', 'WAV failed — stopped', `Upload failed ${w.attempts} times and stopped: ${w.last_error || ''}. Right-click the title → Retry WAV upload.`]
       : ['bad', 'WAV failed', `Upload failed (try ${w.attempts}), retrying automatically: ${w.last_error || ''}`],
+    needs_admin: ['bad', 'WAV needs you', `The WAV on the computer no longer matches the version the vocalist accepted: ${w.last_error || ''} Right-click the title → Retry WAV upload once the right file is in place.`],
     cancelled: ['muted', 'WAV cancelled', 'Cancelled by Revision / Unlock'],
   };
   if (w.status === 'complete' && (w.drive_deleted_at || w.cleanup_eligible_at)) {
