@@ -747,6 +747,7 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 
 /* ---------- Halaman operator FC (unduhan) ---------- */
 .op-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; min-height: 38px; }
+.op-all[hidden] { display: none; }
 .op-all { gap: 8px; border-radius: 999px; padding: 0 16px; min-height: 38px; background: var(--grad-blue); border: 0;
   box-shadow: 0 6px 22px rgba(46, 139, 255, .35); }
 .op-row { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 16px; }
@@ -777,3 +778,25 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 .dlbtn:hover { border-color: rgba(46, 139, 255, .8); box-shadow: 0 0 0 3px rgba(46, 139, 255, .15); }
 .dlbtn svg { transition: transform .25s var(--ease-out); }
 .dlbtn:hover svg { transform: translateY(2px); }
+
+/* Operator: folder per vokalis + jejak navigasi */
+.op-crumbs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; min-height: 0; }
+.op-crumbs:empty { display: none; }
+.op-back { border-radius: 999px; padding: 0 14px; min-height: 36px; color: #9fd0ff;
+  background: linear-gradient(135deg, rgba(46, 139, 255, .14), rgba(46, 139, 255, .04)); border-color: rgba(46, 139, 255, .34); }
+.op-back:hover { border-color: rgba(46, 139, 255, .75); }
+.op-crumb { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 14.5px; }
+.op-crumb b { color: var(--text); font-weight: 650; }
+.op-crumb svg { color: #7fc0ff; }
+.op-sec { font-size: 12.5px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--faint); margin: 22px 0 10px; }
+.op-fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.op-folder { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  padding: 14px 15px; min-height: 0; border-radius: var(--radius); background: var(--glass-fill);
+  border: 1px solid var(--line); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  transition: border-color .2s, transform .2s var(--ease-out), box-shadow .2s; }
+.op-folder:hover { border-color: rgba(46, 139, 255, .6); transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35), 0 0 18px rgba(46, 139, 255, .18); }
+.op-ficon { display: inline-flex; color: #7fc0ff; margin-bottom: 6px; }
+.op-fname { font-weight: 650; font-size: 15.5px; }
+.op-fcount { font-size: 13px; color: var(--muted); }

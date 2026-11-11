@@ -68,7 +68,7 @@ async function start() {
   }
 
   const rep = { ...res.data, token };
-  document.title = `${rep.name} · First Club`;
+  document.title = `${rep.name} · Evo Song Manager`;
   $('name').textContent = rep.name;
   $('app').classList.remove('hidden');
 

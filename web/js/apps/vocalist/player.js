@@ -92,7 +92,7 @@ function select(n, autoplay) {
   window.dispatchEvent(new CustomEvent('fc:track', { detail: { n: st.n } }));
   if ('mediaSession' in navigator && cur()) {
     try { const art = photoUrl(rep.photo);
-      navigator.mediaSession.metadata = new MediaMetadata({ title: cur().title, artist: rep.name, album: 'First Club',
+      navigator.mediaSession.metadata = new MediaMetadata({ title: cur().title, artist: rep.name, album: 'Evo Song Manager',
         artwork: art ? [{ src: art, sizes: '640x640', type: 'image/jpeg' }] : [] }); } catch {}
   }
   if (autoplay) togglePlay(has);
