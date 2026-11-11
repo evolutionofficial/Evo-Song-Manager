@@ -1,8 +1,8 @@
 // OPERATOR — halaman unduhan. Link: /fc/<kode>.
 // Dua tampilan:
 //   1. "New" (halaman pertama yang terbuka) — lagu yang baru dikirim vokalis dan belum diunduh.
-//   2. Folder per vokalis — begitu operator mengunduh, lagu pindah sendiri ke folder nama vokalisnya
-//      dan tetap bisa diunduh lagi dari situ.
+//   2. Folder per vokalis (di laci/sidebar yang bisa dibuka-tutup) — begitu operator mengunduh,
+//      lagu pindah sendiri ke folder nama vokalisnya dan tetap bisa diunduh lagi dari situ.
 // Tombol Download mengambil file lewat /dl/<kode>/<id> (server Cloudflare → Google Drive), jadi
 // operator tidak perlu membuka Google Drive. Daftar diperbarui sendiri tiap 30 detik saat terlihat.
 import { sb } from '/js/core/supabase.js';
@@ -15,7 +15,6 @@ installGlobalHandlers();
 const token = location.pathname.split('/').filter(Boolean)[1] || new URLSearchParams(location.search).get('t') || '';
 const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.2a1.5 1.5 0 0 1 1.1.48l1.2 1.3a1.5 1.5 0 0 0 1.1.47h6.4A1.5 1.5 0 0 1 20 9.75V17.5A1.5 1.5 0 0 1 18.5 19h-14A1.5 1.5 0 0 1 3 17.5Z"/></svg>';
-const BACK_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 
 let songs = [];
 let names = []; // semua vokalis → folder selalu tampil walau masih kosong
@@ -66,51 +65,52 @@ function songRow(s) {
     </div>`;
 }
 
+// Laci: "New songs" + satu folder per vokalis.
+function renderNav() {
+  const n = fresh().length;
+  const item = (i, key, label, meta, badge) => `
+    <button class="nav-item" style="--i:${i}" data-go="${esc(key)}" aria-current="${view === key ? 'page' : 'false'}">
+      <span class="nav-name">${label}${badge}</span><span class="nav-meta">${meta}</span></button>`;
+  $('drawerNav').innerHTML =
+    item(0, 'new', 'New songs', n ? `${plural(n, 'song')} to download` : 'Nothing new', n ? ` <span class="badge new">${n}</span>` : '')
+    + '<div class="side-sep"></div><div class="side-label">Folders</div>'
+    + folders().map((f, i) => item(i + 1, f.name, `<span class="op-navico">${FOLDER_ICON}</span>${esc(f.name)}`,
+        f.list.length ? plural(f.list.length, 'song') : 'Empty', '')).join('');
+}
+
 function renderNew() {
   const list = fresh();
-  const fs = folders();
-  $('sub').textContent = list.length
-    ? `${plural(list.length, 'new song')} waiting`
-    : 'No new songs right now';
+  $('title').textContent = 'New songs';
+  $('sub').textContent = list.length ? `${plural(list.length, 'new song')} waiting` : 'No new songs right now';
   $('newCount').innerHTML = list.length ? `<span class="badge new">${list.length} new</span>` : '';
   $('allBtn').hidden = list.length < 2;
-  $('back').innerHTML = '';
-
-  const folderGrid = fs.length
-    ? `<div class="op-folders">
-        <div class="op-sec">Folders</div>
-        <div class="op-fgrid">${fs.map((f) => `
-          <button class="op-folder" data-folder="${esc(f.name)}">
-            <span class="op-ficon">${FOLDER_ICON}</span>
-            <span class="op-fname">${esc(f.name)}</span>
-            <span class="op-fcount">${f.list.length ? plural(f.list.length, 'song') : 'Empty'}</span>
-          </button>`).join('')}</div>
-      </div>`
-    : '';
-
   $('list').innerHTML = list.length
     ? list.map(songRow).join('')
     : `<div class="empty">All caught up — nothing new to download.<br><span class="op-hint">When a vocalist presses Send, the song shows up here.</span></div>`;
-  $('folders').innerHTML = folderGrid;
 }
 
 function renderFolder(name) {
   const f = folders().find((x) => x.name === name);
-  if (!f) { view = 'new'; return renderNew(); }
-  $('sub').textContent = `${plural(f.list.length, 'song')} in this folder`;
+  $('title').textContent = f.name;
+  $('sub').textContent = f.list.length ? `${plural(f.list.length, 'song')} in this folder` : 'Folder';
   $('newCount').innerHTML = '';
   $('allBtn').hidden = true;
-  $('back').innerHTML = `<button class="btn op-back" data-back>${BACK_ICON}<span>All new songs</span></button>
-    <span class="op-crumb">${FOLDER_ICON}<b>${esc(f.name)}</b></span>`;
   $('list').innerHTML = f.list.length
     ? f.list.map(songRow).join('')
     : `<div class="empty">This folder is empty.<br><span class="op-hint">Songs from ${esc(f.name)} land here after you download them.</span></div>`;
-  $('folders').innerHTML = '';
 }
 
 function render() {
   if (view !== 'new' && !folders().some((f) => f.name === view)) view = 'new';
   if (view === 'new') renderNew(); else renderFolder(view);
+  renderNav();
+}
+
+function setDrawer(open) {
+  $('drawer').classList.toggle('open', open);
+  $('drawer').setAttribute('aria-hidden', String(!open));
+  $('drawerBackdrop').classList.toggle('show', open);
+  $('drawerBtn').setAttribute('aria-expanded', String(open));
 }
 
 async function load(first) {
@@ -125,6 +125,7 @@ async function load(first) {
   names = res.data.vocalists || [];
   $('msg').classList.add('hidden');
   $('app').classList.remove('hidden');
+  $('drawerBtn').classList.remove('hidden');
   render();
 }
 
@@ -149,10 +150,13 @@ function start() {
   document.addEventListener('click', (e) => {
     const dl = e.target.closest('[data-dl]');
     if (dl) { toast('Download started'); markDownloaded(dl.dataset.dl); return; }
-    const f = e.target.closest('[data-folder]');
-    if (f) { view = f.dataset.folder; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (e.target.closest('[data-back]')) { view = 'new'; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    const go = e.target.closest('[data-go]');
+    if (go) { view = go.dataset.go; render(); setDrawer(false); window.scrollTo({ top: 0 }); }
   });
+  $('drawerBtn').addEventListener('click', () => setDrawer(true));
+  $('drawerClose').addEventListener('click', () => setDrawer(false));
+  $('drawerBackdrop').addEventListener('click', () => setDrawer(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
   $('allBtn').addEventListener('click', async () => {
     const list = fresh();
     toast(`Downloading ${list.length} songs…`);
