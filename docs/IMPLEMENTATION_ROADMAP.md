@@ -28,14 +28,14 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 
 ---
 
-## F0 — Pengaman dasar (tanpa perubahan workflow)
+## F0 — Pengaman dasar (tanpa perubahan workflow) — SELESAI 11 Nov 2026
 
 | | |
 |---|---|
 | Tujuan | Menutup celah yang berbahaya bagi fase berikutnya |
 | Modul | `sync/lib/scanner.js`, `drive/lib/scan.js`: abaikan folder `Cancel Song`. `web/js/apps/admin/songs.js`: tombol "Retry upload" untuk WAV yang gagal 8 kali; teks badge yang sudah tidak benar |
 | Database | `accept_song`: hapus cabang yang memakai ulang file Drive lama (G2); `retry_wav(song)` untuk admin |
-| Functions | `/audio`: `cache-control: private, no-cache` + ETag; cache kunci 60 → 10 detik |
+| Functions | tidak ada. Perubahan header cache `/audio` dipindah ke F5 (baru dibutuhkan di sana, dan perlu diuji di iPhone) |
 | Agent | tidak ada selain pengecualian folder |
 | UI | satu tombol di menu klik kanan admin |
 | Risiko | Sangat kecil. Player mengirim satu permintaan 304 tambahan per pemutaran ulang |
@@ -100,7 +100,7 @@ Pengujian memakai perangkat uji yang sudah ada: uji halaman (Playwright + databa
 | Tujuan | Revision mencabut akses, membuang file Drive ke Trash, dan mengarsipkan WAV lokal |
 | Modul | baru `drive/lib/archive.js`; `drive/lib/gdrive.js` (`trash`); `web/js/apps/vocalist/songlist.js`, `player.js`, `send.js` (status On revision); `web/js/apps/admin/requests.js` (status arsip) |
 | Database | `request_revision` versi lengkap; `get_audio_key`, `vocalist_download`, `send_to_fc` menolak saat On Revision |
-| Functions | `/vdl`, `/dl`: tidak berubah bentuk |
+| Functions | `/audio`: `cache-control: private, no-cache` + ETag, cache kunci 60 → 10 detik (diuji di iPhone sebelum rilis). `/vdl`, `/dl`: tidak berubah bentuk |
 | Agent | pekerja `archive_wav` dan `drive_remove` |
 | UI | Vokalis: badge "On revision", tombol ▶/Download/Send mati. Admin: "Old WAV not archived yet" / "Archived to Cancel Song" |
 | Risiko | **Ini satu-satunya fase yang memindahkan file di komputer.** Lihat `RISK_ANALYSIS.md` R1, R2, R4 |
