@@ -115,6 +115,8 @@ async function enter(code, voc) {
   if (error) throw error;
   room = { code, vocalist: voc, songs: songs || [] };
   guests = []; guestInfo = {};
+  // Pemutar biasa di admin dihentikan: selama menyimak bersama, hanya dok ini yang boleh bersuara.
+  window.dispatchEvent(new Event('admin:listen-start'));
 
   ses = createSession({
     code,

@@ -1,5 +1,6 @@
 // VOKALIS — modul All Song List (dibuka dari laci): tampilan seperti spreadsheet —
 // satu kolom per vokalis, judul ke bawah, terbaru di atas, tanpa harga. Ada pencarian sendiri.
+// Urutan kolom: milik vokalis pemilik halaman di paling kiri, lalu vokalis lain urut abjad.
 import { $ } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
 import { esc, norm, dateLabel } from '/js/core/format.js';
@@ -13,7 +14,8 @@ function render() {
     if (!byVoc.has(s.vocalist)) byVoc.set(s.vocalist, { mine: s.mine, list: [] });
     byVoc.get(s.vocalist).list.push(s);
   }
-  const cols = [...byVoc.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, g]) => {
+  // Kolom milik vokalis pemilik halaman ini paling kiri; vokalis lain menyusul urut abjad.
+  const cols = [...byVoc.entries()].sort((a, b) => (Number(b[1].mine) - Number(a[1].mine)) || a[0].localeCompare(b[0])).map(([name, g]) => {
     const list = g.list
       .filter((s) => !q || norm(s.title).includes(q) || norm(name).includes(q))
       .sort((a, b) => new Date(b.mtime || 0) - new Date(a.mtime || 0));

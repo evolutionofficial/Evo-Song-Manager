@@ -1,9 +1,11 @@
 // VOKALIS — modul Songlist (My Songs): lagu milik vokalis ini.
 // Tombol per lagu: belum di-Accept → [Accept] [▶]; sudah di-Accept → [Download WAV] [Send to FC] [▶].
-// Setelah operator FC mengunduh: tombol Download hilang, muncul keterangan "Finish" (bukan tombol)
-// dan status menjadi "Ready".
-// Revision tidak lagi berupa tombol: klik kanan (desktop) / tekan lama (HP) pada lagu yang sudah
-// di-Accept → menu "Request a revision" → event 'fc:revision' ke modul Send (send.js).
+// Tombol status (kanan ikon unduh) berganti: Accept → Preparing… → Send to FC → Ready (biru, sudah
+// dikirim ke First Club, tidak bisa ditekan) → Finish (vokalis sudah mengunduh WAV-nya lewat ikon
+// unduh; ikon unduh ikut hilang).
+// Revision & Redownload bukan tombol: klik kanan (desktop) / tekan lama (HP) pada lagu yang sudah
+// di-Accept → menu "Request a revision" (event 'fc:revision' ke send.js) dan "Redownload"
+// (aktif selama WAV masih ada di Google Drive).
 // All Song List ada di modul terpisah (allsongs.js), dibuka dari laci.
 // Tombol "Send to FC" mengirim event 'fc:send' ke modul Send (send.js).
 // Tombol ▶ mengirim event 'fc:play' ke modul Player (bar bawah). Kalau modul Player tidak
@@ -20,15 +22,20 @@ const SEND_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" s
 
 const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
 
-// Unduh WAV (cadangan pribadi vokalis): muncul hanya kalau WAV sudah siap di Drive,
-// dan hilang setelah lagu diunduh operator FC.
+const vdlUrl = (s) => `/vdl/${encodeURIComponent(rep.token)}/${encodeURIComponent(s.id)}`;
+
+// WAV masih bisa diunduh vokalis: file sudah selesai diunggah dan masih ada di Google Drive.
+const canDownload = (s) => s.wav === 'complete' && s.on_drive !== false;
+
+// Unduh WAV (cadangan pribadi vokalis): muncul hanya kalau WAV siap di Drive, dan hilang
+// setelah vokalis mengunduhnya. Mengunduh lagi lewat menu klik kanan / tekan lama → Redownload.
 function downloadButton(s) {
-  if (s.fc_downloaded_at) return '';
-  if (s.wav !== 'complete' || s.on_drive === false) return '';
-  return `<a class="btn dlbtn" href="/vdl/${encodeURIComponent(rep.token)}/${encodeURIComponent(s.id)}" download data-vdl="${s.n}" title="Download WAV" aria-label="Download WAV: ${esc(s.title)}">${DL_ICON}</a>`;
+  if (s.vocalist_downloaded_at) return '';
+  if (!canDownload(s)) return '';
+  return `<a class="btn dlbtn" href="${vdlUrl(s)}" download data-vdl="${s.n}" title="Download WAV" aria-label="Download WAV: ${esc(s.title)}">${DL_ICON}</a>`;
 }
 
-// Tombol kirim ke FC sesuai status: Preparing… → Send to FC → Sent → Ready (sudah diunduh FC).
+// Tombol status sesuai keadaan: Preparing… → Send to FC → Ready → Finish.
 /**
  * Selama lagu dalam revisi, semua tombolnya mati: versi lama sudah dicabut dan versi barunya
  * belum ada, jadi tidak ada yang bisa diputar, diunduh, atau dikirim.
@@ -40,12 +47,7 @@ function buttons(s) {
   if (onRevision(s)) {
     return '<button class="sendbtn wait" disabled title="The studio is working on your revision">On revision</button>';
   }
-  if (s.accepted_at) {
-    // Keterangan "Finish" menggantikan tempat tombol Revision yang lama; ini teks, bukan tombol.
-    // Revisi tetap bisa diminta lewat klik kanan / tekan lama pada lagu.
-    const finish = s.fc_downloaded_at ? '<span class="finishtag" title="Press and hold (or right-click) the song to request a revision">Finish</span>' : '';
-    return downloadButton(s) + finish + sendButton(s);
-  }
+  if (s.accepted_at) return downloadButton(s) + sendButton(s);
   return `<button class="acceptbtn" data-accept="${s.n}" aria-label="Accept ${esc(s.title)}">${CHECK_ICON}<span>Accept</span></button>`;
 }
 
@@ -57,14 +59,41 @@ function playButton(s) {
 
 function sendButton(s) {
   const t = esc(s.title);
-  if (s.fc_downloaded_at) return `<button class="sendbtn done" disabled title="FC downloaded this song" aria-label="${t}: ready">${CHECK_ICON}<span>Ready</span></button>`;
-  if (s.sent_at) return `<button class="sendbtn sent" disabled title="Waiting for FC to download" aria-label="${t}: sent to FC">${CHECK_ICON}<span>Sent</span></button>`;
-  if (s.wav === 'complete' && s.on_drive !== false) return `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${t}">${SEND_ICON}<span>Send to FC</span></button>`;
+  // Sudah dikirim ke First Club: "Ready" (biru). Kalau vokalis juga sudah mengunduh WAV-nya: "Finish".
+  // Keduanya hanya tampilan — tidak bisa ditekan.
+  if (s.sent_at && s.vocalist_downloaded_at) return `<button class="sendbtn done" disabled title="Sent to FC and downloaded" aria-label="${t}: finish">${CHECK_ICON}<span>Finish</span></button>`;
+  if (s.sent_at) return `<button class="sendbtn ready" disabled title="Sent to FC" aria-label="${t}: ready">${CHECK_ICON}<span>Ready</span></button>`;
+  if (canDownload(s)) return `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${t}">${SEND_ICON}<span>Send to FC</span></button>`;
   if (s.wav === 'complete') return `<button class="sendbtn" disabled title="This file is no longer stored. Ask the studio." aria-label="${t}: not available">${SEND_ICON}<span>Unavailable</span></button>`;
   return `<button class="sendbtn preparing" disabled aria-label="Preparing ${t} for sending" title="${s.wav === 'failed' ? 'Upload is being retried automatically' : 'Getting the WAV ready…'}"><i class="spin" aria-hidden="true"></i><span>Preparing…</span></button>`;
 }
 
 const playUrl = (n) => `/v/${encodeURIComponent(rep.token)}/play/${n}`;
+
+// Setelah unduhan dimulai, tandai lagu sebagai sudah diunduh vokalis (server mencatatnya sendiri
+// lewat /vdl). Ditunda sebentar supaya tampilan tidak digambar ulang tepat saat browser memulai unduhan.
+function markDownloadedSoon(s) {
+  setTimeout(() => {
+    if (s.vocalist_downloaded_at) return;
+    s.vocalist_downloaded_at = new Date().toISOString();
+    window.dispatchEvent(new CustomEvent('fc:songs-changed'));
+  }, 700);
+}
+
+// Unduh ulang dari menu (untuk perangkat yang bermasalah). Hanya selama WAV masih ada di Drive.
+function redownload(n) {
+  const s = rep.songs[n - 1];
+  if (!s || !canDownload(s)) return toast('This song is no longer on Google Drive', 'bad');
+  const a = document.createElement('a');
+  a.href = vdlUrl(s);
+  a.download = '';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('Download started');
+  markDownloadedSoon(s);
+}
 
 // Revisi hanya bisa diminta untuk lagu yang sudah di-Accept dan belum sedang direvisi
 // (sama seperti syarat tombol Revision yang lama).
@@ -84,18 +113,23 @@ function openMenu(n, x, y) {
   menuEl.className = 'ctxmenu';
   menuEl.setAttribute('role', 'menu');
   menuEl.dataset.n = String(n);
+  const dl = canDownload(s);
   menuEl.innerHTML = `<div class="ctx-title">${esc(s.title)}</div>
-    <button role="menuitem" data-act="revision">Request a revision…</button>`;
+    <button role="menuitem" data-act="revision">Request a revision…</button>
+    <button role="menuitem" data-act="redownload"${dl ? '' : ' disabled'} title="${dl ? 'Download the WAV again' : 'No longer on Google Drive'}">Redownload${dl ? '' : ' (not on Google Drive)'}</button>`;
   document.body.appendChild(menuEl);
   menuAt = Date.now();
   const r = menuEl.getBoundingClientRect();
   menuEl.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
   menuEl.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
   on(menuEl, 'click', 'Song menu', (e) => {
-    if (!e.target.closest('[data-act="revision"]')) return;
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (!act) return;
     closeMenu();
-    if (window.FC_SEND?.ready) window.dispatchEvent(new CustomEvent('fc:revision', { detail: { n } }));
-    else toast('Revision is not available right now');
+    if (act === 'revision') {
+      if (window.FC_SEND?.ready) window.dispatchEvent(new CustomEvent('fc:revision', { detail: { n } }));
+      else toast('Revision is not available right now');
+    } else if (act === 'redownload') redownload(n);
   });
   menuEl.querySelector('button').focus({ preventScroll: true });
 }
@@ -121,7 +155,13 @@ export function mount(report) {
       else toast('Accept is not available right now');
       return;
     }
-    if (e.target.closest('[data-vdl]')) { toast('Download started'); return; } // biarkan browser mengunduh
+    const dlb = e.target.closest('[data-vdl]');
+    if (dlb) { // biarkan browser mengunduh; setelah itu ikon unduh hilang dan status jadi Finish
+      toast('Download started');
+      const s = rep.songs[Number(dlb.dataset.vdl) - 1];
+      if (s) markDownloadedSoon(s);
+      return;
+    }
     const sb = e.target.closest('[data-send]');
     if (sb) {
       // Diteruskan ke modul Send to FC (nanti: kirim ke FC lewat WhatsApp). Modul tidak jalan → pesan saja.

@@ -6,6 +6,8 @@ import { toast } from '/js/core/ui.js';
 
 export const state = {
   vocalists: [], songs: [], unmatched: [], settings: null, wav: [], devices: [], conflicts: [], purge: {},
+  playable: {},      // { idVokalis: Set(idLagu) } lagu yang benar-benar bisa diputar (sama dengan aturan halaman vokalis)
+  playingId: null,   // lagu yang sedang dipilih di pemutar (untuk menyorot barisnya)
   tab: null,
   errors: {}, // { sumber: pesan } untuk sumber data yang gagal dimuat
 };
@@ -29,6 +31,21 @@ const SOURCES = {
 /** Status upload WAV untuk revisi lagu saat ini, atau null. */
 export const wavOf = (s) => state.wav.find((w) => w.song_id === s.id && w.revision === s.revision) || null;
 
+/** Lagu mana yang bisa diputar, per vokalis. Gagal → semua tombol ▶ tampil nonaktif; yang lain tetap jalan. */
+async function loadPlayable() {
+  const out = {};
+  await Promise.all(state.vocalists.map(async (v) => {
+    try {
+      const { data, error } = await sb.rpc('admin_playable', { p_vocalist: v.id });
+      if (error) throw error;
+      out[v.id] = new Set(data || []);
+    } catch (e) {
+      report('data:playable', e);
+    }
+  }));
+  state.playable = out;
+}
+
 export async function loadAll() {
   const keys = Object.keys(SOURCES);
   const res = await Promise.allSettled(keys.map((k) => SOURCES[k]()));
@@ -43,6 +60,7 @@ export async function loadAll() {
       delete state.errors[k];
     }
   });
+  await loadPlayable();
   const failed = Object.keys(state.errors);
   if (failed.length) toast('Some data failed to load: ' + failed.join(', '), 'bad');
   if (!state.tab || (state.tab.startsWith('v:') && !state.vocalists.some((x) => 'v:' + x.id === state.tab))) {

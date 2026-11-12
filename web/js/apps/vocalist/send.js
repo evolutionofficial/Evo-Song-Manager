@@ -5,7 +5,8 @@
 // Revision = batalkan Accept + minta revisi (boleh dengan catatan); tombol kembali ke "Accept".
 // Revision bukan tombol: diminta lewat klik kanan / tekan lama pada lagu (lihat songlist.js).
 // Send to FC: lagu muncul di halaman unduhan operator FC (/fc/<kode>). Vokalis memberi tahu
-// operator sendiri lewat WhatsApp. Status: Sent → Ready (setelah operator mengunduh).
+// operator sendiri lewat WhatsApp. Status tombol: Send to FC → Ready (terkirim) → Finish (vokalis
+// sudah mengunduh WAV-nya sendiri). Lihat songlist.js.
 import { sb } from '/js/core/supabase.js';
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';
@@ -78,7 +79,7 @@ async function refreshWav() {
         if (!s) continue;
         if (s.wav !== fresh.wav && fresh.wav === 'complete' && s.accepted_at && !s.sent_at) toast(`"${s.title}" is ready to send`);
         if (!s.fc_downloaded_at && fresh.fc_downloaded_at) toast(`FC downloaded "${s.title}"`);
-        for (const k of ['wav', 'on_drive', 'sent_at', 'fc_downloaded_at']) {
+        for (const k of ['wav', 'on_drive', 'sent_at', 'fc_downloaded_at', 'vocalist_downloaded_at']) {
           if (s[k] !== fresh[k]) { s[k] = fresh[k]; changed = true; }
         }
       }

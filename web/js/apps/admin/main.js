@@ -17,6 +17,7 @@ const MODULES = [
   { key: 'conflicts', label: 'Conflicts', path: '/js/apps/admin/conflicts.js', el: 'cfList' },
   { key: 'system', label: 'System', path: '/js/apps/admin/system.js', el: 'sysList' },
   { key: 'listen', label: 'Listen together', path: '/js/apps/admin/listen.js', el: 'listenDock' },
+  { key: 'playback', label: 'Player', path: '/js/apps/admin/playback.js', el: 'playerBody' },
   { key: 'settings', label: 'Settings', path: '/js/apps/admin/settings.js', el: 'setBody' },
 ];
 const spec = (k) => MODULES.find((m) => m.key === k);
@@ -47,6 +48,9 @@ const ctx = {
     runMod('revisions', 'open', id);
   },
   vocalists() { return state.vocalists; },
+  /** Putar sebuah lagu di pemutar admin. */
+  play(id) { return runMod('playback', 'play', id); },
+  canPlay(s) { return !!mods.playback?.canPlay?.(s); },
   /** Lencana status finalisasi untuk baris lagu (kosong kalau modulnya tidak jalan). */
 };
 

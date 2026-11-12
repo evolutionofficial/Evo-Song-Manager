@@ -89,7 +89,7 @@ function select(n, autoplay) {
   st.playing = false;
   const has = engineLoad(cur());
   render();
-  window.dispatchEvent(new CustomEvent('fc:track', { detail: { n: st.n } }));
+  window.dispatchEvent(new CustomEvent('fc:track', { detail: { n: st.n, id: cur()?.id || null } }));
   if ('mediaSession' in navigator && cur()) {
     try { const art = photoUrl(rep.photo);
       navigator.mediaSession.metadata = new MediaMetadata({ title: cur().title, artist: rep.name, album: 'Evo Song Manager',
@@ -176,7 +176,7 @@ function render() {
   el.sheet.innerHTML = `
     <div class="fp-head">
       <button class="pc" data-act="close" aria-label="Close player">${I.down}</button>
-      <div class="fp-from">Playing from<b>My songs · ${esc(rep.name)}</b></div>
+      <div class="fp-from">Playing from<b>${esc(rep.from || `My songs · ${rep.name}`)}</b></div>
       <span style="width:40px"></span>
     </div>
     <div class="fp-body">
@@ -329,6 +329,41 @@ export function mount(report_) {
 
   window.FC_PLAYER = { ready: true, volumeSlider: !volumeLocked };
   mounted = true;
+}
+
+// ======================= Dipakai halaman admin =======================
+// Halaman admin memakai pemutar yang sama persis. Bedanya, daftar lagunya bisa berganti (admin
+// berpindah antar vokalis), jadi daftar diganti lewat setReport() tanpa memasang ulang pemutar.
+
+/** Hentikan dan sembunyikan pemutar (tidak ada lagu yang dipilih). */
+export function clear() {
+  audio.pause();
+  audio.removeAttribute('src');
+  st.n = 0;
+  st.playing = false;
+  if (el) {
+    if (st.open) setOpen(false);
+    el.bar.hidden = true;
+    el.bar.innerHTML = '';
+    el.sheet.innerHTML = '';
+  }
+  document.body.classList.remove('has-player', 'is-playing');
+  window.dispatchEvent(new CustomEvent('fc:track', { detail: { n: 0, id: null } }));
+}
+
+/**
+ * Ganti daftar lagu (dan pemilik link-nya). Kalau lagu yang sedang berjalan masih ada di daftar
+ * vokalis yang sama, ia tetap berjalan tanpa putus; selain itu pemutar dihentikan.
+ */
+export function setReport(report_) {
+  const curId = cur()?.id;
+  const sameVoc = !!rep && rep.token === report_.token;
+  rep = report_;
+  songs = rep.songs.map((s, i) => ({ ...s, n: i + 1 }));
+  order = songs.slice().reverse();
+  const keep = sameVoc && curId ? songs.findIndex((x) => x.id === curId) : -1;
+  if (keep >= 0) { st.n = keep + 1; render(); }
+  else clear();
 }
 
 // ======================= REMOTE: untuk Listen together =======================

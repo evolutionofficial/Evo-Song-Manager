@@ -1,5 +1,5 @@
 // ADMIN — modul Tabel lagu & harga: ringkasan, link vokalis, harga (pilihan + custom), Paid,
-// menu klik kanan / tekan lama di judul (Ganti revisi, Hapus).
+// tombol ▶ (memutar lewat modul playback.js), menu klik kanan / tekan lama di judul (Ganti revisi, Hapus).
 // "Ganti revisi" diteruskan ke modul revisi lewat ctx.openReplace().
 import { sb } from '/js/core/supabase.js';
 import { PRICES } from '/js/core/config.js';
@@ -34,7 +34,7 @@ function renderTable() {
   if (!rows.length) { $('table').innerHTML = `<div class="empty">No matching songs.</div>`; return; }
   $('table').innerHTML =
     `<div class="row head cols-admin"><span>#</span><span>Date</span><span>Title</span><span>Price</span><span>Status</span></div>` +
-    rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}" data-id="${s.id}">
+    rows.map((s) => `<div class="row cols-admin ${s.paid ? 'paid' : ''}${s.id === state.playingId ? ' playing' : ''}" data-id="${s.id}">
       <span class="no dim">${s.n}</span>
       <span class="date dim" title="${esc(s.rel_path)}">${esc(dateLabel(s))}</span>
       <span class="title dim" data-menu="${s.id}" title="${esc(s.file_name)}">${esc(s.title)}${s.revision ? ` <span class="badge muted" title="Replaced ${esc(fmtDate(s.replaced_at))} · file: ${esc(s.file_name)}">revision ${s.revision}</span>` : ''}${s.source && s.source !== 'pc' ? ` <span class="badge muted src" title="From ${esc(s.source === 'backup' ? 'the backup drive' : s.source === 'mac' ? 'the MacBook' : s.source)}">${esc(s.source === 'backup' ? 'Backup' : s.source === 'mac' ? 'MacBook' : s.source)}</span>` : ''}${s.accepted_at ? wavBadge(s) : ''}${s.accepted_at ? ` <span class="badge acc" title="Accepted by the vocalist on ${esc(fmtDate(s.accepted_at))} — locked, no more revisions">✓ Accepted</span>` : ''}${!s.accepted_at && s.revision_requested_at ? ` <span class="badge rev" title="Requested by the vocalist on ${esc(fmtDate(s.revision_requested_at))}">Revision requested</span>` : ''}${!s.accepted_at && s.revision_requested_at && s.revision_note ? `<span class="revnote">“${esc(s.revision_note)}”</span>` : ''}${s.missing ? ' <span class="badge bad" title="The file is no longer on the PC; the song is kept as history">file missing on PC</span>' : ''}</span>
@@ -46,10 +46,17 @@ function renderTable() {
         ${PRICES.concat(s.price && !PRICES.includes(s.price) ? [s.price] : []).map((p) => `<option value="${p}" ${s.price === p ? 'selected' : ''}>${ribu(p)}</option>`).join('')}
         <option value="custom">Custom…</option>
       </select></span>`}
-      <span class="act">${s.price === 0 && !s.paid
+      <span class="act">${playButton(s)}${s.price === 0 && !s.paid
         ? '<span class="badge muted freebadge">Free</span>'
         : `<button class="paidbtn ${s.paid ? 'on' : ''}" data-paid="${s.id}" aria-pressed="${s.paid}">${s.paid ? '✓ Paid' : 'Mark paid'}</button>`}</span>
     </div>`).join('');
+}
+
+/** Tombol ▶ seperti di halaman vokalis; redup kalau lagu belum punya audio. */
+function playButton(s) {
+  const ok = ctx.canPlay(s);
+  const tip = ok ? 'Play' : (s.revision_requested_at ? 'Being revised — no audio right now' : 'No audio yet');
+  return `<button type="button" class="btn playbtn${ok ? '' : ' noaudio'}" data-aplay="${s.id}" aria-label="Play ${esc(s.title)}" title="${esc(tip)}">▶</button>`;
 }
 
 /** Total "Belum dibayar" di samping filter; disembunyikan kalau semua sudah lunas. */
@@ -196,6 +203,8 @@ export function init(c) {
   });
 
   on($('table'), 'click', L, async (e) => {
+    const ap = e.target.closest('[data-aplay]');
+    if (ap) return ctx.play(ap.dataset.aplay);
     const pid = e.target.closest('[data-paid]')?.dataset.paid;
     if (!pid) return;
     const s = state.songs.find((x) => x.id === pid);

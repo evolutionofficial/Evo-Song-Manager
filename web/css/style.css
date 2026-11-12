@@ -93,7 +93,10 @@ button:disabled { opacity: .5; cursor: default; }
 .empty { padding: 28px 14px; text-align: center; color: var(--muted); }
 .who { font-size: 12.5px; color: var(--muted); }
 
-.cols-admin { grid-template-columns: 30px 78px minmax(0, 1fr) 146px 100px; }
+.cols-admin { grid-template-columns: 30px 78px minmax(0, 1fr) 146px 148px; }
+/* Kolom aksi admin: tombol ▶ di kiri tombol Paid */
+.cols-admin .act { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.cols-admin .act .paidbtn { flex: 1 1 auto; width: auto; }
 .cols-view { grid-template-columns: 30px 78px minmax(0, 1fr) 104px 86px; }
 .cols-all { grid-template-columns: 92px 78px minmax(0, 1fr); }
 .cols-all.prices { grid-template-columns: 92px 78px minmax(0, 1fr) 96px 86px; }
@@ -717,8 +720,6 @@ dialog.confirm .cf-title { margin: 0 0 8px; font-weight: 650; color: #9fd0ff; }
 /* ---------- Revision ---------- */
 /* Revision tidak lagi tombol: diminta lewat klik kanan / tekan lama pada baris lagu. */
 .row[data-rev-menu] { -webkit-touch-callout: none; }
-/* Keterangan "Finish" (teks, bukan tombol) setelah lagu diunduh operator FC */
-.finishtag { font-size: 13px; font-weight: 600; color: #7fe3b4; padding: 0 4px; white-space: nowrap; cursor: default; user-select: none; }
 .badge.rev { background: rgba(255, 180, 80, .12); color: #ffc477; border: 1px solid rgba(255, 190, 110, .32); }
 .revnote { display: block; margin-top: 3px; font-size: 12.5px; color: #ffd9a6; font-style: italic; white-space: normal; }
 dialog.confirm .rv-label { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
@@ -771,9 +772,11 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
   .op-dl span { display: none; }
   .op-dl { width: 44px; padding: 0; justify-content: center; }
 }
-.sendbtn.sent:disabled, .sendbtn.done:disabled { opacity: 1; cursor: default; }
-.sendbtn.sent { color: #ffe2b8; border-color: rgba(255, 190, 110, .35); background: rgba(255, 180, 80, .08); }
-.sendbtn.sent svg { color: #ffb661; }
+.sendbtn.ready:disabled, .sendbtn.done:disabled { opacity: 1; cursor: default; }
+/* Ready = sudah dikirim ke First Club: biru senada tema, hanya tampilan (tidak bisa ditekan) */
+.sendbtn.ready { color: #cfe6ff; border-color: rgba(46, 139, 255, .5); background: linear-gradient(135deg, rgba(46, 139, 255, .22), rgba(46, 139, 255, .08)); }
+.sendbtn.ready svg { color: #6fb6ff; }
+/* Finish = sudah dikirim dan sudah diunduh vokalis */
 .sendbtn.done { color: #c9f5e2; border-color: rgba(61, 220, 151, .4); background: rgba(61, 220, 151, .1); }
 .sendbtn.done svg { color: #3ddc97; }
 /* Unduh WAV untuk vokalis (kiri tombol Send to FC; hilang setelah FC mengunduh) */
