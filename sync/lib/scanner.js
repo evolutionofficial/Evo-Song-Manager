@@ -5,7 +5,11 @@ const fs = require('fs');
 const path = require('path');
 
 // 'cancel song' = arsip WAV versi lama (hasil Revision); isinya bukan lagu baru.
-const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle.bin', 'system volume information', 'cancel song']);
+// 'trash'       = lagu yang sudah dihapus Jeffry dari aplikasi. Filenya sengaja ditinggal di
+//                 komputer, tapi tidak boleh terbaca lagi sebagai lagu baru. Folder ini ada DI
+//                 DALAM Mixdown, dan tanpa baris ini isinya tetap terpindai karena syaratnya
+//                 hanya "ada segmen bernama mixdown di jalurnya".
+const SKIP_DIRS = new Set(['cache', 'history', '.git', 'node_modules', '$recycle.bin', 'system volume information', 'cancel song', 'trash']);
 const MONTHS = '(jan|januari|feb|februari|mar|maret|apr|april|mei|may|jun|juni|jul|juli|agu|agt|ags|agustus|aug|august|sep|sept|september|okt|oktober|oct|october|nov|november|des|desember|dec|december)';
 const DATE_RE = new RegExp('\\b(\\d{1,2})\\s*' + MONTHS + '\\b', 'i');
 const NAME_RE = /^\s*([^-]+?)\s*-\s*(.+?)\s*\.wav$/i;
