@@ -206,7 +206,7 @@ function createAgent(cfg) {
     if (!(await wav.runOnce())) ok = false;
     if (Date.now() - lastBeat > HEARTBEAT_MS) {
       lastBeat = Date.now();
-      db.heartbeat({ version: VERSION, manual, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
+      db.heartbeat({ version: VERSION, manual, ffmpeg: ffmpegPath, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
     }
     return ok;
   }
@@ -260,7 +260,31 @@ async function main() {
   const ok = await agent.runOnce();
   if (once) { process.exitCode = ok ? 0 : 1; return; }
   agent.watch();
+  probeFfmpeg();
   watchSelf();
+}
+
+// Apakah komputer ini punya ffmpeg? Dilaporkan di tanda hidup supaya bisa diketahui dari jauh
+// tanpa harus menebak, dan supaya pekerjaan yang membutuhkannya tidak pernah dikirim ke
+// komputer yang tidak bisa mengerjakannya.
+let ffmpegPath = null;
+function probeFfmpeg() {
+  const { execFileSync } = require('child_process');
+  const tries = ['ffmpeg'];
+  if (process.platform === 'win32') {
+    tries.push('C:\\ffmpeg\\bin\\ffmpeg.exe', 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe');
+  } else {
+    tries.push('/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg');
+  }
+  for (const t of tries) {
+    try {
+      const out = execFileSync(t, ['-version'], { encoding: 'utf8', timeout: 8000, windowsHide: true });
+      ffmpegPath = t;
+      log('ffmpeg ditemukan: ' + t + ' (' + String(out).split('\n')[0].slice(0, 60) + ')');
+      return;
+    } catch (_) { /* coba yang berikutnya */ }
+  }
+  log('ffmpeg tidak ditemukan di komputer ini.');
 }
 
 // Kalau file program diperbarui (update dari Claude), keluar dengan rapi; penjaga menyalakan lagi
