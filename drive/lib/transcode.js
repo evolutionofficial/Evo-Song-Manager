@@ -21,8 +21,31 @@ const { execFile } = require('child_process');
 const { log } = require('./log');
 
 const PER_RUN = 3;              // beberapa saja per putaran, supaya tidak memberatkan saat dipakai kerja
+const RENAME_TRIES = 6;         // Windows sering menahan file yang baru ditulis selama sedetik-dua
 const TIMEOUT_MS = 10 * 60_000; // lagu terpanjang pun jauh di bawah ini
 const BITRATE = '192k';         // AAC stereo; untuk trek latihan ini sudah lebih dari cukup
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Ganti nama dengan beberapa kali percobaan.
+ *
+ * Di Windows, file yang BARU SAJA ditulis sering masih dipegang pemindai antivirus, dan rename
+ * langsung gagal dengan EBUSY. Ini terjadi terus di drive backup G: dan memblokir konversinya.
+ * Penantiannya bertambah (100 ms, 200, 400, …) karena tahanan itu hampir selalu lepas dalam
+ * satu-dua detik.
+ */
+async function renameWithRetry(from, to) {
+  let wait = 100;
+  for (let i = 1; i <= RENAME_TRIES; i++) {
+    try { fs.renameSync(from, to); return; }
+    catch (e) {
+      if (i === RENAME_TRIES || !['EBUSY', 'EPERM', 'EACCES'].includes(e.code)) throw e;
+      await sleep(wait);
+      wait *= 2;
+    }
+  }
+}
 
 function createTranscoder(cfg, db, ffmpeg) {
   const sources = new Map((cfg.sources || []).map((s) => [s.name, s]));
@@ -89,13 +112,18 @@ function createTranscoder(cfg, db, ffmpeg) {
       if (fs.existsSync(m4a)) continue;        // sudah ada — jalur unggah akan mengambilnya sendiri
 
       const tmp = m4a + '.part';
-      try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+      // Sisa percobaan sebelumnya. Kalau tidak bisa dibuang (masih dipegang), lagu ini
+      // dilewati dulu — memaksa hanya akan gagal lagi di langkah yang sama.
+      if (fs.existsSync(tmp)) {
+        try { fs.unlinkSync(tmp); }
+        catch (_) { continue; }
+      }
       try {
         await encode(wav, tmp);
         const st = fs.statSync(tmp);
         if (!st.size) throw new Error('hasilnya kosong');
         // Baru sekarang namanya menjadi .m4a, jadi pemindai tidak pernah melihat file separuh jadi.
-        fs.renameSync(tmp, m4a);
+        await renameWithRetry(tmp, m4a);
         made++; done++;
         log(`M4A dibuat dari WAV: ${it.vocalist} — ${it.title} (${(st.size / 1048576).toFixed(1)} MB). Total ${done}.`);
       } catch (e) {

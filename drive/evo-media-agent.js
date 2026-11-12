@@ -33,7 +33,7 @@ const { hasToken } = require('./lib/gdrive');
 
 // Dinaikkan setiap kali perilaku agen berubah, supaya halaman System bisa menunjukkan
 // komputer mana yang masih memakai kode lama.
-const VERSION = '2.3';
+const VERSION = '2.4';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
