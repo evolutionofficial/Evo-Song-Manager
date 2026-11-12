@@ -5,12 +5,12 @@ import { report } from '/js/core/guard.js';
 import { toast } from '/js/core/ui.js';
 
 export const state = {
-  vocalists: [], songs: [], unmatched: [], settings: null, wav: [], devices: [], conflicts: [],
+  vocalists: [], songs: [], unmatched: [], settings: null, wav: [], devices: [], conflicts: [], purge: {},
   tab: null,
   errors: {}, // { sumber: pesan } untuk sumber data yang gagal dimuat
 };
 
-const SONG_COLS = 'id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at,accepted_at,revision_requested_at,revision_note,source';
+const SONG_COLS = 'id,vocalist_id,title,file_name,session_label,file_mtime,sort_date,price,paid,paid_at,missing,rel_path,deleted,deleted_at,revision,replaced_at,accepted_at,revision_requested_at,revision_note,source,purged_at';
 
 const SOURCES = {
   vocalists: () => sb.from('vocalists').select('*').order('display_name'),
@@ -19,6 +19,7 @@ const SOURCES = {
   settings: () => sb.from('app_settings').select('*').eq('id', 1).single(),
   devices: () => sb.from('devices').select('*').order('name'),
   conflicts: () => sb.rpc('song_conflicts'),
+  purge: () => sb.rpc('purge_status'),
   wav: () => sb.from('wav_uploads').select('id,song_id,revision,status,attempts,last_error,uploaded_at,size_bytes,drive_deleted_at,cleanup_eligible_at,sent_at,downloaded_at'),
 };
 

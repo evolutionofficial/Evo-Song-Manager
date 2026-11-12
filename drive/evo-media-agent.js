@@ -32,7 +32,7 @@ const { hasToken } = require('./lib/gdrive');
 
 // Dinaikkan setiap kali perilaku agen berubah, supaya halaman System bisa menunjukkan
 // komputer mana yang masih memakai kode lama.
-const VERSION = '2.1';
+const VERSION = '2.2';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
@@ -44,6 +44,7 @@ function createAgent(cfg) {
   const finalizer = createFinalizer(cfg, jobs, r2);
   const archiver = createArchiver(cfg);
   const reconciler = createReconciler(cfg, db, r2, wav.drive);
+  const drive = wav.drive;
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
   const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0, locked: 0 };
@@ -109,7 +110,7 @@ function createAgent(cfg) {
   async function runJobs() {
     let ok = true;
     let list;
-    try { list = await jobs.claim(['finalize', 'archive_wav', 'r2_remove'], 3); }
+    try { list = await jobs.claim(['finalize', 'archive_wav', 'r2_remove', 'drive_remove'], 3); }
     catch (e) { log('GAGAL mengambil pekerjaan: ' + e.message); return false; }
     for (const job of list || []) {
       try {
@@ -123,8 +124,25 @@ function createAgent(cfg) {
           const st = await jobs.progress(job.id, 'removing');
           if (st === 'lost') continue;
           if (st === 'active') { await jobs.finish(job.id, 'done', { skipped: 'version is active' }, null); continue; }
-          if (job.m4a_key) await r2.remove(job.m4a_key);
-          await jobs.finish(job.id, 'done', { removed: job.m4a_key }, null);
+          // Pemusnahan lagu membawa kuncinya sendiri di payload: lagu lama menyimpan audionya
+          // di audio_files, jadi kuncinya tidak selalu bisa diturunkan dari versi.
+          const key = job.payload?.key || job.m4a_key;
+          if (key) await r2.remove(key);
+          if (job.payload?.purge) log(`Audio dibuang dari penyimpanan: ${key}`);
+          await jobs.finish(job.id, 'done', { removed: key }, null);
+          continue;
+        }
+        if (job.kind === 'drive_remove') {
+          const st = await jobs.progress(job.id, 'removing');
+          if (st === 'lost') continue;
+          const fileId = job.payload?.drive_file_id;
+          if (fileId) {
+            // trash(), bukan hapus permanen: file tetap bisa diambil dari Trash Google Drive
+            // selama 30 hari kalau ternyata salah buang.
+            await drive.trash(fileId);
+            log(`File WAV dibuang ke Trash Google Drive: ${fileId}`);
+          }
+          await jobs.finish(job.id, 'done', { trashed: fileId || null }, null);
           continue;
         }
         const res = await finalizer.run(job);
@@ -134,7 +152,8 @@ function createAgent(cfg) {
       } catch (e) {
         ok = false;
         const admin = e instanceof NeedsAdmin;
-        log(`${admin ? 'PERLU ADMIN' : 'GAGAL'} ${job.kind === 'archive_wav' ? 'arsip' : 'finalisasi'} "${job.file_name}": ${e.message}`);
+        const what = { archive_wav: 'arsip', r2_remove: 'hapus audio', drive_remove: 'hapus file Drive' }[job.kind] || 'finalisasi';
+        log(`${admin ? 'PERLU ADMIN' : 'GAGAL'} ${what} "${job.file_name || job.song_id || job.id}": ${e.message}`);
         await jobs.finish(job.id, admin ? 'needs_admin' : 'failed', null, e.message).catch(() => {});
         if (!admin) { stats.failed++; stats.lastError = `${job.file_name}: ${e.message}`; }
       }

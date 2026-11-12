@@ -73,3 +73,63 @@ baru dari lagu yang sama, dan vokalis tetap melihat satu judul.
 
 Semua yang butuh database sedang **terblokir**: connector Supabase di sesi ini hanya melihat
 organisasi `evolutiondigital`, dan project Evo Song Manager tidak ada di dalamnya.
+
+---
+
+# Hapus permanen (fase 10) — 13 Nov 2026
+
+Jeffry akan mengeliminasi beberapa lagu Keket dan Guna yang terduplikat, dan "Remove from list"
+yang ada sekarang hanya menyembunyikan lagunya — audio di R2 dan file WAV di Google Drive tetap
+tertinggal. Jadi ditambahkan jalur pemusnahan yang sebenarnya.
+
+## Dibuat dua tahap, dengan sengaja
+
+Ini satu-satunya jalur di aplikasi yang menghancurkan data dan tidak bisa dibatalkan. Jadi tidak
+ada satu klik pun yang bisa langsung memusnahkan lagu yang masih aktif:
+
+1. **Remove from list** (sudah ada, di menu "…" tabel lagu) — lagu hilang dari halaman vokalis,
+   semua filenya masih utuh, bisa dikembalikan kapan saja.
+2. **Delete audio permanently** (baru, di panel "Deleted") — baru menghapus isinya. Fungsinya
+   menolak lagu yang belum melewati tahap 1.
+
+## Apa yang dihapus, dan apa yang tidak
+
+| | |
+|---|---|
+| Audio di R2 | **dihapus** — vokalis tidak akan bisa memutarnya lagi |
+| File WAV di Google Drive | **dibuang ke Trash** — masih bisa diambil di sana selama 30 hari |
+| WAV & M4A di komputer Jeffry | **tidak disentuh sama sekali** |
+| Baris lagunya di database | **tetap disimpan** sebagai sejarah |
+
+Dipakai `trash()`, bukan hapus permanen Google Drive, supaya salah buang masih bisa diperbaiki.
+
+## Pengaman yang dipasang
+
+- **Lagu yang masih di daftar tidak bisa dimusnahkan.** Harus lewat tahap 1 dulu.
+- **Versi dibatalkan lebih dulu.** Agen punya penjagaan "jangan hapus audio yang masih dipakai"
+  yang membaca status versi. Tanpa langkah ini pekerjaannya akan dilewati diam-diam dan filenya
+  tetap ada di R2 padahal aplikasi sudah bilang terhapus.
+- **Kunci yang masih dipakai lagu lain yang hidup tidak ikut dihapus.** Kalau dua lagu pernah
+  menunjuk objek R2 yang sama, menghapusnya akan membungkam lagu yang tidak diapa-apakan.
+- **Kuncinya dikosongkan saat itu juga.** Jadi kalau lagunya dikembalikan dari "Deleted", tombol
+  putarnya jujur bilang tidak ada audio, bukan menunjuk file yang sudah hilang.
+- **Diulang pun tidak menggandakan pekerjaan** (kunci idempotensi per objek).
+- **Hanya admin.**
+- Mengembalikan lagu yang sudah dimusnahkan tetap boleh, tapi diperingatkan bahwa audionya tidak
+  ikut kembali.
+
+## Lagu lama ikut tertangani
+
+Lagu lama menyimpan audionya di `audio_files`, bukan di `song_versions`. Pemusnahan mengumpulkan
+kunci dari **kedua** tempat itu, jadi lagu era lama pun benar-benar bersih.
+
+## Tes
+
+28 pemeriksaan database di salinan Postgres lokal (termasuk semua pengaman di atas) dan 13
+pemeriksaan antarmuka. Semuanya lolos.
+
+## Belum bisa diterapkan
+
+Migrasinya sudah ditulis dan teruji lokal, tapi **belum diterapkan ke produksi** karena connector
+Supabase di sesi ini tidak bisa membaca project Evo Song Manager. Begitu sambungannya kembali,
+yang perlu dijalankan: `db/2026-11-13_phase10_purge.sql`, lalu agen diperbarui ke 2.2.
