@@ -17,6 +17,15 @@ import { state, vocDeleted, updateSong } from './data.js';
 let ctx;
 let busy = false;
 
+/**
+ * Apakah jalur pemusnahan sudah ada di database?
+ *
+ * Halaman ini bisa tayang lebih dulu daripada migrasinya. Tanpa pemeriksaan ini, tombolnya
+ * tampil, ditekan, lalu gagal dengan pesan yang tidak menjelaskan apa-apa. Lebih baik tombolnya
+ * tidak ditawarkan sama sekali sampai fungsinya benar-benar ada.
+ */
+const purgeReady = () => !state.errors?.purge;
+
 /** Apa yang sedang/sudah dikerjakan untuk lagu ini. */
 function purgeState(s) {
   const p = (state.purge || {})[s.id];
@@ -39,12 +48,14 @@ export function render() {
         ${st ? ` <span class="badge ${st.cls === 'bad' ? 'bad' : st.cls === 'wait' ? 'muted' : 'ok'}">${esc(st.text)}</span>` : ''}</span>
       <span class="delacts">
         <button data-restore="${s.id}"${s.purged_at ? ' title="The audio is gone; the song comes back without it"' : ''}>Restore</button>
-        ${s.purged_at ? '' : `<button class="danger" data-purge="${s.id}">Delete audio permanently</button>`}
+        ${s.purged_at || !purgeReady() ? '' : `<button class="danger" data-purge="${s.id}">Delete audio permanently</button>`}
       </span>
     </div>`;
-  }).join('') + (left > 1
-    ? `<div class="delall"><button class="danger" data-purgeall="1">Delete audio of all ${left} permanently</button></div>`
-    : '');
+  }).join('') + (!purgeReady()
+    ? `<div class="delall note">Permanent deletion isn't switched on yet — the database still needs its update. Songs here stay hidden and keep all their files.</div>`
+    : left > 1
+      ? `<div class="delall"><button class="danger" data-purgeall="1">Delete audio of all ${left} permanently</button></div>`
+      : '');
 }
 
 /** Satu tempat untuk kalimat peringatannya, supaya versi satuan dan borongan tidak pernah beda. */
