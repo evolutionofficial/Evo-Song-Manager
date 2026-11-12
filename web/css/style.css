@@ -802,21 +802,6 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 .dv-on { color: var(--ok); }
 .dv-off { color: var(--warn); }
 
-/* Admin: dialog finalisasi (pilih file final) */
-dialog.fin form { max-width: 560px; }
-.finlist { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; max-height: 52vh; overflow: auto; }
-.finrow { border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 13px; cursor: pointer;
-  background: var(--glass-fill); transition: border-color .15s, background .15s; }
-.finrow:hover:not(.off) { border-color: rgba(46, 139, 255, .55); }
-.finrow[aria-checked=true] { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(46, 139, 255, .22); }
-.finrow.off { opacity: .55; cursor: default; }
-.fin-name { font-weight: 650; font-size: 14.5px; overflow-wrap: anywhere; }
-.fin-meta { margin-top: 2px; font-size: 12.5px; color: var(--muted); }
-.fin-ok { color: var(--ok); }
-.fin-warn { color: var(--warn); }
-.fin-bad { color: var(--bad); }
-.fin-why { margin-top: 6px; font-size: 12.5px; color: var(--faint); }
-
 /* Admin: halaman Conflicts dan System */
 .cf-group h2 { margin-bottom: 2px; }
 .cf-song { border-top: 1px solid var(--line); padding: 11px 0; }

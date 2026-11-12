@@ -12,7 +12,6 @@ const MODULES = [
   { key: 'songs', label: 'Song table', path: '/js/apps/admin/songs.js', el: 'vocMain' },
   { key: 'trash', label: 'Deleted', path: '/js/apps/admin/trash.js', el: 'delBox' },
   { key: 'revisions', label: 'Replace revision', path: '/js/apps/admin/revisions.js', el: null },
-  { key: 'finalize', label: 'Finalize', path: '/js/apps/admin/finalize.js', el: null },
   { key: 'requests', label: 'Revisions', path: '/js/apps/admin/requests.js', el: 'rrList' },
   { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
   { key: 'conflicts', label: 'Conflicts', path: '/js/apps/admin/conflicts.js', el: 'cfList' },
@@ -47,15 +46,8 @@ const ctx = {
     if (!mods.revisions) return toast('Replace revision is having problems. Everything else still works.', 'bad');
     runMod('revisions', 'open', id);
   },
-  openFinalize(id) {
-    if (!mods.finalize) return toast('Finalize is having problems. Everything else still works.', 'bad');
-    runMod('finalize', 'open', id);
-  },
-  finalizeAction(name, id) { runMod('finalize', name, id); },
   vocalists() { return state.vocalists; },
-  finalizeReady() { return (mods.finalize && mods.finalize.readyCount()) || 0; },
   /** Lencana status finalisasi untuk baris lagu (kosong kalau modulnya tidak jalan). */
-  finalizeBadge(s) { return (mods.finalize && mods.finalize.badge(s)) || ''; },
 };
 
 async function enterApp() {

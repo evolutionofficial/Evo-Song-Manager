@@ -65,7 +65,7 @@ export async function render() {
 
   const miss = (data.audio_missing || []).map((m) => `<div class="sys-row">
       <div><b>${esc(m.song)}</b> <span class="badge bad">audio gone from storage</span> <span class="dim">${esc(m.vocalist)}</span></div>
-      <div class="dv-meta">noticed ${esc(timeAgo(m.since))} — render and finalize it again</div>
+      <div class="dv-meta">noticed ${esc(timeAgo(m.since))} — render it again so the agent can upload it</div>
       <div class="cf-acts"><button data-open="${esc(m.song_id)}">Open song</button></div>
     </div>`);
 

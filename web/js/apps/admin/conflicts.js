@@ -11,9 +11,11 @@ const mb = (b) => (b ? `${(b / 1048576).toFixed(1)} MB` : '—');
 
 function songCard(s) {
   const tags = [
-    s.finalized ? '<span class="badge ok">finalized</span>'
-      : s.has_audio ? '<span class="badge muted">has audio</span>'
-      : '<span class="badge muted">no audio</span>',
+    // Yang menentukan bagi vokalis: ada audionya atau tidak. "Finalized" adalah istilah
+    // jalur manual yang sudah dibuang, jadi tidak ditampilkan lagi supaya tidak membingungkan.
+    s.has_audio || s.finalized
+      ? '<span class="badge ok">vocalist can hear it</span>'
+      : '<span class="badge muted">no audio yet</span>',
     s.accepted ? '<span class="badge ok">accepted</span>' : '',
     s.on_revision ? '<span class="badge rev">on revision</span>' : '',
     s.paid ? '<span class="badge ok">paid</span>' : '',
@@ -25,7 +27,6 @@ function songCard(s) {
     <div class="cf-path dim">${esc(s.rel_path)}</div>
     <div class="cf-acts">
       <button data-open="${esc(s.id)}">Open table</button>
-      ${s.accepted || s.finalized ? '' : `<button data-fin="${esc(s.id)}">Finalize…</button>`}
       ${s.accepted ? '' : `<button class="danger" data-del="${esc(s.id)}">Remove from list</button>`}
     </div>
   </div>`;
@@ -58,8 +59,6 @@ export function init(c) {
       if (s) ctx.openTab('v:' + s.vocalist_id);
       return;
     }
-    const fin = e.target.closest('[data-fin]');
-    if (fin) return ctx.openFinalize(fin.dataset.fin);
     const del = e.target.closest('[data-del]');
     if (del) {
       const s = state.songs.find((x) => x.id === del.dataset.del);
