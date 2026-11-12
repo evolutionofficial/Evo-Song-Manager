@@ -133,3 +133,53 @@ pemeriksaan antarmuka. Semuanya lolos.
 Migrasinya sudah ditulis dan teruji lokal, tapi **belum diterapkan ke produksi** karena connector
 Supabase di sesi ini tidak bisa membaca project Evo Song Manager. Begitu sambungannya kembali,
 yang perlu dijalankan: `db/2026-11-13_phase10_purge.sql`, lalu agen diperbarui ke 2.2.
+
+---
+
+# Lagu bisu (fase 11) — 13 Nov 2026
+
+126 dari 232 lagu tidak punya audio sama sekali. Cia **tidak bisa memutar satu pun** dari 44
+lagunya; Keket 66 dari 98. Ini masalah terbesar yang nyata di aplikasi, jauh lebih besar daripada
+soal duplikat.
+
+## Kenapa bisa bisu
+
+Audionya tidak pernah hilang — M4A-nya memang tidak pernah dibuat. Jeffry merender WAV dan M4A
+sekaligus dari Studio One, tapi katalog lamanya dibuat sebelum kebiasaan itu. WAV-nya semua masih
+ada di komputer.
+
+| Di mana WAV-nya | Lagu bisu |
+|---|---|
+| Drive backup `G:` (lewat PC) | 101 |
+| PC `D:` | 12 |
+| MacBook | 13 |
+
+## Cara kerjanya
+
+Agen membuat M4A-nya sendiri dari WAV, lalu **berhenti di situ**. Unggahan ke R2 tetap lewat jalur
+lama yang sudah teruji: pemindai menemukan M4A baru itu, mengunggahnya, mencocokkan MD5-nya dengan
+R2, mencatatnya, lalu menghapus file sementaranya. Tidak ada jalur unggah kedua yang perlu dijaga.
+
+## Pengaman
+
+- **WAV tidak pernah disentuh.** Itu sumber aslinya.
+- **M4A yang sudah ada tidak pernah ditimpa.**
+- **Lagu yang sudah punya audio tidak pernah masuk daftar** — `audio_needed` yang menyaring di
+  database, jadi versi yang bagus tidak mungkin tergantikan.
+- Hasil ditulis ke berkas `.part` dan baru diganti namanya setelah ffmpeg berhasil, jadi pemindai
+  tidak pernah menemukan M4A separuh jadi lalu mengunggah file rusak.
+- Tiga per putaran, supaya tidak memberatkan komputer saat dipakai kerja.
+- Sumber di drive yang sedang tidak tersambung tidak ikut ditanyakan.
+
+## Dua jebakan yang ditemukan karena diuji
+
+1. **ffmpeg tidak bisa menebak format dari ekstensi `.part`** dan menggagalkan SETIAP konversi
+   dengan "Unable to choose an output format". Formatnya sekarang disebut eksplisit (`-f ipod`).
+2. **winget memasang ffmpeg ke folder Packages miliknya** dan hanya menambahkan PATH untuk shell
+   baru. Agen yang sudah berjalan tidak akan pernah melihatnya. Pemeriksaannya diperluas ke lokasi
+   winget — dan terbukti: di PC Jeffry ffmpeg ditemukan justru di jalur itu, bukan di PATH.
+
+## Tes
+
+10 pemeriksaan database di salinan Postgres lokal, dan 12 pemeriksaan transcoder dengan WAV
+sungguhan lewat ffmpeg sungguhan — termasuk ffprobe yang memastikan hasilnya AAC yang sah.
