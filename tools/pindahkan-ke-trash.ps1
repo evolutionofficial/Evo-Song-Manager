@@ -1,6 +1,6 @@
 ﻿# Evo Song Manager - pindahkan lagu yang sudah dihapus ke folder trash
 #
-# Dibuat 13 Nov 2026 untuk 31 file yang kamu hapus dari aplikasi.
+# Dibuat 13 Nov 2026 untuk 32 file yang kamu hapus dari aplikasi.
 #
 # Yang dilakukan: setiap WAV (dan M4A pasangannya kalau ada) dipindahkan ke subfolder "trash"
 # di dalam folder Mixdown-nya, lalu diberi akhiran .deleted.
@@ -31,6 +31,7 @@ $files = @(
   'G:\FIrst CLUB\KEKET\Keket 26 Feb\Mixdown\Keket - Heaven.wav',
   'G:\FIrst CLUB\KEKET\Keket 27\Mixdown\Keket - Killing Me Softly.wav',
   'G:\FIrst CLUB\KEKET\PC\Christmas\All I want For Christmas\Mixdown\Keket - All I Want For XMas Is You.wav',
+  'G:\FIrst CLUB\KEKET\20 May\Keket 20 May\Mixdown\Keket - Beraksi.wav',
   'D:\FIRST CLUB\Carla\25 Okt\Carla 25 Okt\Mixdown\Carla -  Bloody Mary x Thriller.wav',
   'D:\FIRST CLUB\Carla\27 Okt\Carla 27 Okt\Mixdown\Carla - Gigolo x Asereje Vocal.wav',
   'D:\FIRST CLUB\Carla\30 Okt\Carla 30 Okt\Mixdown\Carla - Ni Yao De Ai(2).wav',
