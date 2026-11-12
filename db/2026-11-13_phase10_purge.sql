@@ -17,6 +17,14 @@
 alter table public.jobs add column if not exists payload jsonb;
 alter table public.songs add column if not exists purged_at timestamptz;
 
+-- purge_song mengosongkan kunci R2 supaya lagu yang dikembalikan dari "Deleted" tidak menunjuk
+-- file yang sudah dihapus. Di audio_files kolom itu NOT NULL, jadi langkah tersebut GAGAL untuk
+-- setiap lagu yang punya audio model lama — justru lagu yang paling perlu dimusnahkan.
+--
+-- Ini lolos dari pengujian karena salinan uji lokal punya kolom yang nullable, lebih longgar
+-- daripada produksi. Salinan ujinya sudah diketatkan supaya tidak terulang.
+alter table public.audio_files alter column r2_key drop not null;
+
 -- ---------------------------------------------------------------------------
 -- claim_jobs: ikut mengirim payload supaya agen tahu apa yang harus dihapus.
 -- ---------------------------------------------------------------------------
