@@ -39,6 +39,7 @@ function createDb(cfg) {
       }
     },
     vocalists: () => rpc('agent_vocalists', {}),
+    audioNeeded: (sources, limit) => rpc('audio_needed', { p_sources: sources, p_limit: limit }),
     wavJobs: (sources) => rpc('wav_jobs', { p_sources: sources }),
     wavReport: (r) => rpc('wav_report', { p_id: r.id, p_status: r.status, p_drive_file_id: r.driveFileId || null,
       p_size: r.size ?? null, p_md5: r.md5 || null, p_error: r.error || null }),

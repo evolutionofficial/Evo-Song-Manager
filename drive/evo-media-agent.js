@@ -28,11 +28,12 @@ const { createJobs } = require('./lib/jobs');
 const { createFinalizer, NeedsAdmin } = require('./lib/finalize');
 const { createArchiver } = require('./lib/archive');
 const { createReconciler } = require('./lib/reconcile');
+const { createTranscoder } = require('./lib/transcode');
 const { hasToken } = require('./lib/gdrive');
 
 // Dinaikkan setiap kali perilaku agen berubah, supaya halaman System bisa menunjukkan
 // komputer mana yang masih memakai kode lama.
-const VERSION = '2.2';
+const VERSION = '2.3';
 const RETRY_S = [30, 60, 300, 900, 1800];
 const HEARTBEAT_MS = 60000;
 
@@ -45,6 +46,8 @@ function createAgent(cfg) {
   const archiver = createArchiver(cfg);
   const reconciler = createReconciler(cfg, db, r2, wav.drive);
   const drive = wav.drive;
+  // ffmpeg dicari belakangan, jadi dibungkus fungsi supaya nilainya dibaca saat dipakai.
+  const transcoder = createTranscoder(cfg, db, () => ffmpegPath);
   const retry = new Map();   // full path -> { n, at, sig }
   const said = new Map();    // pesan "menunggu" cukup dicatat sekali per file
   const stats = { uploaded: 0, failed: 0, lastError: null, lastUpload: null, waiting: 0, finalized: 0, locked: 0 };
@@ -203,10 +206,13 @@ function createAgent(cfg) {
     }
     if (!(await runJobs())) ok = false;
     if (!(await reconciler.runOnce())) ok = false;
+    // Membuat M4A untuk lagu yang belum punya audio. Ditaruh setelah pekerjaan lain supaya
+    // tidak pernah menunda unggahan atau penghapusan yang sudah mengantre.
+    if (!(await transcoder.runOnce())) ok = false;
     if (!(await wav.runOnce())) ok = false;
     if (Date.now() - lastBeat > HEARTBEAT_MS) {
       lastBeat = Date.now();
-      db.heartbeat({ version: VERSION, manual, ffmpeg: ffmpegPath, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
+      db.heartbeat({ version: VERSION, manual, ffmpeg: ffmpegPath, made: transcoder.made, ...stats }).catch((e) => log('Tanda hidup gagal dikirim: ' + e.message));
     }
     return ok;
   }
@@ -270,11 +276,28 @@ async function main() {
 let ffmpegPath = null;
 function probeFfmpeg() {
   const { execFileSync } = require('child_process');
+  const path = require('path');
   const tries = ['ffmpeg'];
   if (process.platform === 'win32') {
+    // winget memasang ffmpeg lalu menaruh pintasannya di folder Links, dan baru menambahkan
+    // PATH untuk shell BARU. Agen yang sudah berjalan tidak akan melihatnya, jadi lokasi
+    // winget dicari langsung — kalau tidak, ffmpeg yang baru dipasang seolah tidak ada.
+    const local = process.env.LOCALAPPDATA || '';
+    if (local) {
+      tries.push(path.join(local, 'Microsoft', 'WinGet', 'Links', 'ffmpeg.exe'));
+      try {
+        const pkgs = path.join(local, 'Microsoft', 'WinGet', 'Packages');
+        for (const d of fs.readdirSync(pkgs)) {
+          if (!/^Gyan\.FFmpeg/i.test(d)) continue;
+          for (const sub of fs.readdirSync(path.join(pkgs, d))) {
+            tries.push(path.join(pkgs, d, sub, 'bin', 'ffmpeg.exe'));
+          }
+        }
+      } catch (_) { /* tidak ada folder winget */ }
+    }
     tries.push('C:\\ffmpeg\\bin\\ffmpeg.exe', 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe');
   } else {
-    tries.push('/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg');
+    tries.push('/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg');
   }
   for (const t of tries) {
     try {
