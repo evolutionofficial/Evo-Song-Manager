@@ -56,10 +56,10 @@ export function safe(label, fn, el = null) {
   }
 }
 
-/** addEventListener yang dibungkus safe(). */
-export function on(target, type, label, handler) {
+/** addEventListener yang dibungkus safe(). opts (opsional) diteruskan ke addEventListener. */
+export function on(target, type, label, handler, opts) {
   if (!target) { report(label, new Error(`element for event ${type} not found`)); return; }
-  target.addEventListener(type, (e) => safe(label, () => handler(e)));
+  target.addEventListener(type, (e) => safe(label, () => handler(e)), opts);
 }
 
 /**

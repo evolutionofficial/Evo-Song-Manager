@@ -1,10 +1,11 @@
 // VOKALIS — modul Accept, Revision & Send to FC.
 //
 // Alur: lagu baru → tombol "Accept". Vokalis mendengarkan dulu; kalau sudah oke, tekan Accept
-// (lagu dikunci). Setelah itu muncul "Revision" dan "Send to FC".
+// (lagu dikunci). Setelah itu muncul "Send to FC".
 // Revision = batalkan Accept + minta revisi (boleh dengan catatan); tombol kembali ke "Accept".
+// Revision bukan tombol: diminta lewat klik kanan / tekan lama pada lagu (lihat songlist.js).
 // Send to FC: lagu muncul di halaman unduhan operator FC (/fc/<kode>). Vokalis memberi tahu
-// operator sendiri lewat WhatsApp. Status: Sent → Downloaded (setelah operator mengunduh).
+// operator sendiri lewat WhatsApp. Status: Sent → Ready (setelah operator mengunduh).
 import { sb } from '/js/core/supabase.js';
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';
@@ -125,7 +126,7 @@ export function mount(report_) {
   dlg.innerHTML = `<form method="dialog">
       <h2>Accept this song?</h2>
       <p class="cf-title"></p>
-      <p class="note">After accepting, this mixdown is locked and you can send it to FC. If something still needs fixing later, use Revision.</p>
+      <p class="note">After accepting, this mixdown is locked and you can send it to FC. If something still needs fixing later, right-click the song (on phone: press and hold) and choose Request a revision.</p>
       <div class="bar" style="margin:14px 0 0;justify-content:flex-end">
         <button value="cancel">Not yet</button>
         <button class="primary" value="ok">Accept</button>
