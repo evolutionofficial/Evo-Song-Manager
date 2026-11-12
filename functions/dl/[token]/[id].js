@@ -14,7 +14,7 @@ export async function onRequest({ request, env, params }) {
   try { info = await rpc('operator_download', { p_token: token, p_upload: id }); }
   catch (e) {
     if (/link not found/.test(e.message)) return page(404, 'Link not valid', 'This page link has changed. Ask the studio for the new link.');
-    if (/not available/.test(e.message)) return page(410, 'File no longer available', 'This song has been replaced or cleaned up. Ask the studio if you still need it.');
+    if (/not available/.test(e.message)) return page(410, 'File expired', 'This file has expired (removed from storage) or was replaced, so it can’t be downloaded anymore. Ask the studio if you still need it.');
     return page(502, 'Something went wrong', 'Could not check the file. Please try again in a moment.');
   }
   return streamDriveFile(request, env, info.drive_file_id, info.file_name);

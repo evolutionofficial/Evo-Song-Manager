@@ -17,6 +17,7 @@ const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" str
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.2a1.5 1.5 0 0 1 1.1.48l1.2 1.3a1.5 1.5 0 0 0 1.1.47h6.4A1.5 1.5 0 0 1 20 9.75V17.5A1.5 1.5 0 0 1 18.5 19h-14A1.5 1.5 0 0 1 3 17.5Z"/></svg>';
 
 let songs = [];
+let expired = []; // lagu yang filenya sudah dibersihkan dari Drive (batas 40): hanya judulnya yang tampil di folder
 let names = []; // semua vokalis → folder selalu tampil walau masih kosong
 let view = 'new'; // 'new' | nama vokalis
 let timer = null;
@@ -35,6 +36,11 @@ function folders() {
     if (!by.has(s.vocalist)) by.set(s.vocalist, []);
     by.get(s.vocalist).push(s);
   }
+  // Lagu expired selalu masuk folder vokalisnya (operator tidak dibatasi 40); filenya sudah tidak bisa diunduh.
+  for (const s of expired) {
+    if (!by.has(s.vocalist)) by.set(s.vocalist, []);
+    by.get(s.vocalist).push({ ...s, expired: true });
+  }
   return [...by.entries()]
     .map(([name, list]) => ({
       name,
@@ -52,6 +58,17 @@ function fail(title, sub) {
 }
 
 function songRow(s) {
+  if (s.expired) {
+    return `
+    <div class="row op-row expired" data-id="${esc(s.id)}">
+      <div class="op-main">
+        <div class="op-title">${esc(s.title)} <span class="badge muted">Expired</span></div>
+        <div class="op-meta"><span class="op-voc">${esc(s.vocalist)}</span> · ${esc(dateOf(s))}${s.size ? ' · ' + mb(s.size) : ''}
+          <span class="op-gone" title="${esc(fmtDate(s.expired_at))}">File expired — can't be downloaded anymore</span></div>
+      </div>
+      <span class="op-exp" role="note" title="This file has expired and was removed from storage.">Expired</span>
+    </div>`;
+  }
   return `
     <div class="row op-row ${isNew(s) ? 'is-new' : 'done'}" data-id="${esc(s.id)}">
       <div class="op-main">
@@ -92,7 +109,8 @@ function renderNew() {
 function renderFolder(name) {
   const f = folders().find((x) => x.name === name);
   $('title').textContent = f.name;
-  $('sub').textContent = f.list.length ? `${plural(f.list.length, 'song')} in this folder` : 'Folder';
+  const nExp = f.list.filter((x) => x.expired).length;
+  $('sub').textContent = f.list.length ? `${plural(f.list.length, 'song')} in this folder${nExp ? ` · ${nExp} expired` : ''}` : 'Folder';
   $('newCount').innerHTML = '';
   $('allBtn').hidden = true;
   $('list').innerHTML = f.list.length
@@ -122,6 +140,7 @@ async function load(first) {
   }
   if (!res.data) return fail('Link not found', 'This link is wrong or has been replaced. Ask the studio for the latest link.');
   songs = res.data.songs || [];
+  expired = res.data.expired_songs || [];
   names = res.data.vocalists || [];
   $('msg').classList.add('hidden');
   $('app').classList.remove('hidden');

@@ -764,6 +764,10 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 .op-done { color: var(--ok); margin-left: 4px; }
 .op-sent { color: #ffd38a; margin-left: 4px; }
 .op-row.done .op-title { color: var(--text); opacity: .75; }
+.op-row.expired .op-title { color: var(--muted); }
+.op-gone { color: var(--faint); margin-left: 4px; }
+.op-exp { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 650;
+  background: rgba(255, 255, 255, .05); color: var(--muted); border: 1px solid var(--line); cursor: not-allowed; user-select: none; }
 .op-dl { gap: 7px; border-radius: 999px; padding: 0 16px; min-height: 40px; font-weight: 650; }
 .op-dl.hot { background: var(--grad-blue); border-color: transparent; color: #fff; box-shadow: 0 0 18px rgba(46, 139, 255, .45); }
 .badge.new { background: rgba(46, 139, 255, .18); color: #9fd0ff; border: 1px solid rgba(46, 139, 255, .45); font-weight: 700; }
