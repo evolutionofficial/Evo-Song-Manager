@@ -1018,3 +1018,66 @@ body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
 .cl-go.ring { border-color: var(--accent); background: var(--accent); color: #fff; animation: clRing 1.4s ease-in-out infinite; }
 @keyframes clRing { 0%, 100% { box-shadow: 0 0 0 0 rgba(46, 139, 255, .5); } 50% { box-shadow: 0 0 0 7px rgba(46, 139, 255, 0); } }
 @media (prefers-reduced-motion: reduce) { .cl-go.ring { animation: none; } }
+
+/* ---- Pemberitahuan kamera: berisi langkah, jadi harus terbaca, bukan sekadar ikon ---- */
+.cl-camwarn {
+  margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+  border: 1px solid rgba(255, 176, 32, .35); background: rgba(255, 176, 32, .08); color: #ffd79a;
+}
+
+/* ---- Saat tersambung: video memenuhi layar, tombol melayang di atasnya (seperti FaceTime) ---- */
+body.cl-live { overflow: hidden; }
+.cl-wrap.live {
+  position: fixed; inset: 0; z-index: 70; gap: 0;
+  background: #05060a; padding: 0;
+}
+/* Pemilih vokalis dan keadaan tidak perlu menutupi video; keadaannya melayang kecil di atas. */
+.cl-wrap.live .cl-pick {
+  position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; z-index: 2;
+  pointer-events: none;
+}
+.cl-wrap.live .cl-pick label, .cl-wrap.live .cl-pick select { display: none; }
+.cl-wrap.live .cl-state {
+  background: rgba(5, 6, 10, .6); color: #e8ecf4; padding: 5px 11px; border-radius: 999px;
+  backdrop-filter: blur(6px); font-size: 12.5px;
+}
+.cl-wrap.live .cl-stage {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  aspect-ratio: auto; border: 0; border-radius: 0;
+}
+.cl-wrap.live .cl-local {
+  right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); width: 28%; max-width: 170px;
+}
+.cl-wrap.live .cl-camwarn {
+  position: absolute; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 3;
+  max-width: 460px; margin: 0 auto; background: rgba(40, 28, 6, .92); backdrop-filter: blur(6px);
+}
+.cl-wrap.live .cl-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  justify-content: center; gap: 14px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(5, 6, 10, .85), rgba(5, 6, 10, 0));
+}
+.cl-wrap.live .cl-bar .grow { display: none; }
+/* Tombol melayang perlu latar sendiri supaya terbaca di atas gambar apa pun. */
+.cl-wrap.live .st-btn {
+  width: 54px; height: 54px;
+  background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .22); color: #fff;
+  backdrop-filter: blur(8px);
+}
+.cl-wrap.live .st-btn:hover { background: rgba(255, 255, 255, .24); color: #fff; }
+.cl-wrap.live .st-btn.off { background: rgba(255, 255, 255, .92); color: #15171c; border-color: transparent; }
+.cl-wrap.live .st-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cl-wrap.live .st-end { background: #ff4d4d; border-color: #ff4d4d; color: #fff; }
+.cl-wrap.live .st-end:hover { background: #ff3333; border-color: #ff3333; }
+.cl-wrap.live [data-hint] { display: none; }
+
+/* .panel memakai backdrop-filter, dan properti itu menjadikan elemennya patokan baru untuk
+   position: fixed — akibatnya panel panggilan terkurung di dalam kotaknya, bukan memenuhi
+   layar. Jadi selama panggilan, kotak pembungkusnya dinetralkan. Panel lain ikut kehilangan
+   efeknya, tapi itu tidak terlihat: semuanya tertutup panggilan yang memenuhi layar. */
+body.cl-live #callPanel,
+body.cl-live #vCallPanel {
+  background: none; border: 0; padding: 0; margin: 0; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}

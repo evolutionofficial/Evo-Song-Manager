@@ -24,6 +24,18 @@ const I = {
   end: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
 };
 
+// Pesan kamera dibuat berisi LANGKAH, bukan sekadar "gagal". Yang paling sering terjadi
+// adalah izinnya pernah ditolak, dan browser tidak akan bertanya lagi — jadi orangnya harus
+// diberi tahu di mana mengubahnya, kalau tidak dia akan menekan tombol kamera berulang-ulang.
+const CAM_MSG = {
+  blocked: navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')
+    ? 'Camera is blocked. Tap the “aA” icon in Safari’s address bar → Website Settings → Camera → Allow, then press the camera button again. If it is not there, open Settings → Safari → Camera.'
+    : 'Camera is blocked. Tap the padlock in the address bar → Permissions → allow Camera, then press the camera button again.',
+  nocam: 'No camera found on this device. The call still works with sound.',
+  busy: 'Another app is using the camera. Close it, then press the camera button again.',
+  failed: 'The camera could not start. The call still works with sound.',
+};
+
 const TEXT = {
   idle: 'Not in a call', asking: 'Asking for your microphone and camera…',
   calling: 'Ringing…', ringing: 'Incoming call', connecting: 'Connecting…',
@@ -38,6 +50,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   let camOn = true;         // kamera menyala begitu panggilan dimulai, sesuai permintaan
   let shareOn = false;
   let state = 'idle';
+  let camProblem = null;
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -55,6 +68,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         <video class="cl-local" data-local autoplay playsinline muted hidden></video>
       </div>
 
+      <p class="cl-camwarn" data-camwarn hidden></p>
+
       <div class="cl-bar">
         <button class="cl-go" data-go></button>
         <span class="grow"></span>
@@ -71,6 +86,16 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
 
   function paint() {
     q('[data-state]').textContent = TEXT[state] || state;
+
+    // Saat tersambung, videonya memenuhi layar dan tombolnya melayang di atasnya —
+    // seperti FaceTime. Di luar panggilan panel kembali menjadi kotak biasa di halaman.
+    const full = state === 'live';
+    q('.cl-wrap').classList.toggle('live', full);
+    document.body.classList.toggle('cl-live', full);
+
+    const warn = q('[data-camwarn]');
+    warn.hidden = !(camProblem && inCall());
+    if (!warn.hidden) warn.textContent = CAM_MSG[camProblem] || CAM_MSG.failed;
 
     const go = q('[data-go]');
     if (state === 'ringing') { go.innerHTML = I.call + '<span>Answer</span>'; go.className = 'cl-go ring'; go.hidden = false; }
@@ -97,9 +122,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       q('[data-ph-t]').textContent =
         state === 'ringing' ? 'Someone is calling' :
         state === 'calling' ? 'Ringing the other side…' :
+        state === 'asking' ? 'Allow the microphone and camera' :
+        state === 'connecting' ? 'Connecting…' :
         state === 'failed' ? 'Could not connect' : 'Not in a call';
       q('[data-ph-s]').textContent =
         state === 'failed' ? 'Check the connection and try again.'
+        : state === 'connecting' || state === 'asking' || state === 'calling' ? ''
         : isHost ? 'Pick a vocalist, then press Call.' : 'Press Call to reach the studio.';
     }
     const self = inCall() && (camOn || shareOn) && voice?.localStream;
@@ -129,6 +157,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         state = s;
         if (typeof inf?.screen === 'boolean') shareOn = inf.screen;
         if (s === 'live' || s === 'connecting') camOn = !!inf?.video;
+        if (inf && 'cam' in inf) camProblem = inf.cam || null;
         paint();
       },
       onRemote: (stream) => { q('[data-remote]').srcObject = stream || null; },
@@ -165,7 +194,16 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         return;
       }
       if (e.target.closest('[data-mic]')) { voice?.setMuted(!voice.muted); paint(); return; }
-      if (e.target.closest('[data-cam]')) { camOn = !camOn; await voice?.setCamera(camOn); paint(); return; }
+      if (e.target.closest('[data-cam]')) {
+        // Nilai baliknya yang dipercaya, bukan niat kita: kalau izinnya ditolak, setCamera
+        // mengembalikan false dan tombolnya tidak boleh terlihat menyala.
+        const want = !camOn;
+        const got = await voice?.setCamera(want);
+        camOn = !!got;
+        if (got) camProblem = null;
+        paint();
+        return;
+      }
       if (e.target.closest('[data-share]')) { shareOn = await voice.setScreen(!shareOn); paint(); return; }
       if (e.target.closest('[data-end]')) { voice?.hangUp(); shareOn = false; paint(); return; }
     } catch (err) { onError?.(err); }

@@ -25,7 +25,13 @@ const plainDesc = (d) => (d ? { type: d.type, sdp: d.sdp } : null);
 const plainCand = (c) => (c
   ? { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex, usernameFragment: c.usernameFragment }
   : null);
-const CAM = { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } };
+// facingMode 'user' disebut eksplisit: di HP, tanpa ini browser boleh memilih kamera belakang,
+// dan yang dibutuhkan rapat adalah wajah orangnya. 'ideal' bukan 'exact' supaya laptop yang
+// hanya punya satu kamera tidak gagal sama sekali.
+const CAM = {
+  width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 },
+  facingMode: { ideal: 'user' },
+};
 
 // Layar DAW penuh tulisan kecil, jadi yang diutamakan KETAJAMAN, bukan kehalusan gerak:
 // resolusi tinggi dengan frame rate rendah. Kebalikan dari setelan kamera. Kalau nanti terasa
@@ -57,6 +63,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   // Alasannya dua: satu m-line berarti tidak perlu perundingan ulang sama sekali (replaceTrack
   // langsung tukar isi), dan sisi penerima tidak perlu menebak mana kamera mana layar.
   // Kamera yang tergusur disimpan di sini supaya bisa dipulihkan saat berbagi layar dihentikan.
+  let camFail = null;          // kenapa kamera tidak jadi menyala, untuk ditampilkan
   let screenTrack = null;
   let camBefore = null;
   let screenAdded = false;    // true kalau pengirimnya kita yang buat (kamera sedang mati)
@@ -145,7 +152,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       const sender = pc.addTrack(t, local);
       if (t.kind === 'video') camSender = sender;
     }
-    set('connecting', { video: local.getVideoTracks().length > 0 });
+    set('connecting', { video: local.getVideoTracks().length > 0, cam: camFail });
 
     // Apa pun yang sudah datang lebih dulu, dipakai sekarang.
     if (pendingDesc) { const d = pendingDesc; pendingDesc = null; await onDesc(d); }
@@ -173,18 +180,36 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     }
     set('asking');
     try {
-      return await navigator.mediaDevices.getUserMedia({ audio: MIC, video: video ? CAM : false });
+      const st = await navigator.mediaDevices.getUserMedia({ audio: MIC, video: video ? CAM : false });
+      camFail = null;
+      return st;
     } catch (e) {
-      // Kamera ditolak/tidak ada tapi mikrofon mungkin masih bisa: coba suara saja.
+      // Kamera ditolak/tidak ada tapi mikrofon mungkin masih bisa: panggilan diteruskan dengan
+      // suara saja. Tapi SEBABNYA harus sampai ke layar — sebelumnya ini dilakukan diam-diam,
+      // dan gejalanya "kamera saya tidak menyala" tanpa petunjuk apa pun.
       if (video) {
-        try { wantVideo = false; return await navigator.mediaDevices.getUserMedia({ audio: MIC, video: false }); }
-        catch (e2) { e2.__kind = 'denied'; throw e2; }
+        try {
+          const st = await navigator.mediaDevices.getUserMedia({ audio: MIC, video: false });
+          wantVideo = false;
+          camFail = camReason(e);
+          return st;
+        } catch (e2) { e2.__kind = 'denied'; throw e2; }
       }
       e.__kind = 'denied'; throw e;
     }
   }
 
   /** Ambil mikrofon saja. Sambungan dibuat terpisah, setelah sisi lain juga siap. */
+  // Nama kesalahan dari browser diterjemahkan ke sebab yang bisa ditindak orangnya.
+  // 'blocked' artinya prompt tidak akan muncul lagi: izinnya harus diubah di setelan browser.
+  function camReason(e) {
+    const n = e?.name || '';
+    if (n === 'NotAllowedError') return 'blocked';
+    if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'nocam';
+    if (n === 'NotReadableError' || n === 'AbortError') return 'busy';
+    return 'failed';
+  }
+
   async function grab(video) {
     local = await getMedia(video);
     for (const t of local.getAudioTracks()) t.enabled = !muted;
@@ -303,21 +328,36 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       if (!pc) { wantVideo = !!on; return; }
       try {
         if (on && !camSender) {
-          const cam = await navigator.mediaDevices.getUserMedia({ video: CAM });
+          let cam;
+          try {
+            cam = await navigator.mediaDevices.getUserMedia({ video: CAM });
+          } catch (e) {
+            // Dilaporkan, bukan ditelan: tanpa ini tombol kamera terlihat ditekan tapi
+            // tidak terjadi apa-apa, dan orangnya tidak tahu harus berbuat apa.
+            camFail = camReason(e);
+            set(state, { video: false, cam: camFail });
+            return false;
+          }
           const t = cam.getVideoTracks()[0];
-          if (!t) return;
+          if (!t) { camFail = 'nocam'; set(state, { video: false, cam: camFail }); return false; }
+          camFail = null;
           local.addTrack(t);
           camSender = pc.addTrack(t, local);
-          set(state, { video: true });
+          set(state, { video: true, cam: null });
+          return true;
         } else if (!on && camSender) {
           const t = camSender.track;
           pc.removeTrack(camSender);
           camSender = null;
           if (t) { t.stop(); try { local.removeTrack(t); } catch (_) {} }
-          set(state, { video: false });
+          set(state, { video: false, cam: null });
+          return false;
         }
-      } catch (e) { oops(e); }
+        return !!camSender;
+      } catch (e) { oops(e); return !!camSender; }
     },
+
+    get camProblem() { return camFail; },
 
     get sharing() { return !!screenTrack; },
 
