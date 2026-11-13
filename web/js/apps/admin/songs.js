@@ -56,7 +56,10 @@ function renderTable() {
 function playButton(s) {
   const ok = ctx.canPlay(s);
   const tip = ok ? 'Play' : (s.revision_requested_at ? 'Being revised — no audio right now' : 'No audio yet');
-  return `<button type="button" class="btn playbtn${ok ? '' : ' noaudio'}" data-aplay="${s.id}" aria-label="Play ${esc(s.title)}" title="${esc(tip)}">▶</button>`;
+  // Dua ikon ikut tercetak; CSS memilih mana yang tampak, memakai kelas .playing di baris
+  // (dipasang playback.js) dan .is-playing di <body> (dipasang pemutar vokalis yang dipakai
+  // ulang di sini). Aturan CSS-nya sama persis dengan yang dipakai daftar lagu vokalis.
+  return `<button type="button" class="btn playbtn${ok ? '' : ' noaudio'}" data-aplay="${s.id}" aria-label="Play ${esc(s.title)}" title="${esc(tip)}"><span class="ico-play" aria-hidden="true">▶</span><span class="ico-pause" aria-hidden="true">❚❚</span></button>`;
 }
 
 /** Total "Belum dibayar" di samping filter; disembunyikan kalau semua sudah lunas. */
