@@ -20,6 +20,7 @@ export function render() {
       <div class="bar" style="margin:0">
         <select data-assign-sel="${esc(prefix)}" style="width:auto"><option value="">Add to table…</option>${opts}</select>
         <button data-assign="${esc(prefix)}">Save</button>
+        <button data-ignore="${esc(prefix)}" class="danger" title="Nama ini bukan vokalis di aplikasi ini. Filenya dibiarkan di komputer, hanya tidak ditanyakan lagi.">Not a vocalist — hide</button>
       </div>
     </div>`).join('');
 }
@@ -27,6 +28,18 @@ export function render() {
 export function init(c) {
   ctx = c;
   on($('unList'), 'click', 'Needs review', async (e) => {
+    // "Bukan vokalis": nama disembunyikan untuk SETERUSNYA, bukan cuma barisnya dihapus.
+    // File baru dengan nama yang sama pun tidak akan muncul lagi di sini. Tidak ada file
+    // yang dipindah, diubah atau dihapus di komputer.
+    const ign = e.target.closest('[data-ignore]')?.dataset.ignore;
+    if (ign !== undefined) {
+      if (!confirm(`Sembunyikan nama “${ign}”?\n\nFile dengan nama depan ini tidak akan ditanyakan lagi, sekarang maupun nanti. File di komputer tidak disentuh sama sekali.`)) return;
+      const { data, error } = await sb.rpc('ignore_prefix', { p_prefix: ign });
+      if (error) return toast('Failed: ' + error.message, 'bad');
+      toast(`“${ign}” disembunyikan (${data} file)`);
+      await ctx.reload();
+      return;
+    }
     const prefix = e.target.dataset.assign; if (prefix === undefined) return;
     const sel = [...document.querySelectorAll('[data-assign-sel]')].find((s) => s.dataset.assignSel === prefix);
     if (!sel.value) return toast('Choose a vocalist first', 'bad');

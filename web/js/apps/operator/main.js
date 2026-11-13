@@ -23,7 +23,9 @@ let timer = null;
 
 const mb = (b) => (b ? `${(b / 1048576).toFixed(0)} MB` : '');
 const dateOf = (s) => (s.date ? fmtDate(s.date + 'T12:00:00+07:00') : '');
-const isNew = (s) => !s.downloaded_at;
+// Lagu yang filenya sudah tidak disimpan lagi tidak pernah dihitung "baru": tidak ada yang
+// bisa dikerjakan atasnya, dia hanya catatan riwayat. Jadi dia langsung masuk folder vokalis.
+const isNew = (s) => !s.downloaded_at && !s.gone;
 const fresh = () => songs.filter(isNew);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
@@ -53,7 +55,7 @@ function fail(title, sub) {
 
 function songRow(s) {
   return `
-    <div class="row op-row ${isNew(s) ? 'is-new' : 'done'}" data-id="${esc(s.id)}">
+    <div class="row op-row ${s.gone ? 'gone' : isNew(s) ? 'is-new' : 'done'}" data-id="${esc(s.id)}">
       <div class="op-main">
         <div class="op-title">${esc(s.title)}${isNew(s) ? ' <span class="badge new">New</span>' : ''}</div>
         <div class="op-meta"><span class="op-voc">${esc(s.vocalist)}</span> · ${esc(dateOf(s))}${s.size ? ' · ' + mb(s.size) : ''}
@@ -61,7 +63,9 @@ function songRow(s) {
             ? `<span class="op-done" title="${esc(fmtDate(s.downloaded_at))}">✓ Downloaded ${esc(timeAgo(s.downloaded_at))}</span>`
             : `<span class="op-sent">Sent ${esc(timeAgo(s.sent_at))}</span>`}</div>
       </div>
-      <a class="btn op-dl ${isNew(s) ? 'hot' : ''}" href="/dl/${encodeURIComponent(token)}/${encodeURIComponent(s.id)}" download="${esc(s.file_name)}" data-dl="${esc(s.id)}">${DL_ICON}<span>Download</span></a>
+      ${s.gone
+        ? `<span class="op-gone" title="Sent ${esc(timeAgo(s.sent_at))}. The file is no longer stored, so it cannot be downloaded again. Ask the studio if you need it.">No longer stored</span>`
+        : `<a class="btn op-dl ${isNew(s) ? 'hot' : ''}" href="/dl/${encodeURIComponent(token)}/${encodeURIComponent(s.id)}" download="${esc(s.file_name)}" data-dl="${esc(s.id)}">${DL_ICON}<span>Download</span></a>`}
     </div>`;
 }
 
@@ -121,7 +125,11 @@ async function load(first) {
     return;
   }
   if (!res.data) return fail('Link not found', 'This link is wrong or has been replaced. Ask the studio for the latest link.');
-  songs = res.data.songs || [];
+  // Operator menyimpan SELURUH riwayat lagu yang pernah dikirim kepadanya, berapa pun
+  // jumlahnya. Yang filenya sudah tidak ada di penyimpanan tetap tercatat di daftar,
+  // hanya tanpa tombol unduh. Batas 40 itu soal berapa file yang disimpan, bukan berapa
+  // lagu yang dia tahu pernah diterima.
+  songs = (res.data.songs || []).concat((res.data.expired_songs || []).map((x) => ({ ...x, gone: true })));
   names = res.data.vocalists || [];
   $('msg').classList.add('hidden');
   $('app').classList.remove('hidden');

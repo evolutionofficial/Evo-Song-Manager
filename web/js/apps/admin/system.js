@@ -54,7 +54,8 @@ export async function render() {
       <div class="dv-meta">${j.device ? esc(j.device) + ' · ' : ''}${esc(timeAgo(j.updated_at))}${j.attempts ? ` · try ${j.attempts}` : ''}</div>
       ${j.error ? `<div class="sys-err">${esc(j.error)}</div>` : ''}
       ${j.song_id ? `<div class="cf-acts"><button data-open="${esc(j.song_id)}">Open song</button>
-        ${j.status === 'needs_admin' ? `<button data-retry="${esc(j.id)}">Try again</button>` : ''}</div>` : ''}
+        ${j.status === 'needs_admin' ? `<button data-retry="${esc(j.id)}">Try again</button>` : ''}
+        ${['needs_admin', 'failed'].includes(j.status) ? `<button data-dismiss="${esc(j.id)}" title="Hilangkan baris ini dari halaman. Lagunya tidak disentuh.">Dismiss</button>` : ''}</div>` : ''}
     </div>`);
 
   const wav = (data.wav || []).map((w) => `<div class="sys-row">
@@ -106,6 +107,16 @@ export function init(c) {
       if (error) return toast('Failed: ' + error.message, 'bad');
       toast('Trying again');
       render();
+      return;
+    }
+    // Dismiss hanya menyingkirkan BARIS-nya. Lagu, audio dan file tidak disentuh sama sekali.
+    const dis = e.target.closest('[data-dismiss]');
+    if (dis) {
+      if (!confirm('Hilangkan baris ini dari halaman System?\n\nLagunya sendiri tidak disentuh — audio dan filenya tetap seperti sekarang.')) return;
+      const { error } = await sb.rpc('dismiss_job', { p_job: dis.dataset.dismiss });
+      if (error) return toast('Failed: ' + error.message, 'bad');
+      toast('Baris disingkirkan');
+      ctx.reload();
     }
   });
 }

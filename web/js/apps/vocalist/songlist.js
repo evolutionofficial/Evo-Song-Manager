@@ -54,14 +54,20 @@ function buttons(s) {
 function playButton(s) {
   const off = onRevision(s) || !s.audio;
   const why = onRevision(s) ? 'Being revised — the new version is not ready yet' : (s.audio ? '' : 'No audio yet');
-  return `<a class="btn playbtn${off ? ' noaudio' : ''}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${why ? ` title="${esc(why)}"` : ''}>▶</a>`;
+  // Dua ikon ikut tercetak; CSS yang memilih mana yang tampak. Lagu yang sedang berbunyi
+  // memakai ikon jeda, supaya dari daftar langsung kelihatan mana yang jalan. Keadaannya
+  // datang dari kelas is-playing di <body> yang dipasang modul Player, jadi tidak perlu
+  // event baru dan tidak ada sumber kebenaran kedua yang bisa ikut basi.
+  return `<a class="btn playbtn${off ? ' noaudio' : ''}" data-play="${s.n}" href="${playUrl(s.n)}" aria-label="Play ${esc(s.title)}"${why ? ` title="${esc(why)}"` : ''}><span class="ico-play" aria-hidden="true">▶</span><span class="ico-pause" aria-hidden="true">❚❚</span></a>`;
 }
 
 function sendButton(s) {
   const t = esc(s.title);
-  // Sudah dikirim ke First Club: "Ready" (biru). Kalau vokalis juga sudah mengunduh WAV-nya: "Finish".
+  // Sudah dikirim ke First Club: "Ready" (biru). Finish butuh DUA-DUANYA, sesuai permintaan
+  // Jeffry: operator benar-benar sudah mengunduhnya, DAN vokalis sudah punya salinannya.
+  // Sekadar terkirim belum cukup — selama operator belum mengambilnya, statusnya tetap Ready.
   // Keduanya hanya tampilan — tidak bisa ditekan.
-  if (s.sent_at && s.vocalist_downloaded_at) return `<button class="sendbtn done" disabled title="Sent to FC and downloaded" aria-label="${t}: finish">${CHECK_ICON}<span>Finish</span></button>`;
+  if (s.fc_downloaded_at && s.vocalist_downloaded_at) return `<button class="sendbtn done" disabled title="Done — FC has this song and you have your own copy" aria-label="${t}: finish">${CHECK_ICON}<span>Finish</span></button>`;
   if (s.sent_at) return `<button class="sendbtn ready" disabled title="Sent to FC" aria-label="${t}: ready">${CHECK_ICON}<span>Ready</span></button>`;
   if (canDownload(s)) return `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${t}">${SEND_ICON}<span>Send to FC</span></button>`;
   if (s.wav === 'complete') return `<button class="sendbtn" disabled title="This file is no longer stored. Ask the studio." aria-label="${t}: not available">${SEND_ICON}<span>Unavailable</span></button>`;

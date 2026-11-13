@@ -896,3 +896,19 @@ body.has-listen .main { padding-bottom: 104px; }
 .call-media .cm-local { position: absolute; right: 8px; bottom: 8px; width: 68px; border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, .25); background: #000; }
 @media (max-width: 700px) { .call-media { width: 150px; bottom: 150px; } }
+
+/* ---- Tombol ▶ di daftar lagu vokalis: jadi ⏸ saat lagu itu yang sedang berbunyi ----
+   Keadaan diambil dari .is-playing di <body> (dipasang modul Player) + baris .playing,
+   jadi tidak ada sumber kebenaran kedua yang bisa ikut basi. */
+.playbtn .ico-pause { display: none; }
+body.is-playing .row.playing .playbtn .ico-play { display: none; }
+body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
+
+/* ---- Operator: lagu yang pernah dikirim tapi filenya sudah tidak disimpan lagi ---- */
+.op-row.gone { opacity: .72; }
+.op-gone {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px dashed var(--line); color: var(--muted);
+  font-size: 12.5px; white-space: nowrap;
+}
