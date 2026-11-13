@@ -776,9 +776,22 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 /* Ready = sudah dikirim ke First Club: biru senada tema, hanya tampilan (tidak bisa ditekan) */
 .sendbtn.ready { color: #cfe6ff; border-color: rgba(46, 139, 255, .5); background: linear-gradient(135deg, rgba(46, 139, 255, .22), rgba(46, 139, 255, .08)); }
 .sendbtn.ready svg { color: #6fb6ff; }
-/* Finish = sudah dikirim dan sudah diunduh vokalis */
-.sendbtn.done { color: #c9f5e2; border-color: rgba(61, 220, 151, .4); background: rgba(61, 220, 151, .1); }
-.sendbtn.done svg { color: #3ddc97; }
+/* Finish = urusan lagu ini tuntas. SENGAJA tanpa bingkai: tidak ada yang perlu ditekan,
+   jadi bentuk tombol justru menipu. Hijau juga dihindari karena terlalu mirip Accept —
+   satu-satunya tombol hijau di baris ini — sehingga sekilas keduanya tertukar.
+   Warnanya biru elektrik senada tema, lebih terang dari Ready supaya tetap terbaca sebagai
+   akhir perjalanan, bukan tahap di tengah. */
+.sendbtn.done {
+  border: 0; background: none; box-shadow: none;
+  padding: 0 2px; color: #6fb6ff; font-weight: 650;
+}
+.sendbtn.done svg { color: #6fb6ff; }
+/* Teks "Finish" tetap tampil di layar sempit: tanpa bingkai, ikon centang sendirian
+   tidak memberi tahu apa pun. */
+@media (max-width: 360px) {
+  .sendbtn.done span { display: inline; }
+  .sendbtn.done { width: auto; padding: 0 2px; }
+}
 /* Unduh WAV untuk vokalis (kiri tombol Send to FC; hilang setelah FC mengunduh) */
 .dlbtn { width: 36px; height: 36px; min-height: 36px; padding: 0; justify-content: center; border-radius: 999px; color: #9fd0ff;
   background: linear-gradient(135deg, rgba(46, 139, 255, .16), rgba(46, 139, 255, .05)); border-color: rgba(46, 139, 255, .38); }
