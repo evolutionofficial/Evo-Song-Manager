@@ -1,5 +1,8 @@
 # Listen Together — rancangan & hasil (11 Nov 2026)
 
+> Catatan: dokumen ini tentang menyimak mixdown bersama, BUKAN tentang FC Private Studio
+> (rapat membahas editing di DAW dengan berbagi layar). Untuk itu lihat `FC_PRIVATE_STUDIO_DESIGN.md`.
+
 > **Status: SELESAI.** Penyelarasan pemutaran dan panggilan suara di dalam aplikasi keduanya
 > sudah terpasang. Jeffry memilih pilihan B di bagian 5 (suara dibangun di dalam aplikasi).
 > Satu langkah pengaturan masih perlu dia lakukan sendiri: kunci TURN — lihat `TURN_SETUP.md`.
