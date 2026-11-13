@@ -96,9 +96,21 @@ begin
     update public.listen_rooms r set closed_at = now()
      where r.vocalist_id = v_id and r.kind = 'call' and r.closed_at is null;
 
-    v_code := 'lr_' || replace(gen_random_uuid()::text, '-', '');
-    insert into public.listen_rooms (code, vocalist_id, opened_by, kind)
-    values (v_code, v_id, auth.uid(), 'call');
+    -- Balapan: kalau admin dan vokalis meminta ruang hampir bersamaan, keduanya tidak
+    -- menemukan ruang hidup lalu keduanya mencoba membuat. Indeks unik menolak yang kedua
+    -- (409), dan gejalanya di layar: ruang tidak terbuka, tombol Call diam saja.
+    -- Yang kalah balapan sekarang memakai ruang milik pemenang, bukan menyerah.
+    begin
+      v_code := 'lr_' || replace(gen_random_uuid()::text, '-', '');
+      insert into public.listen_rooms (code, vocalist_id, opened_by, kind)
+      values (v_code, v_id, auth.uid(), 'call');
+    exception when unique_violation then
+      v_code := null;
+      select r.code into v_code from public.listen_rooms r
+       where r.vocalist_id = v_id and r.kind = 'call'
+         and r.closed_at is null and r.expires_at > now();
+      if v_code is null then raise; end if;   -- bukan balapan: kesalahan lain, jangan ditelan
+    end;
   end if;
 
   return query

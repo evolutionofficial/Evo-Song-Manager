@@ -51,6 +51,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   let shareOn = false;
   let state = 'idle';
   let camProblem = null;
+  let lastError = null;
+  let stuckNote = false;
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -68,6 +70,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         <video class="cl-local" data-local autoplay playsinline muted hidden></video>
       </div>
 
+      <p class="cl-err" data-err hidden></p>
       <p class="cl-camwarn" data-camwarn hidden></p>
 
       <div class="cl-bar">
@@ -92,6 +95,10 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     const full = state === 'live';
     q('.cl-wrap').classList.toggle('live', full);
     document.body.classList.toggle('cl-live', full);
+
+    const err = q('[data-err]');
+    err.hidden = !lastError;
+    if (lastError) err.textContent = lastError;
 
     const warn = q('[data-camwarn]');
     warn.hidden = !(camProblem && inCall());
@@ -126,7 +133,9 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         state === 'connecting' ? 'Connecting…' :
         state === 'failed' ? 'Could not connect' : 'Not in a call';
       q('[data-ph-s]').textContent =
-        state === 'failed' ? 'Check the connection and try again.'
+        state === 'failed' ? (stuckNote
+          ? 'The other side never answered. If you are testing both ends on one phone, it cannot work: a background Safari tab is frozen by iOS and cannot answer. Use two devices.'
+          : 'Check the connection and try again.')
         : state === 'connecting' || state === 'asking' || state === 'calling' ? ''
         : isHost ? 'Pick a vocalist, then press Call.' : 'Press Call to reach the studio.';
     }
@@ -158,6 +167,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         if (typeof inf?.screen === 'boolean') shareOn = inf.screen;
         if (s === 'live' || s === 'connecting') camOn = !!inf?.video;
         if (inf && 'cam' in inf) camProblem = inf.cam || null;
+        if (s === 'failed') stuckNote = inf?.note === 'stuck';
+        if (s !== 'failed' && s !== 'idle') stuckNote = false;
         paint();
       },
       onRemote: (stream) => { q('[data-remote]').srcObject = stream || null; },
@@ -171,6 +182,28 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     try { voice?.stop(); } catch (_) {}
     try { room?.leave(); } catch (_) {}
     voice = null; room = null; joinedCode = null; state = 'idle'; shareOn = false;
+  }
+
+  /** Pastikan kita sudah di dalam ruang. Dipanggil saat memilih vokalis DAN saat Call ditekan,
+   *  supaya satu kegagalan membuka ruang tidak membuat tombol Call diam selamanya. */
+  async function ensureRoom() {
+    if (room) return true;
+    try {
+      const id = isHost ? (q('#clVoc')?.value || '') : '';
+      if (isHost && !id) { lastError = 'Choose a vocalist first.'; paint(); return false; }
+      const r = await roomFor(id || null);
+      await enter(r.code);
+      lastError = null;
+      if (isHost) q('[data-hint]').textContent =
+        `Room open for ${r.vocalist}. They see a Call button on their own page.`;
+      paint();
+      return true;
+    } catch (e) {
+      lastError = 'Could not open the room: ' + (e?.message || e) + ' — press Call to try again.';
+      paint();
+      onError?.(e);
+      return false;
+    }
   }
 
   async function roomFor(vocalistId) {
@@ -188,7 +221,10 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     try {
       if (e.target.closest('[data-go]')) {
         if (state === 'ringing') { await voice.answer({ video: true }); return; }
-        if (!room) return;                       // belum memilih vokalis
+        // Dulu di sini ada `if (!room) return` tanpa kabar apa pun: kalau ruangnya gagal
+        // dibuka, tombol Call jadi mati total tanpa satu pun pesan. Sekarang dicoba lagi.
+        if (!room && !(await ensureRoom())) return;
+        lastError = null;
         camOn = true;
         await voice.call({ video: true });       // kamera menyala sejak panggilan dimulai
         return;
@@ -210,14 +246,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   });
 
   if (isHost) {
-    q('#clVoc').addEventListener('change', async (ev) => {
-      const id = ev.target.value;
-      if (!id) { leave(); paint(); return; }
-      try {
-        const r = await roomFor(id);
-        await enter(r.code);
-        q('[data-hint]').textContent = `Room open for ${r.vocalist}. They see a Call button on their own page.`;
-      } catch (err) { onError?.(err); }
+    q('#clVoc').addEventListener('change', async () => {
+      leave();                 // ganti vokalis = ganti ruang
+      lastError = null;
+      paint();
+      if (q('#clVoc').value) await ensureRoom();
     });
   }
 
@@ -234,7 +267,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
           + list.map((v) => `<option value="${v.id}">${v.display_name}</option>`).join('');
         if (keep) sel.value = keep;
       } else if (!room) {
-        try { await enter((await roomFor()).code); } catch (err) { onError?.(err); }
+        await ensureRoom();
       }
       paint();
     },

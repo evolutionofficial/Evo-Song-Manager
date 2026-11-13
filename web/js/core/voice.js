@@ -63,6 +63,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   // Alasannya dua: satu m-line berarti tidak perlu perundingan ulang sama sekali (replaceTrack
   // langsung tukar isi), dan sisi penerima tidak perlu menebak mana kamera mana layar.
   // Kamera yang tergusur disimpan di sini supaya bisa dipulihkan saat berbagi layar dihentikan.
+  let stuckTimer = null;       // penjaga waktu untuk 'connecting' yang tidak kunjung selesai
   let camFail = null;          // kenapa kamera tidak jadi menyala, untuk ditampilkan
   let screenTrack = null;
   let camBefore = null;
@@ -132,16 +133,31 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     pc.onconnectionstatechange = () => {
       if (!pc || ending) return;
       const s = pc.connectionState;
-      if (s === 'connected') set('live');
+      if (s === 'connected') { clearTimeout(stuckTimer); stuckTimer = null; set('live'); }
       else if (s === 'connecting') set('connecting');
       else if (s === 'disconnected') set('connecting', { note: 'reconnecting' });
       else if (s === 'failed') {
         // Satu kali coba sambung ulang sebelum menyerah: jaringan seluler sering pindah jalur.
         try { pc.restartIce(); } catch (_) {}
+        clearTimeout(stuckTimer); stuckTimer = null;
         set('failed', { note: info.relay ? 'network' : 'no_relay' });
       }
     };
     return pc;
+  }
+
+  /** 'connecting' yang menggantung tidak pernah berubah jadi 'failed' dengan sendirinya:
+   *  WebRTC hanya melapor gagal kalau ia SEMPAT mencoba dan kalah. Kalau sisi lain membeku —
+   *  tab Safari yang dilatarbelakangkan di iOS berhenti menjalankan JavaScript sama sekali —
+   *  tidak ada yang menjawab dan tidak ada pula yang gagal. Penjaga ini yang memutus diamnya. */
+  function watchStuck() {
+    clearTimeout(stuckTimer);
+    stuckTimer = setTimeout(() => {
+      if (!pc || ending) return;
+      if (state === 'connecting' || state === 'calling') {
+        set('failed', { note: 'stuck' });
+      }
+    }, 25000);
   }
 
   /** Buat sambungan dan masukkan track kita. Dipanggil hanya kalau KEDUA sisi sudah siap. */
@@ -262,6 +278,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
 
   function teardown() {
     ending = true;
+    clearTimeout(stuckTimer); stuckTimer = null;
     try { for (const t of local?.getTracks() || []) t.stop(); } catch (_) {}
     try { screenTrack?.stop(); } catch (_) {}
     try { camBefore?.stop(); } catch (_) {}
@@ -296,6 +313,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       try {
         await grab(video);
         set(peerReady || pendingDesc ? 'connecting' : 'calling');
+        watchStuck();
         session.signal('rtc-ready', {});
         session.signal('rtc-call', {});
         // Sisi lain sudah siap lebih dulu (atau tawarannya sudah menunggu) → sambung sekarang.
