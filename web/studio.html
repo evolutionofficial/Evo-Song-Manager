@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Evo Song Manager · Private Studio</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="theme-color" content="#07080b">
+<meta name="apple-mobile-web-app-title" content="Evo Studio">
+</head>
+<body class="studio-body">
+
+<div class="st-wrap">
+  <header class="st-top">
+    <div class="brand">Private Studio</div>
+    <span class="st-state" id="state">Connecting…</span>
+    <span class="st-net" id="net" hidden></span>
+  </header>
+
+  <!-- Panggung: gambar dari sisi lain, besar. Pratinjau kita kecil di sudut. -->
+  <main class="st-stage" id="stage">
+    <video class="st-remote" id="remote" autoplay playsinline></video>
+    <div class="st-placeholder" id="placeholder">
+      <p id="phTitle">Waiting for the other side…</p>
+      <p class="note" id="phSub"></p>
+    </div>
+    <video class="st-local" id="local" autoplay playsinline muted hidden></video>
+  </main>
+
+  <!-- Peringatan headphone: muncul sebelum masuk, karena ini satu-satunya hal yang
+       bisa merusak rapat dan tidak bisa diperiksa oleh aplikasi. -->
+  <div class="st-gate" id="gate">
+    <div class="st-card">
+      <h2 id="gateTitle">Private Studio</h2>
+      <p class="note" id="gateSub"></p>
+      <p class="st-warn">
+        <b>Wear headphones.</b> This room is tuned for listening to a DAW, so echo cancellation
+        is weakened on purpose. On speakers it will howl.
+      </p>
+      <button class="primary" id="joinBtn">Join with microphone</button>
+      <p class="note" id="gateNote"></p>
+    </div>
+  </div>
+
+  <!-- Bilah kendali -->
+  <div class="st-bar" id="bar" hidden>
+    <button class="st-btn" id="micBtn" aria-label="Mute microphone" title="Mute"></button>
+    <button class="st-btn" id="camBtn" aria-label="Turn camera on" title="Camera"></button>
+    <button class="st-btn" id="shareBtn" aria-label="Share screen" title="Share screen"></button>
+    <button class="st-btn st-end" id="endBtn" aria-label="Leave" title="Leave"></button>
+  </div>
+
+  <div class="st-invite" id="invite" hidden>
+    <span class="note">Invite link</span>
+    <input id="inviteUrl" readonly>
+    <button id="copyBtn">Copy</button>
+  </div>
+</div>
+
+<script type="module" src="/js/apps/studio/main.js"></script>
+</body>
+</html>

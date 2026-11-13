@@ -925,3 +925,61 @@ body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
   border: 1px dashed var(--line); color: var(--muted);
   font-size: 12.5px; white-space: nowrap;
 }
+
+/* ======================= FC Private Studio ======================= */
+.studio-body { background: #05060a; }
+.st-wrap { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+
+.st-top {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.st-state { color: var(--muted); font-size: 13px; }
+.st-net { color: var(--muted); font-size: 12px; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* Panggung: gambar dari sisi lain memenuhi ruang yang tersisa. object-fit: contain supaya
+   layar DAW tidak terpotong — kalau terpotong, justru bagian yang sedang dibahas yang hilang. */
+.st-stage { position: relative; flex: 1 1 auto; min-height: 0; background: #05060a; overflow: hidden; }
+.st-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #05060a; }
+.st-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 24px;
+}
+.st-placeholder p { margin: 0; }
+/* Pratinjau diri: kecil, di sudut, dan dicerminkan seperti kebiasaan semua aplikasi panggilan. */
+.st-local {
+  position: absolute; right: 12px; bottom: 12px; width: 23%; max-width: 220px; min-width: 110px;
+  aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px;
+  border: 1px solid var(--line); background: #000; transform: scaleX(-1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+}
+
+.st-gate { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(5, 6, 10, .92); z-index: 40; }
+.st-card { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.st-card h2 { margin: 0 0 6px; }
+.st-card .primary { width: 100%; margin-top: 14px; }
+.st-warn {
+  margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
+  border: 1px solid rgba(255, 176, 32, .35); background: rgba(255, 176, 32, .08); color: #ffd79a;
+}
+
+.st-bar {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); background: var(--card);
+}
+.st-btn {
+  width: 48px; height: 48px; padding: 0; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: transparent; color: var(--text); cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.st-btn:hover { border-color: var(--accent); color: var(--accent); }
+.st-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.st-btn.off { color: #ff8f8f; border-color: rgba(255, 143, 143, .4); }
+.st-end { background: rgba(255, 90, 90, .14); border-color: rgba(255, 90, 90, .45); color: #ff8f8f; }
+.st-end:hover { background: #ff5a5a; border-color: #ff5a5a; color: #fff; }
+
+.st-invite { display: flex; align-items: center; gap: 8px; padding: 0 14px 14px; flex-wrap: wrap; }
+.st-invite input { flex: 1 1 220px; min-width: 0; font-size: 12.5px; }

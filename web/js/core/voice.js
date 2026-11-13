@@ -27,6 +27,15 @@ const plainCand = (c) => (c
   : null);
 const CAM = { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } };
 
+// Layar DAW penuh tulisan kecil, jadi yang diutamakan KETAJAMAN, bukan kehalusan gerak:
+// resolusi tinggi dengan frame rate rendah. Kebalikan dari setelan kamera. Kalau nanti terasa
+// patah-patah saat menggeser timeline, frameRate yang dinaikkan, bukan resolusinya diturunkan.
+const SCREEN = {
+  width: { ideal: 1920, max: 2560 },
+  height: { ideal: 1080, max: 1440 },
+  frameRate: { ideal: 8, max: 15 },
+};
+
 /**
  * @param session  sesi dari listen.js (createSession) — dipakai untuk mengirim pesan
  * @param role     'host' | 'guest'
@@ -44,6 +53,13 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   let muted = false;
   let wantVideo = false;
   let camSender = null;
+  // Berbagi layar MENGGANTI track kamera di pengirim yang sama, bukan menambah track kedua.
+  // Alasannya dua: satu m-line berarti tidak perlu perundingan ulang sama sekali (replaceTrack
+  // langsung tukar isi), dan sisi penerima tidak perlu menebak mana kamera mana layar.
+  // Kamera yang tergusur disimpan di sini supaya bisa dipulihkan saat berbagi layar dihentikan.
+  let screenTrack = null;
+  let camBefore = null;
+  let screenAdded = false;    // true kalau pengirimnya kita yang buat (kamera sedang mati)
 
   // Keadaan pola "sopan/tidak sopan".
   let makingOffer = false;
@@ -222,8 +238,11 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   function teardown() {
     ending = true;
     try { for (const t of local?.getTracks() || []) t.stop(); } catch (_) {}
+    try { screenTrack?.stop(); } catch (_) {}
+    try { camBefore?.stop(); } catch (_) {}
     try { pc?.close(); } catch (_) {}
     pc = null; local = null; remote = null; camSender = null;
+    screenTrack = null; camBefore = null; screenAdded = false;
     makingOffer = false; ignoreOffer = false;
     pendingDesc = null; pendingIce = []; peerReady = false;
     try { onRemote?.(null); } catch (_) {}
@@ -232,7 +251,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
 
   // ------------------------------------------------------------------ yang dipakai di luar
 
-  return {
+  // Diberi nama supaya setScreen bisa memanggil dirinya sendiri saat browser menghentikan
+  // berbagi layar dari tombolnya sendiri.
+  const api = {
     get state() { return state; },
     get info() { return info; },
     get muted() { return muted; },
@@ -298,6 +319,77 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       } catch (e) { oops(e); }
     },
 
+    get sharing() { return !!screenTrack; },
+
+    /**
+     * Berbagi layar. Track layar MENGGANTI track kamera di pengirim yang sama — lihat catatan
+     * di deklarasi screenTrack. Harus dipicu klik: izin berbagi layar hanya boleh diminta oleh
+     * tindakan orang, dan browser memang akan menolak kalau tidak.
+     */
+    async setScreen(on) {
+      if (!pc) return false;
+      try {
+        if (on && !screenTrack) {
+          if (!navigator.mediaDevices?.getDisplayMedia) {
+            set(state, { screen: false, screenNote: 'unsupported' });
+            return false;
+          }
+          // audio:false — suara DAW TIDAK diambil dari sini. Jalur itu beda-beda per sistem
+          // operasi dan tidak memberi kita kendali setelan; suara DAW masuk lewat loopback
+          // sebagai perangkat mikrofon (tahap 4).
+          const disp = await navigator.mediaDevices.getDisplayMedia({ video: SCREEN, audio: false });
+          const t = disp.getVideoTracks()[0];
+          if (!t) return false;
+          screenTrack = t;
+
+          // Browser punya tombol "Stop sharing" sendiri di luar halaman kita. Kalau itu yang
+          // ditekan, kita harus tahu — tanpa ini, tampilan tetap mengaku sedang berbagi.
+          t.addEventListener('ended', () => { api.setScreen(false); });
+
+          if (camSender) {
+            camBefore = camSender.track;        // kamera disimpan, tidak dimatikan
+            await camSender.replaceTrack(t);    // satu m-line: tidak perlu perundingan ulang
+            screenAdded = false;
+          } else {
+            local.addTrack(t);
+            camSender = pc.addTrack(t, local);  // ini memicu perundingan ulang, memang perlu
+            screenAdded = true;
+          }
+          set(state, { screen: true, screenNote: null });
+          return true;
+        }
+
+        if (!on && screenTrack) {
+          const t = screenTrack;
+          screenTrack = null;
+          if (screenAdded) {
+            // Pengirimnya kita yang buat, jadi dicabut lagi sepenuhnya.
+            try { pc.removeTrack(camSender); } catch (_) {}
+            camSender = null;
+            screenAdded = false;
+            try { local.removeTrack(t); } catch (_) {}
+          } else if (camSender) {
+            // Kamera dipulihkan. Kalau track kameranya sudah mati (misalnya izinnya dicabut),
+            // pengirimnya dikosongkan daripada menyiarkan gambar beku.
+            const back = camBefore && camBefore.readyState === 'live' ? camBefore : null;
+            try { await camSender.replaceTrack(back); } catch (e) { oops(e); }
+          }
+          camBefore = null;
+          try { t.stop(); } catch (_) {}
+          set(state, { screen: false });
+          return false;
+        }
+        return !!screenTrack;
+      } catch (e) {
+        // Paling sering: orangnya menekan Cancel di dialog pemilih layar. Itu bukan kesalahan,
+        // jadi tidak dilaporkan sebagai error — hanya dikembalikan ke keadaan tidak berbagi.
+        screenTrack = null;
+        set(state, { screen: false, screenNote: e?.name === 'NotAllowedError' ? 'cancelled' : 'failed' });
+        if (e?.name !== 'NotAllowedError') oops(e);
+        return false;
+      }
+    },
+
     /** Pesan dari saluran. Dipanggil listen.js, bukan dari luar. */
     handle(event, payload) {
       if (event === 'rtc-desc') return onDesc(payload);
@@ -349,4 +441,5 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
 
     stop() { teardown(); set('idle'); },
   };
+  return api;
 }

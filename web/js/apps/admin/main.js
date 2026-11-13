@@ -176,6 +176,32 @@ async function start() {
     if (!mods.listen) return toast('Listen together is having problems. Everything else still works.', 'bad');
     runMod('listen', 'open', v.id);
   });
+  on($('studioBtn'), 'click', 'Private Studio', async () => {
+    const v = curVoc();
+    if (!v) return toast('Open a vocalist first');
+    const btn = $('studioBtn');
+    btn.disabled = true;
+    try {
+      // Ruangnya dibuat di sini, BUKAN di halaman studio: listen_open() hanya boleh dipanggil
+      // admin yang sudah masuk, dan hanya halaman ini yang sudah masuk. Halaman studio cukup
+      // menerima kodenya lewat alamat, jadi tamu tidak perlu akun apa pun.
+      //
+      // Catatan: listen_open menutup ruang Listen Together yang sedang terbuka untuk vokalis
+      // ini, karena satu vokalis hanya boleh punya satu ruang. Itu memang perilakunya sejak
+      // fase 8, bukan efek samping yang baru.
+      const { sb } = await import('/js/core/supabase.js');
+      const { data, error } = await sb.rpc('listen_open', { p_vocalist: v.id });
+      if (error) throw error;
+      const r = Array.isArray(data) ? data[0] : data;
+      if (!r?.code) throw new Error('no room');
+      window.open(`/studio/${encodeURIComponent(r.code)}?r=host`, '_blank', 'noopener');
+      toast(`Studio room open for ${v.display_name}`);
+    } catch (e) {
+      toast('Could not open the studio: ' + (e?.message || e), 'bad');
+    } finally {
+      btn.disabled = false;
+    }
+  });
   on($('logoutBtn'), 'click', 'Log out', () => (mods.auth ? mods.auth.logout() : location.reload()));
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && !$('appView').classList.contains('hidden')) safe('Reload', reload);

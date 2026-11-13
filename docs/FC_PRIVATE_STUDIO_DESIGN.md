@@ -1,6 +1,20 @@
 # FC Private Studio — rancangan (13 Nov 2026)
 
-> **Status: RANCANGAN. Belum dikerjakan.** Dokumen ini untuk dibaca dan disetujui dulu.
+> **Status: TAHAP 1-3 SELESAI (13 Nov malam). Tahap 4-5 belum.**
+> Ruang, undangan, mikrofon, kamera, dan berbagi layar sudah jalan dan sudah diuji dua arah.
+> Slot audio A/B dan jalur mutu musik (tahap 4) belum dikerjakan — itu bagian yang perlu
+> disetel dengan telinga di perangkat Jeffry.
+>
+> **Dua hal berubah dari rancangan ini saat dibangun:**
+> 1. **Tidak ada tabel database baru.** Ruangnya memakai ulang `listen_open()` yang sudah ada,
+>    karena `/turn` memverifikasi kode ruang terhadap database sebelum memberi kredensial relay.
+>    Ruang yang hanya ada di browser tidak akan dapat relay, jadi panggilannya gagal di data
+>    seluler. Akibatnya: selama ruang studio terbuka, halaman vokalis juga menampilkan undangan
+>    "Listen together", karena belum ada penanda jenis ruang. Memisahkannya butuh satu kolom
+>    `kind` di `listen_rooms` — belum bisa dikerjakan karena Supabase tidak terhubung saat itu.
+> 2. **Berbagi layar MENGGANTI kamera**, tidak jalan bersamaan (pertanyaan 2 di bagian 12).
+>    Satu track video berarti tidak perlu perundingan ulang dan sisi penerima tidak perlu
+>    menebak mana kamera mana layar. Kalau Jeffry mau keduanya sekaligus, itu bisa ditambahkan.
 >
 > Jangan tertukar dengan `VIDEO_CALL_DESIGN.md`. Dokumen itu tentang **Listen Together**
 > (menyimak mixdown jadi, bersama-sama, sambil ngobrol) dan sudah selesai. Yang ini tujuannya
