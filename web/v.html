@@ -47,6 +47,7 @@
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tabSongs" aria-selected="true" data-view="songs">Songlist</button>
       <button class="tab" role="tab" id="tabInv" aria-selected="false" data-view="invoice">Invoice</button>
+      <button class="tab" role="tab" id="tabCall" aria-selected="false" data-view="call">Call</button>
     </div>
 
     <!-- SONGLIST (My Songs) -->
@@ -55,6 +56,11 @@
       <div class="bar"><div class="grow"><input type="search" id="qSongs" placeholder="Search title" aria-label="Search song title"></div></div>
       <div class="table" id="songsTable"></div>
       </div>
+    </section>
+
+    <!-- CALL -->
+    <section id="callView" class="hidden">
+      <div class="panel" id="vCallPanel"></div>
     </section>
 
     <!-- INVOICE -->

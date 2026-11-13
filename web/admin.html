@@ -85,9 +85,12 @@
           </div>
         </div>
         <div class="lt-start">
-          <button id="listenBtn" title="Listen to a mixdown together, at full quality, while you talk">Listen together</button>
-          <button id="studioBtn" title="Open a 1-on-1 room to show your DAW and talk it through">Private Studio</button>
-          <span class="sub">Listen together keeps the music at full quality while you talk. Private Studio is for showing your screen — your DAW — and discussing an edit.</span>
+          <!-- Listen together dan Private Studio DISEMBUNYIKAN atas permintaan Jeffry, bukan
+               dihapus: mesinnya utuh di listen.js / voice.js / studio.html dan halaman
+               /studio/<kode> masih berfungsi. Keduanya digantikan halaman Call di sidebar,
+               yang memanggil langsung tanpa bertukar link. Hapus `hidden` untuk memunculkannya. -->
+          <button id="listenBtn" hidden title="Listen to a mixdown together, at full quality, while you talk">Listen together</button>
+          <button id="studioBtn" hidden title="Open a 1-on-1 room to show your DAW and talk it through">Private Studio</button>
         </div>
       </div>
 
@@ -154,6 +157,14 @@
     </div>
 
     <!-- Settings -->
+    <!-- CALL -->
+    <div id="callView" class="hidden">
+      <h1>Call</h1>
+      <p class="sub">A 1-on-1 video call with a vocalist. Your camera turns on when the call starts.
+         Use Share screen to show your DAW.</p>
+      <div class="panel" id="callPanel"></div>
+    </div>
+
     <div id="setView" class="hidden">
       <h1>Settings</h1>
       <div id="setBody">

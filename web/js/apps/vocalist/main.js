@@ -13,22 +13,27 @@ const MODULES = [
   { key: 'send', label: 'Send to FC', path: '/js/apps/vocalist/send.js', el: null },
   { key: 'player', label: 'Player', path: '/js/apps/vocalist/player.js', el: 'playerBody' },
   { key: 'listen', label: 'Listen together', path: '/js/apps/vocalist/listen.js', el: 'listenBanner' },
+  { key: 'call', label: 'Call', path: '/js/apps/vocalist/call.js', el: 'vCallPanel' },
 ];
 
 const token = new URLSearchParams(location.search).get('t') || location.pathname.split('/').filter(Boolean).pop();
 
 // ---------- Tampilan: Songlist / Invoice (tab) dan All Song List (dari laci) ----------
-const VIEWS = { songs: 'songsView', invoice: 'invView', all: 'allView' };
-const HASH = { songs: '', invoice: '#invoice', all: '#all' };
+const VIEWS = { songs: 'songsView', invoice: 'invView', all: 'allView', call: 'callView' };
+const HASH = { songs: '', invoice: '#invoice', all: '#all', call: '#call' };
 
 function showView(v) {
   if (!VIEWS[v]) v = 'songs';
   for (const [k, id] of Object.entries(VIEWS)) $(id).classList.toggle('hidden', k !== v);
   $('tabSongs').setAttribute('aria-selected', v === 'songs');
   $('tabInv').setAttribute('aria-selected', v === 'invoice');
+  $('tabCall').setAttribute('aria-selected', v === 'call');
   document.querySelectorAll('#drawerNav [data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
   history.replaceState(history.state, '', location.pathname + location.search + HASH[v]);
   window.scrollTo(0, 0);
+  // Modul yang perlu tahu tab mana yang terbuka mendengarkan ini. Dipakai tab Call, supaya
+  // izin kamera dan mikrofon baru diminta saat tabnya benar-benar dibuka.
+  window.dispatchEvent(new CustomEvent('fc:view', { detail: v }));
 }
 
 function setDrawer(open) {
@@ -81,7 +86,7 @@ async function start() {
   on(document.querySelector('.tabs'), 'click', 'Menu tab', (e) => {
     const b = e.target.closest('.tab'); if (b) showView(b.dataset.view);
   });
-  showView(location.hash === '#invoice' ? 'invoice' : location.hash === '#all' ? 'all' : 'songs');
+  showView({ '#invoice': 'invoice', '#all': 'all', '#call': 'call' }[location.hash] || 'songs');
 
   // Modul tidak saling mengimpor; yang perlu bicara satu sama lain lewat ctx ini.
   const ctx = { player: () => mods.player?.remote || null };

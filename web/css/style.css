@@ -983,3 +983,38 @@ body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
 
 .st-invite { display: flex; align-items: center; gap: 8px; padding: 0 14px 14px; flex-wrap: wrap; }
 .st-invite input { flex: 1 1 220px; min-width: 0; font-size: 12.5px; }
+
+/* ======================= Panel Call (admin + vokalis) ======================= */
+.cl-wrap { display: flex; flex-direction: column; gap: 12px; }
+.cl-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cl-pick label { color: var(--muted); font-size: 13px; }
+.cl-state { color: var(--muted); font-size: 13px; }
+
+.cl-stage {
+  position: relative; width: 100%; aspect-ratio: 16 / 10;
+  background: #05060a; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+}
+/* contain, bukan cover: layar DAW tidak boleh terpotong — yang terpotong justru bagian
+   yang sedang dibahas. */
+.cl-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #05060a; }
+.cl-ph { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 20px; }
+.cl-ph p { margin: 0; }
+.cl-local {
+  position: absolute; right: 10px; bottom: 10px; width: 26%; max-width: 190px; min-width: 96px;
+  aspect-ratio: 4 / 3; object-fit: cover; border-radius: 9px;
+  border: 1px solid var(--line); background: #000; transform: scaleX(-1);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .4);
+}
+
+.cl-bar { display: flex; align-items: center; gap: 10px; }
+.cl-go {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 16px; height: 42px; border-radius: 999px;
+  border: 1px solid var(--ok); background: var(--ok-bg); color: var(--ok);
+  font-weight: 650; cursor: pointer;
+}
+.cl-go:hover { background: var(--ok); color: #07080b; }
+/* Panggilan masuk harus menarik mata tanpa berkedip-kedip mengganggu. */
+.cl-go.ring { border-color: var(--accent); background: var(--accent); color: #fff; animation: clRing 1.4s ease-in-out infinite; }
+@keyframes clRing { 0%, 100% { box-shadow: 0 0 0 0 rgba(46, 139, 255, .5); } 50% { box-shadow: 0 0 0 7px rgba(46, 139, 255, 0); } }
+@media (prefers-reduced-motion: reduce) { .cl-go.ring { animation: none; } }

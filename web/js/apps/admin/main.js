@@ -10,6 +10,7 @@ installGlobalHandlers();
 const MODULES = [
   { key: 'auth', label: 'Login', path: '/js/apps/admin/auth.js', el: 'loginView' },
   { key: 'songs', label: 'Song table', path: '/js/apps/admin/songs.js', el: 'vocMain' },
+  { key: 'call', label: 'Call', path: '/js/apps/admin/call.js', el: 'callPanel' },
   { key: 'trash', label: 'Deleted', path: '/js/apps/admin/trash.js', el: 'delBox' },
   { key: 'revisions', label: 'Replace revision', path: '/js/apps/admin/revisions.js', el: null },
   { key: 'requests', label: 'Revisions', path: '/js/apps/admin/requests.js', el: 'rrList' },
@@ -72,6 +73,7 @@ function renderAll() {
   safe('Sidebar', renderTabs);
   safe('View', renderView);
   runMod('listen', 'render');
+  runMod('call', 'render');
 }
 
 function renderSyncInfo() {
@@ -101,9 +103,11 @@ function renderTabs() {
   const cf = (state.conflicts || []).length;
   items.push(`<button class="nav-item ${cf ? 'alert' : ''}" style="--i:${k + 2}" aria-current="${state.tab === 'cf' ? 'page' : 'false'}" data-tab="cf">
     <span class="nav-name">Conflicts${cf ? ` <span class="badge warn">${cf}</span>` : ''}</span></button>`);
-  items.push(`<button class="nav-item" style="--i:${k + 3}" aria-current="${state.tab === 'sys' ? 'page' : 'false'}" data-tab="sys">
+  items.push(`<button class="nav-item" style="--i:${k + 3}" aria-current="${state.tab === 'call' ? 'page' : 'false'}" data-tab="call">
+    <span class="nav-name">Call</span></button>`);
+  items.push(`<button class="nav-item" style="--i:${k + 4}" aria-current="${state.tab === 'sys' ? 'page' : 'false'}" data-tab="sys">
     <span class="nav-name">System</span></button>`);
-  items.push(`<button class="nav-item" style="--i:${k + 4}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
+  items.push(`<button class="nav-item" style="--i:${k + 5}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">
     <span class="nav-name">Settings</span></button>`);
   $('tabs').innerHTML = items.join('');
   // Titik notifikasi di tombol menu (saat sidebar tertutup / di HP).
@@ -146,6 +150,7 @@ function renderView() {
   $('cfView').classList.toggle('hidden', t !== 'cf');
   $('sysView').classList.toggle('hidden', t !== 'sys');
   $('setView').classList.toggle('hidden', t !== 'set');
+  $('callView').classList.toggle('hidden', t !== 'call');
   if (t.startsWith('v:')) {
     runMod('songs', 'render');
     runMod('trash', 'render');
