@@ -42,7 +42,9 @@ const audioFor = (deviceId, music) => ({
 function opusForMusic(sdp) {
   const pt = (sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i) || [])[1];
   if (!pt) return sdp;
-  const want = 'stereo=1;sprop-stereo=1;maxaveragebitrate=256000;maxplaybackrate=48000;useinbandfec=1';
+  // 128 kbps stereo, pilihan Jeffry. Jauh di atas panggilan suara biasa (16-32 kbps mono),
+  // dan cukup untuk menilai editing; kalau kurang, angka inilah yang dinaikkan.
+  const want = 'stereo=1;sprop-stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;useinbandfec=1';
   const re = new RegExp('a=fmtp:' + pt + ' ([^\\r\\n]*)');
   if (re.test(sdp)) {
     return sdp.replace(re, (m, body) => {

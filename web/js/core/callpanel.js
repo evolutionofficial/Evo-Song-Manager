@@ -180,10 +180,18 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     if (badge) badge.hidden = !(state !== 'live' && preview && preview.getVideoTracks().length);
   }
 
+  /** Pasang sebuah stream ke sebuah bingkai video.
+   *
+   *  Aturan pentingnya: stream MILIK KITA SENDIRI selalu dibisukan. Memutarnya kembali ke
+   *  speaker sendiri adalah monitoring, dan monitoring itulah yang melolong — bukan panggilannya.
+   *  Tanpa ini, pratinjau sebelum menelepon memutar mikrofon sendiri ke speaker sendiri.
+   *  Dengan ini, Jeffry bisa tetap memakai speaker: yang terdengar hanya suara dari sana. */
   const put = (sel, stream) => {
     const el = q(sel);
     if (!el) return;
     if (el.srcObject !== (stream || null)) el.srcObject = stream || null;
+    const mine = !!stream && (stream === preview || stream === voice?.localStream || stream === voice?.screenStream);
+    el.muted = mine;
     el.hidden = !stream;
   };
 
@@ -263,8 +271,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     }
     const n = q('[data-abnote]');
     if (n) n.textContent = slots[activeSlot].music
-      ? 'Slot ' + activeSlot + ' is in music mode: echo cancellation, noise suppression and auto-gain are off, and the call asks for stereo. Headphones required.'
-      : 'Slot ' + activeSlot + ' is in voice mode: echo cancellation on. Good for talking, wrong for music.';
+      ? 'Slot ' + activeSlot + ': music mode — echo cancellation, noise suppression and auto-gain off, stereo requested. Your own sound is never played back here, so speakers are fine if this input is a loopback. If it is a real microphone in the same room as your speakers, wear headphones.'
+      : 'Slot ' + activeSlot + ': voice mode — echo cancellation on. Good for talking, wrong for music.';
   }
 
   /** Kamera dinyalakan begitu halaman Call dibuka, bukan menunggu tombol Call ditekan —
