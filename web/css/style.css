@@ -831,81 +831,8 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
 .sys-stats b { font-size: 22px; font-weight: 650; }
 .sys-stats span { font-size: 12.5px; color: var(--muted); }
 
-/* ===== Listen together (admin) =====
-   Dok di bawah layar, senada dengan minibar di halaman vokalis tapi tanpa cover:
-   yang penting di sini bukan lagunya, melainkan apakah vokalisnya sudah ikut dan serempak. */
-.lt-start { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-.lt-start .sub { margin: 0; font-size: 12.5px; }
-
-body.has-listen .main { padding-bottom: 104px; }
-.listen-dock {
-  position: fixed; z-index: 71; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
-  max-width: 980px; margin: 0 auto; border-radius: 16px; overflow: hidden;
-  background: var(--stripe-top) top / 100% 1px no-repeat,
-    linear-gradient(120deg, rgba(46, 139, 255, .16), rgba(255, 255, 255, .03) 45%, rgba(0, 200, 255, .06)), rgba(14, 16, 22, .78);
-  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
-  border: 1px solid rgba(255, 255, 255, .10);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, .6), 0 0 30px rgba(46, 139, 255, .14), 0 1px 0 rgba(255, 255, 255, .07) inset;
-  animation: mb-in .45s var(--ease-out) both;
-}
-.lt-prog { height: 4px; background: rgba(255, 255, 255, .08); cursor: pointer; }
-.lt-prog[aria-disabled="true"] { cursor: default; }
-.lt-prog i { display: block; height: 100%; background: var(--grad-blue); box-shadow: 0 0 10px rgba(46, 139, 255, .9); transition: width .25s linear; }
-.lt-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
-.lt-pp {
-  width: 40px; height: 40px; min-height: 0; flex: none; padding: 0; border-radius: 50%;
-  display: grid; place-items: center; background: var(--grad-blue); color: #fff; border: 0;
-}
-.lt-mid { min-width: 0; flex: 1 1 auto; }
-.lt-title { font-weight: 650; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lt-dim { color: var(--muted); font-weight: 400; }
-.lt-sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lt-wait { color: #ffcf6a; }
+/* Dipakai pemutar vokalis untuk tulisan status kecil berwarna hijau. */
 .lt-on { color: #5ee6a0; }
-.lt-time { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); flex: none; }
-.lt-pick { width: auto; max-width: 190px; min-height: 0; padding: 6px 8px; flex: none; }
-.lt-end { min-height: 0; padding: 7px 12px; flex: none; }
-@media (max-width: 700px) {
-  .lt-time, .lt-pick { display: none; }
-}
-
-/* ===== Listen together (vokalis) — spanduk undangan ===== */
-.listen-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.listen-banner.on { border-color: rgba(94, 230, 160, .35); }
-.lb-main { min-width: 0; flex: 1 1 260px; display: flex; flex-direction: column; gap: 3px; }
-.lb-main b { color: #fff; }
-.lb-main .sub { margin: 0; font-size: 12.5px; }
-.lb-join { background: var(--grad-blue); color: #fff; border: 0; flex: none; }
-.lb-leave { flex: none; }
-
-/* ===== Panggilan suara di dalam ruang menyimak ===== */
-.lt-call { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 0 14px 11px; border-top: 1px solid rgba(255, 255, 255, .07); padding-top: 10px; }
-.lt-call .sub { margin: 0; font-size: 12px; }
-.lt-bad { color: #ff9a9a; font-size: 12.5px; }
-.lt-cbtn { min-height: 0; padding: 7px 11px; flex: none; display: inline-flex; align-items: center; gap: 7px; }
-.lt-cbtn.go { background: var(--grad-blue); color: #fff; border: 0; }
-.lt-cbtn.bad { background: rgba(255, 90, 90, .16); border-color: rgba(255, 120, 120, .4); color: #ffb3b3; }
-.lt-cbtn.off { opacity: .55; }
-.lt-cbtn.on { border-color: rgba(94, 230, 160, .5); color: #5ee6a0; }
-
-.lb-call { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 8px; }
-.lb-cbtn { min-height: 0; padding: 7px 11px; flex: none; }
-.lb-cbtn.go { background: var(--grad-blue); color: #fff; border: 0; }
-.lb-cbtn.bad { background: rgba(255, 90, 90, .16); border-color: rgba(255, 120, 120, .4); color: #ffb3b3; }
-.lb-cbtn.off { opacity: .55; }
-.lb-cbtn.on { border-color: rgba(94, 230, 160, .5); color: #5ee6a0; }
-
-/* Kotak gambar panggilan. Saat tanpa kamera, kotaknya disembunyikan dari pandangan tapi TETAP
-   ada di halaman — elemen inilah yang membawa suaranya, jadi tidak boleh dilepas. */
-.call-media { position: fixed; z-index: 80; right: 14px; bottom: 124px; width: 220px;
-  border-radius: 14px; overflow: hidden; background: #000;
-  border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 16px 40px rgba(0, 0, 0, .55); }
-.call-media.audio-only { width: 1px; height: 1px; right: -10px; bottom: -10px; border: 0; box-shadow: none; opacity: 0; pointer-events: none; }
-.call-media .cm-remote { display: block; width: 100%; height: auto; background: #000; }
-.call-media .cm-local { position: absolute; right: 8px; bottom: 8px; width: 68px; border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, .25); background: #000; }
-@media (max-width: 700px) { .call-media { width: 150px; bottom: 150px; } }
 
 /* ---- Tombol ▶ di daftar lagu vokalis: jadi ⏸ saat lagu itu yang sedang berbunyi ----
    Keadaan diambil dari .is-playing di <body> (dipasang modul Player) + baris .playing,
@@ -1178,4 +1105,35 @@ body.cl-live #vCallPanel {
   width: min(360px, calc(100% - 32px));
   background: rgba(5, 6, 10, .6); backdrop-filter: blur(6px);
   padding: 7px 11px; border-radius: 999px;
+}
+
+
+/* ===== Meeting: preview memenuhi jendela ===== */
+/* Sumber PiP (facecam lawan bicara saja). Tidak terlihat, tapi tetap dirender supaya browser mau
+   membukanya sebagai PiP. */
+.cl-pipsrc { position: absolute; left: 0; top: 0; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
+
+/* ADMIN: tab Meeting mengisi seluruh area di kanan sidebar sampai ke dasar jendela. Preview kamera,
+   layar yang disiapkan, dan wajah vokalis tampil sebesar mungkin; panel pengaturan di bawahnya
+   ikut menggulung kalau layarnya pendek. */
+#callView.call-full:not(.hidden) { display: flex; flex-direction: column; height: calc(100dvh - 104px); min-height: 480px; }
+#callView.call-full #callPanel { flex: 1 1 auto; min-height: 0; margin-bottom: 0; display: flex; flex-direction: column; }
+#callPanel .cl-wrap:not(.live) { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#callPanel .cl-wrap:not(.live) .cl-stage { flex: 1 1 auto; aspect-ratio: auto; min-height: 240px; }
+
+/* VOKALIS: sama, di bawah header/tab. */
+#callView.call-fullv:not(.hidden) #vCallPanel { display: flex; flex-direction: column; margin-bottom: 0; height: calc(100dvh - 210px); min-height: 360px; }
+#vCallPanel .cl-wrap:not(.live) { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#vCallPanel .cl-wrap:not(.live) .cl-stage { flex: 1 1 auto; aspect-ratio: auto; min-height: 200px; }
+
+/* HP diputar mendatar (mis. supaya Studio One terbaca): header dan judul memakan tinggi, jadi
+   panelnya dibiarkan setinggi layar dan stage-nya yang mengisi. */
+@media (orientation: landscape) and (max-height: 560px) {
+  #callView.call-fullv:not(.hidden) #vCallPanel { height: auto; min-height: 0; }
+  #vCallPanel .cl-wrap:not(.live) .cl-stage { flex: none; height: 64dvh; min-height: 0; }
+  #callView.call-full:not(.hidden) { height: calc(100dvh - 60px); min-height: 0; }
+  .cl-wrap.live .cl-thumb { width: 104px; }
+  .cl-wrap.live .cl-bar { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .cl-wrap.live .st-btn { width: 46px; height: 46px; }
+  .cl-wrap.live .cl-thumbs { bottom: calc(68px + env(safe-area-inset-bottom)); }
 }

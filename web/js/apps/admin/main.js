@@ -17,7 +17,6 @@ const MODULES = [
   { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
   { key: 'conflicts', label: 'Conflicts', path: '/js/apps/admin/conflicts.js', el: 'cfList' },
   { key: 'system', label: 'System', path: '/js/apps/admin/system.js', el: 'sysList' },
-  { key: 'listen', label: 'Listen together', path: '/js/apps/admin/listen.js', el: 'listenDock' },
   { key: 'playback', label: 'Player', path: '/js/apps/admin/playback.js', el: 'playerBody' },
   { key: 'settings', label: 'Settings', path: '/js/apps/admin/settings.js', el: 'setBody' },
 ];
@@ -58,9 +57,6 @@ const ctx = {
 async function enterApp() {
   $('appView').classList.remove('hidden');
   await reload();
-  // Sesi menyimak yang masih terbuka disambung lagi, supaya halaman yang dimuat ulang
-  // tidak meninggalkan ruang menggantung tanpa pemimpin.
-  runMod('listen', 'resume');
 }
 
 async function reload() {
@@ -72,7 +68,6 @@ function renderAll() {
   safe('Sync status', renderSyncInfo);
   safe('Sidebar', renderTabs);
   safe('View', renderView);
-  runMod('listen', 'render');
   runMod('call', 'render');
 }
 
@@ -175,12 +170,6 @@ async function start() {
   });
   safe('Sidebar', initSide);
   on($('reloadBtn'), 'click', 'Reload', reload);
-  on($('listenBtn'), 'click', 'Listen together', () => {
-    const v = curVoc();
-    if (!v) return toast('Open a vocalist first');
-    if (!mods.listen) return toast('Listen together is having problems. Everything else still works.', 'bad');
-    runMod('listen', 'open', v.id);
-  });
   on($('studioBtn'), 'click', 'Private Studio', async () => {
     const v = curVoc();
     if (!v) return toast('Open a vocalist first');

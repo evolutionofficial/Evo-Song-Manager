@@ -8,6 +8,10 @@
 // tujuan rapat ini memang Jeffry yang memperlihatkan DAW-nya; tombol yang tidak dipakai
 // hanya menambah hal yang bisa salah ditekan di tengah rapat.
 //
+// Kamera dan mikrofon HANYA hidup selama tab Meeting terbuka. Begitu orangnya pindah ke tab
+// lain (Songlist, Invoice, dsb.), panggilan ditutup dan semua perangkat dilepas — lampu kamera
+// mati. Kembali ke Meeting menyalakannya lagi. Tidak ada yang menyala di tab lain.
+//
 // Kedua sisi sampai ke ruang yang sama lewat call_room() di database, jadi tidak ada link
 // yang perlu dikirim: vokalis menyebut tokennya, admin menyebut vokalisnya.
 import { createRoom } from '/js/core/room.js';
@@ -81,6 +85,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   const isLoopback = (label) => /loop\s*-?\s*back/i.test(label || '');
   let meter = null;
   let meterTick = 0;
+  let visible = false;      // tab Meeting sedang terbuka? Hanya saat itu perangkat boleh menyala
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -94,6 +99,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
 
       <div class="cl-stage" data-stage>
         <video class="cl-main" data-main autoplay playsinline></video>
+        <!-- Sumber PiP: HANYA facecam lawan bicara. Sengaja elemen sendiri (bukan [data-main], yang
+             bisa sedang menampilkan layar yang dibagikan). Dibisukan karena suaranya sudah
+             diputar oleh elemen utama. Disembunyikan lewat opacity, bukan display:none, karena
+             browser menolak PiP dari elemen yang tidak dirender. -->
+        <video class="cl-pipsrc" data-pipsrc autoplay playsinline muted aria-hidden="true" tabindex="-1"></video>
         <!-- Hanya admin: wajah vokalis BESAR di sebelah kanan layar yang dibagikan. -->
         <video class="cl-side" data-side autoplay playsinline hidden></video>
         <div class="cl-ph" data-ph><p data-ph-t></p><p class="note" data-ph-s></p></div>
@@ -264,6 +274,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
    */
   function layout() {
     const live = state === 'live';
+    feedPip();
     const mine = voice?.localStream || null;        // kamera + mikrofon kita
     const myScreen = voice?.screenStream || null;
 
@@ -340,8 +351,15 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
    *  supaya bisa dicek dulu apakah kameranya memang jalan. Stream ini nanti DIPAKAI ULANG
    *  oleh panggilan; meminta izin dua kali membuat browser mematikan pratinjau yang sedang
    *  tampil, dan di iOS bisa gagal sama sekali. */
-  async function startPreview() {
-    if (preview || inCall()) return;
+  let previewing = null;    // permintaan getUserMedia yang sedang berjalan (hanya satu pada satu waktu)
+  function startPreview() {
+    // show() memanggil ini dua kali; tanpa penjaga ini dua stream dibuat dan yang pertama
+    // tidak pernah dimatikan — lampu kamera tetap menyala setelah pindah tab.
+    if (preview || inCall()) return Promise.resolve();
+    if (!previewing) previewing = openPreview().finally(() => { previewing = null; });
+    return previewing;
+  }
+  async function openPreview() {
     try {
       preview = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -357,6 +375,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       try {
         preview = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       } catch (_) { preview = null; }
+    }
+    // Tab Meeting sudah ditinggalkan selagi izin diproses: lepaskan lagi, jangan dibiarkan menyala.
+    if (!visible) {
+      try { for (const t of preview?.getTracks() || []) t.stop(); } catch (_) {}
+      preview = null;
+      return;
     }
     paint();
     // Pratinjau yang baru dibuat selalu memakai mikrofon bawaan. Kalau slot aktif menunjuk
@@ -515,7 +539,9 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
             && previewSlot === slots[activeSlot].dev + '|' + slots[activeSlot].music;
           if (!same) voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
         }
-        if (s === 'idle' || s === 'failed') { preview = null; startPreview(); }
+        if (s === 'idle' || s === 'failed') { preview = null; if (visible) startPreview(); }
+        if (s !== 'live') stopPip();
+        armAutoPip();
         if (s === 'failed') stuckNote = inf?.note === 'stuck';
         if (s !== 'failed' && s !== 'idle') stuckNote = false;
         paint();
@@ -529,7 +555,6 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   function leave() {
     try { voice?.hangUp(); } catch (_) {}
     try { voice?.stop(); } catch (_) {}   // termasuk menghentikan layar yang sedang disiapkan
-    try { voice?.stop(); } catch (_) {}
     try { room?.leave(); } catch (_) {}
     voice = null; room = null; joinedCode = null; state = 'idle'; shareOn = false;
   }
@@ -651,22 +676,55 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     });
   }
 
-  /** Picture-in-picture, supaya wajah mereka tetap terlihat saat Jeffry pindah ke DAW.
-   *  Browser umumnya hanya mengizinkan ini dari tindakan orang, jadi ada tombolnya; percobaan
-   *  otomatis saat pindah jendela tetap dilakukan, dan kalau ditolak ya diam saja. */
+  /** Picture-in-picture, supaya wajah vokalis tetap terlihat saat Jeffry pindah ke DAW atau
+   *  jendela lain. Yang tampil di jendela kecil itu HANYA facecam vokalis — bukan layar yang
+   *  dibagikan dan bukan facecam Jeffry sendiri. Begitu Jeffry kembali ke aplikasi, jendela
+   *  kecilnya ditutup dan semuanya (layar + kedua facecam) terlihat lagi di panelnya.
+   *
+   *  Browser hanya mengizinkan PiP dari tindakan orang. Dua jalannya: tombol PIP, dan (Chrome)
+   *  Media Session `enterpictureinpicture` yang dipakai situs rapat video supaya PiP terbuka
+   *  otomatis saat tab ditinggalkan. Percobaan lewat visibilitychange tetap ada sebagai cadangan. */
+  const pipEl = () => q('[data-pipsrc]');
+  function feedPip() {
+    const v = pipEl();
+    if (!v) return;
+    const src = (state === 'live' && peerCam) || null;
+    if (v.srcObject !== src) {
+      v.srcObject = src;
+      v.muted = true;
+      if (src) v.play?.().catch(() => {});
+    }
+  }
+  const inOurPip = () => !!document.pictureInPictureElement && document.pictureInPictureElement === pipEl();
   async function enterPip() {
-    const v = q('[data-main]');
-    if (!v?.srcObject || !document.pictureInPictureEnabled) return false;
+    const v = pipEl();
+    if (!v?.srcObject || !document.pictureInPictureEnabled || v.disablePictureInPicture) return false;
     try {
       if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return false; }
+      if (v.paused) await v.play().catch(() => {});
       await v.requestPictureInPicture();
       return true;
     } catch (_) { return false; }
   }
+  async function stopPip() {
+    if (!document.pictureInPictureElement) return;
+    try { await document.exitPictureInPicture(); } catch (_) {}
+  }
+  function armAutoPip() {
+    try {
+      navigator.mediaSession?.setActionHandler('enterpictureinpicture', state === 'live' && isHost ? () => { enterPip(); } : null);
+    } catch (_) { /* browser lama: tombol PIP tetap ada */ }
+  }
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && state === 'live' && !document.pictureInPictureElement) enterPip();
-  });
+  if (isHost) {
+    document.addEventListener('visibilitychange', () => {
+      if (state !== 'live') return;
+      if (document.hidden) { if (!document.pictureInPictureElement) enterPip(); }
+      else if (inOurPip()) stopPip();
+    });
+    // Kembali ke jendela ini tanpa berganti tab (mis. dari DAW): tutup PiP juga.
+    window.addEventListener('focus', () => { if (inOurPip() && !document.hidden) stopPip(); });
+  }
 
   // Antarmuka audio bisa dicolok atau dicabut selagi halaman terbuka. Tanpa ini, daftar
   // perangkat menunjukkan sesuatu yang sudah tidak ada lagi.
@@ -677,11 +735,13 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     });
   }
 
-  window.addEventListener('pagehide', () => { stopMeter(); meter?.close(); leave(); });
+  window.addEventListener('pagehide', () => { stopPip(); stopMeter(); meter?.close(); leave(); });
 
   return {
     /** Panel ditampilkan. Vokalis langsung masuk ruangnya; admin menunggu pilihan. */
     async show() {
+      visible = true;
+      armAutoPip();
       startPreview();
       if (isHost) {
         const list = vocalists?.() || [];
@@ -696,9 +756,23 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       paint();
       startPreview();        // sengaja tidak di-await: panel tampil dulu, kamera menyusul
     },
-    /** Panel disembunyikan. Panggilan yang sedang hidup TIDAK diputus hanya karena
-     *  pindah tab — itu akan mengagetkan di tengah rapat. */
-    hide() { if (!inCall()) { stopPreview(); stopMeter(); } paint(); },
+    /** Panel disembunyikan (tab lain dibuka). Lihat catatan di atas: semua perangkat dilepas. */
+    hide() {
+      visible = false;
+      // Pratinjau yang berdiri sendiri (belum dipakai panggilan) dicatat dulu: onState('idle')
+      // di bawah mengosongkan variabelnya, dan tanpa dicatat kameranya tidak akan pernah dimatikan.
+      const loose = preview;
+      // Pindah tab = keluar dari Meeting: panggilan ditutup (lawan bicara diberi tahu lewat
+      // rtc-bye), layar yang dibagikan dihentikan, kamera dan mikrofon dilepas.
+      try { if (inCall()) voice?.hangUp(); } catch (_) {}
+      try { voice?.stop(); } catch (_) {}
+      shareOn = false; camOn = true;
+      stopPip();
+      try { navigator.mediaSession?.setActionHandler('enterpictureinpicture', null); } catch (_) {}
+      try { for (const t of loose?.getTracks() || []) t.stop(); } catch (_) {}
+      stopPreview(); stopMeter();
+      paint();
+    },
     get busy() { return inCall(); },
     stop: leave,
   };

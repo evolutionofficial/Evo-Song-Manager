@@ -84,12 +84,10 @@
             <a class="btn" id="openLink" target="_blank" rel="noopener">Open ↗</a>
           </div>
         </div>
-        <div class="lt-start">
-          <!-- Listen together dan Private Studio DISEMBUNYIKAN atas permintaan Jeffry, bukan
-               dihapus: mesinnya utuh di listen.js / voice.js / studio.html dan halaman
-               /studio/<kode> masih berfungsi. Keduanya digantikan halaman Meeting di sidebar,
-               yang memanggil langsung tanpa bertukar link. Hapus `hidden` untuk memunculkannya. -->
-          <button id="listenBtn" hidden title="Listen to a mixdown together, at full quality, while you talk">Listen together</button>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px">
+          <!-- Private Studio DISEMBUNYIKAN atas permintaan Jeffry, bukan dihapus: halaman
+               /studio/<kode> masih berfungsi. Digantikan halaman Meeting di sidebar. Listen together
+               (dok "Listening with…") sudah dihapus dari aplikasi. -->
           <button id="studioBtn" hidden title="Open a 1-on-1 room to show your DAW and talk it through">Private Studio</button>
         </div>
       </div>
@@ -158,10 +156,7 @@
 
     <!-- Settings -->
     <!-- CALL -->
-    <div id="callView" class="hidden">
-      <h1>Meeting</h1>
-      <p class="sub">A 1-on-1 video call with a vocalist. Your camera turns on when the call starts.
-         Use Share screen to show your DAW.</p>
+    <div id="callView" class="hidden call-full">
       <div class="panel" id="callPanel"></div>
     </div>
 
@@ -201,8 +196,6 @@
     </div>
     </main>
 
-    <!-- Listen together: dok di bawah, tetap ada sambil pindah tab -->
-    <div class="listen-dock" id="listenDock" hidden role="region" aria-label="Listening together"></div>
   </section>
 </div>
 

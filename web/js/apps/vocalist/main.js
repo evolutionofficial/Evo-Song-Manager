@@ -12,7 +12,6 @@ const MODULES = [
   { key: 'allsongs', label: 'All Song List', path: '/js/apps/vocalist/allsongs.js', el: 'allBody' },
   { key: 'send', label: 'Send to FC', path: '/js/apps/vocalist/send.js', el: null },
   { key: 'player', label: 'Player', path: '/js/apps/vocalist/player.js', el: 'playerBody' },
-  { key: 'listen', label: 'Listen together', path: '/js/apps/vocalist/listen.js', el: 'listenBanner' },
   { key: 'call', label: 'Meeting', path: '/js/apps/vocalist/call.js', el: 'vCallPanel' },
 ];
 
@@ -89,9 +88,7 @@ async function start() {
   // Modul tidak saling mengimpor; yang perlu bicara satu sama lain lewat ctx ini.
   const ctx = { player: () => mods.player?.remote || null };
 
-  // Player dipasang lebih dulu: modul Listen together memerlukan kendalinya.
-  const order = [...MODULES].sort((a, b) => (a.key === 'listen') - (b.key === 'listen'));
-  for (const m of order) {
+  for (const m of MODULES) {
     const mod = mods[m.key];
     if (mod?.mount) safe(m.label, () => mod.mount(rep, ctx), $(m.el));
   }
