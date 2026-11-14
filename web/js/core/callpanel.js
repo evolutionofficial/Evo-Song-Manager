@@ -13,6 +13,7 @@
 import { createRoom } from '/js/core/room.js';
 import { createVoice } from '/js/core/voice.js';
 import { createMeter } from '/js/core/meter.js';
+import { audioFor } from '/js/core/voice.js';
 
 const I = {
   call: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 10.5 19 7V17l-3.5-3.5"/><rect x="3" y="6" width="12.5" height="12" rx="2.5"/></svg>',
@@ -61,6 +62,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   // Slot A dan B: masing-masing satu perangkat masukan. Hanya SATU yang hidup pada satu waktu.
   const slots = { A: { dev: '', music: false }, B: { dev: '', music: true } };
   let activeSlot = 'A';
+  // Apa yang BENAR-BENAR terpasang di stream pratinjau saat ini, bukan apa yang dipilih di
+  // layar. Pratinjau pertama diminta tanpa deviceId dengan pemrosesan suara menyala — persis
+  // sama dengan slot A bawaan, jadi tidak perlu diminta ulang saat halaman baru dibuka.
+  let previewSlot = '|false';
+  let previewSeq = 0;
   let meter = null;
   let meterTick = 0;
 
@@ -336,7 +342,42 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       } catch (_) { preview = null; }
     }
     paint();
-    fillDevices();
+    // Pratinjau yang baru dibuat selalu memakai mikrofon bawaan. Kalau slot aktif menunjuk
+    // perangkat lain — misalnya setelah panggilan selesai — pasang lagi sekarang.
+    previewSlot = '|false';
+    await fillDevices();
+    await applySlotToPreview();
+  }
+
+  /** Pasang slot aktif ke stream PRATINJAU, sebelum ada panggilan.
+   *
+   *  Dulu pemasangan sumber hanya terjadi setelah tersambung ('live'), jadi memilih Loopback
+   *  sebelum menelepon tidak mengubah apa pun: yang hidup tetap mikrofon bawaan, dan meter
+   *  dengan jujur mengukur perangkat yang SALAH. Gejalanya "no signal" padahal DAW sedang
+   *  berbunyi. Pratinjau memang untuk memastikan sebelum menelepon, jadi di sinilah tempatnya.
+   *
+   *  Hanya track suaranya yang ditukar; track kamera tidak disentuh supaya pratinjau tidak
+   *  berkedip dan izin kamera tidak diminta dua kali. */
+  async function applySlotToPreview() {
+    if (!isHost || inCall() || !preview) return;
+    const { dev, music } = slots[activeSlot];
+    const key = dev + '|' + music;
+    if (previewSlot === key) return;
+    const seq = ++previewSeq;
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: audioFor(dev, music), video: false });
+      const t = st.getAudioTracks()[0];
+      // Pilihan bisa berubah lagi selagi izin diproses; yang menang harus yang TERAKHIR
+      // dipilih, bukan yang terakhir selesai.
+      if (!t || seq !== previewSeq || !preview || inCall()) { try { t?.stop(); } catch (_) {} return; }
+      for (const old of preview.getAudioTracks()) { preview.removeTrack(old); try { old.stop(); } catch (_) {} }
+      preview.addTrack(t);
+      previewSlot = key;
+      // meter.attach() berhenti kalau objek stream-nya sama, padahal yang berganti justru
+      // ISInya. Tanpa dilepas dulu, meter terus menganalisis track lama yang sudah mati.
+      meter?.detach();
+      syncMeter();
+    } catch (e) { onError?.(e); }
   }
 
   function stopMeter() {
@@ -382,9 +423,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
           camProblem = inf.cam || (gotVideo ? null : camProblem);
         }
         if (s === 'live' && isHost && (slots[activeSlot].dev || slots[activeSlot].music)) {
-          // Sumber yang dipilih dipasang setelah tersambung, bukan sebelum: sebelum ada
-          // sambungan tidak ada pengirim yang bisa ditukar isinya.
-          voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+          // Pratinjau sudah memakai sumber yang dipilih, dan panggilan memakai ULANG stream
+          // itu. Jadi kalau keduanya sama, tidak ada yang perlu diganti — meminta
+          // getUserMedia lagi di sini hanya membuat suara tersendat di detik pertama.
+          const same = voice.localStream && voice.localStream === preview
+            && previewSlot === slots[activeSlot].dev + '|' + slots[activeSlot].music;
+          if (!same) voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
         }
         if (s === 'idle' || s === 'failed') { preview = null; startPreview(); }
         if (s === 'failed') stuckNote = inf?.note === 'stuck';
@@ -477,6 +521,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         paintAb();
         // Kalau sedang bicara, sumbernya ditukar saat itu juga tanpa memutus panggilan.
         if (voice && inCall()) await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        else await applySlotToPreview();
         return;
       }
       if (e.target.closest('[data-pip]')) { await enterPip(); return; }
@@ -489,16 +534,18 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       const dev = e.target.closest('[data-abdev]');
       if (dev) {
         slots[dev.dataset.abdev].dev = dev.value;
-        if (dev.dataset.abdev === activeSlot && voice && inCall())
-          await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        if (dev.dataset.abdev !== activeSlot) return;
+        if (voice && inCall()) await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        else await applySlotToPreview();
         return;
       }
       const mus = e.target.closest('[data-abmusic]');
       if (mus) {
         slots[mus.dataset.abmusic].music = mus.checked;
         paintAb();
-        if (mus.dataset.abmusic === activeSlot && voice && inCall())
-          await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        if (mus.dataset.abmusic !== activeSlot) return;
+        if (voice && inCall()) await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        else await applySlotToPreview();
       }
     });
 

@@ -28,7 +28,10 @@ const MIC = { echoCancellation: true, noiseSuppression: true, autoGainControl: t
  *
  * Harga yang dibayar: tanpa peredam gema, speaker akan melolong. Rapat ini wajib headphone.
  */
-const audioFor = (deviceId, music) => ({
+/* Dipakai juga oleh panel: sebelum panggilan dimulai, pratinjau harus memakai perangkat
+ * dan mode yang SAMA persis dengan yang nanti terkirim — kalau tidak, meter mengukur
+ * perangkat lain dan pengecekan sebelum menelepon jadi tidak ada artinya. */
+export const audioFor = (deviceId, music) => ({
   ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
   echoCancellation: !music,
   noiseSuppression: !music,
