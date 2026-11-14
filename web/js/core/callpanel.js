@@ -67,6 +67,18 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   // sama dengan slot A bawaan, jadi tidak perlu diminta ulang saat halaman baru dibuka.
   let previewSlot = '|false';
   let previewSeq = 0;
+  // Ke mana suara panggilan KELUAR. Penting karena loopback: kalau keluaran halaman ini
+  // jatuh ke perangkat loopback yang sama dengan masukannya, suara vokalis masuk ke
+  // loopback dan terkirim balik — vokalis mendengar dirinya sendiri. Jadi perangkat
+  // loopback sengaja dikunci di daftar keluaran, dan kalau bawaan sistem ternyata
+  // loopback, dipindahkan sendiri.
+  let sinkId = '';          // '' = ikut bawaan sistem
+  let sinkNote = '';
+  const canSink = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
+  const OUT_KEY = 'fc.callOut';
+  // Nama perangkat adalah satu-satunya petunjuk yang diberikan browser. Untuk Quantum ES 4
+  // namanya jelas ("Loopback 1 L/R"), jadi pencocokan nama sudah cukup.
+  const isLoopback = (label) => /loop\s*-?\s*back/i.test(label || '');
   let meter = null;
   let meterTick = 0;
 
@@ -109,7 +121,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
           <select data-abdev="B"></select>
           <label class="cl-abmus"><input type="checkbox" data-abmusic="B" checked> music</label>
         </div>
+        <div class="cl-abrow" data-outrow hidden>
+          <span class="cl-ablbl">Out</span>
+          <select data-out></select>
+        </div>
         <p class="note" data-abnote></p>
+        <p class="note cl-outnote" data-outnote hidden></p>
       </div>` : ''}
 
       <div class="cl-meter" data-meterbox>
@@ -346,7 +363,75 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     // perangkat lain — misalnya setelah panggilan selesai — pasang lagi sekarang.
     previewSlot = '|false';
     await fillDevices();
+    await fillOutputs();
     await applySlotToPreview();
+  }
+
+  /** Paksa suara panggilan keluar ke perangkat yang dipilih.
+   *
+   *  setSinkId berlaku per elemen dan menang atas setelan per-aplikasi di Windows, jadi
+   *  halaman ini tidak akan pernah menumpahkan suara ke loopback meskipun setelan sistem
+   *  berubah. Yang diatur hanya suara HALAMAN INI — tab lain tetap ikut setelan Windows. */
+  async function applySink() {
+    if (!canSink) return;
+    for (const s of ['[data-main]', '[data-side]', '[data-peerthumb]']) {
+      const el = q(s);
+      if (!el || el.dataset.sink === (sinkId || 'default')) continue;
+      try { await el.setSinkId(sinkId); el.dataset.sink = sinkId || 'default'; }
+      catch (_) { sinkNote = 'Tidak bisa memindahkan keluaran ke perangkat itu.'; }
+    }
+  }
+
+  function paintOut() {
+    const n = q('[data-outnote]');
+    if (!n) return;
+    n.textContent = sinkNote;
+    n.hidden = !sinkNote;
+  }
+
+  /** Daftar perangkat keluaran. Yang loopback ditampilkan tapi DIKUNCI — dengan alasannya,
+   *  supaya jelas kenapa tidak bisa dipilih, bukan sekadar hilang tanpa penjelasan. */
+  async function fillOutputs() {
+    const row = q('[data-outrow]');
+    if (!isHost || !row) return;
+    if (!canSink || !navigator.mediaDevices?.enumerateDevices) { row.hidden = true; return; }
+    let list = [];
+    try { list = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput'); }
+    catch (_) { return; }
+    if (!list.length) { row.hidden = true; return; }
+    row.hidden = false;
+    const sel = q('[data-out]');
+    sel.innerHTML = list.map((d, i) => {
+      const lab = (d.label || 'Output ' + (i + 1)).replace(/[<>]/g, '');
+      const bad = isLoopback(lab);
+      return `<option value="${d.deviceId}"${bad ? ' disabled' : ''}>${lab}${bad ? ' — blocked: this is your input' : ''}</option>`;
+    }).join('');
+
+    let saved = '';
+    try { saved = localStorage.getItem(OUT_KEY) || ''; } catch (_) {}
+    const byId = (id) => list.find((d) => d.deviceId === id);
+    const firstSafe = list.find((d) => !isLoopback(d.label) && d.deviceId !== 'default') || list.find((d) => !isLoopback(d.label));
+
+    sinkNote = '';
+    if (saved && byId(saved) && !isLoopback(byId(saved).label)) {
+      sinkId = saved;
+    } else {
+      // Bawaan sistem. Kalau ITU yang loopback, dipindahkan sendiri — tapi dikatakan,
+      // bukan diam-diam: keluaran yang pindah tanpa penjelasan lebih membingungkan
+      // daripada feedback-nya sendiri.
+      const def = byId('default') || list[0];
+      if (def && isLoopback(def.label) && firstSafe) {
+        sinkId = firstSafe.deviceId;
+        sinkNote = 'Output moved to ' + (firstSafe.label || 'another device')
+          + ' — the system default is a loopback, which would send the vocalist her own voice back.';
+      } else {
+        sinkId = '';
+      }
+    }
+    if (sinkId && byId(sinkId)) sel.value = sinkId;
+    else if (byId('default')) sel.value = 'default';
+    await applySink();
+    paintOut();
   }
 
   /** Pasang slot aktif ke stream PRATINJAU, sebelum ada panggilan.
@@ -539,6 +624,15 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         else await applySlotToPreview();
         return;
       }
+      const out = e.target.closest('[data-out]');
+      if (out) {
+        sinkId = out.value === 'default' ? '' : out.value;
+        try { localStorage.setItem(OUT_KEY, sinkId); } catch (_) {}
+        sinkNote = '';
+        await applySink();
+        paintOut();
+        return;
+      }
       const mus = e.target.closest('[data-abmusic]');
       if (mus) {
         slots[mus.dataset.abmusic].music = mus.checked;
@@ -573,6 +667,15 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state === 'live' && !document.pictureInPictureElement) enterPip();
   });
+
+  // Antarmuka audio bisa dicolok atau dicabut selagi halaman terbuka. Tanpa ini, daftar
+  // perangkat menunjukkan sesuatu yang sudah tidak ada lagi.
+  if (isHost && navigator.mediaDevices && 'ondevicechange' in navigator.mediaDevices) {
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      fillDevices().catch(() => {});
+      fillOutputs().catch(() => {});
+    });
+  }
 
   window.addEventListener('pagehide', () => { stopMeter(); meter?.close(); leave(); });
 

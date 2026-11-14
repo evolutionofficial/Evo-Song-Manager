@@ -1137,6 +1137,16 @@ body.cl-live #vCallPanel {
   font-weight: 700; cursor: pointer;
 }
 .cl-abtab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cl-ablbl {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; padding: 0 8px; border-radius: 8px;
+  border: 1px solid var(--line); color: var(--muted);
+  font-size: 12.5px; letter-spacing: .02em;
+}
+/* Catatan keluaran: ini memberi tahu suara dipindahkan ke mana, jadi harus terlihat,
+   bukan abu-abu samar seperti catatan biasa. */
+.cl-outnote { color: var(--warn, #ffc24d); }
+.cl-abrow select option:disabled { color: var(--muted); }
 .cl-abmus { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
 /* Saat panggilan memenuhi layar, slot tetap bisa dijangkau tanpa keluar dari panggilan. */
 .cl-wrap.live .cl-ab {
