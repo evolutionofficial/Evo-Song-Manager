@@ -4,6 +4,10 @@
 // (kecuali tombol & volume) → tampilan penuh terbuka dari bawah. Tombol ⌄ / Esc / tombol Back HP
 // menutupnya kembali.
 //
+// Setelah lagu selesai, pemutar BERHENTI (tidak lanjut ke lagu berikutnya). Tombol Repeat
+// mengulang lagu yang sedang diputar sampai dimatikan; ia tidak disimpan, jadi setiap kali
+// halaman dibuka Repeat kembali mati. Next / Previous tetap berpindah lagu seperti biasa.
+//
 // Audio: file M4A di Cloudflare R2, dialirkan lewat /audio/<token>/<idLagu> (endpoint itu
 // memeriksa bahwa lagu memang milik pemegang link). Lagu tanpa M4A → "No audio yet".
 // Semua yang berhubungan dengan suara ada di bagian ENGINE di bawah.
@@ -19,6 +23,8 @@ const I = {
   next: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="16.4" y="5" width="2.6" height="14" rx="1"/><path d="M5 6.2v11.6a1 1 0 0 0 1.55.83L14.8 13a1.2 1.2 0 0 0 0-2L6.55 5.37A1 1 0 0 0 5 6.2z"/></svg>',
   shuffle: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h4v4"/><path d="M4 20 20 4"/><path d="M20 16v4h-4"/><path d="M15 15l5 5"/><path d="M4 4l5 5"/></svg>',
   repeat: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>',
+  // Repeat menyala: panah yang sama + angka 1 di tengah (artinya "ulangi lagu ini").
+  repeat1: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/><path d="M11 10.5l1.6-1V15"/></svg>',
   vol: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
   mute: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" stroke="none"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/></svg>',
   down: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -115,25 +121,15 @@ function step(dir) {
     let r; do { r = order[Math.floor(Math.random() * order.length)].n; } while (r === st.n);
     return select(r, st.playing);
   }
-  let i = pos() + dir;
-  if (i < 0) i = st.repeat ? order.length - 1 : 0;
-  if (i > order.length - 1) i = st.repeat ? 0 : order.length - 1;
+  // Repeat hanya mengulang SATU lagu, jadi Next/Previous tidak berputar dari ujung ke ujung.
+  const i = Math.min(Math.max(pos() + dir, 0), order.length - 1);
   select(order[i].n, st.playing);
 }
 
-// Setelah lagu selesai: lanjut ke lagu berikutnya YANG PUNYA AUDIO (lewati yang belum ada).
-function advance() {
-  const cand = [];
-  for (let k = 1; k < order.length; k++) {
-    const i = pos() + k;
-    if (i > order.length - 1 && !st.repeat) break;
-    cand.push(order[i % order.length]);
-  }
-  const pool = st.shuffle ? order.filter((x) => x.n !== st.n && hasAudio(x)) : cand.filter(hasAudio);
-  if (!pool.length) { st.playing = false; return render(); }
-  const nxt = st.shuffle ? pool[Math.floor(Math.random() * pool.length)] : pool[0];
-  select(nxt.n, true);
-}
+// Repeat = ulangi lagu yang sedang diputar. Diserahkan ke elemen audio (loop) supaya pengulangan
+// mulus tanpa jeda dan tanpa event 'ended'. Selama Listen together dipimpin admin, pengulangan
+// dimatikan: posisi lagu ikut pemimpin, bukan loop lokal.
+function syncLoop() { audio.loop = st.repeat && !locked; }
 
 // ---------- Tampilan ----------
 function controls(size) {
@@ -142,10 +138,10 @@ function controls(size) {
   const label = st.playing ? 'Pause' : 'Play';
   return `
     ${size === 'full' ? `<button class="pc tog ${st.shuffle ? 'on' : ''}" data-act="shuffle" aria-pressed="${st.shuffle}" aria-label="Shuffle">${I.shuffle}</button>` : ''}
-    <button class="pc" data-act="prev" aria-label="Previous" ${isFirst() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
+    <button class="pc" data-act="prev" aria-label="Previous" ${isFirst() && !st.shuffle ? 'disabled' : ''}>${I.prev}</button>
     <button class="pc pp ${noAudio ? 'soon' : ''}" data-act="play" aria-label="${label}" title="${noAudio ? 'No audio yet' : label}">${pp}</button>
-    <button class="pc" data-act="next" aria-label="Next" ${isLast() && !st.repeat && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
-    ${size === 'full' ? `<button class="pc tog ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Repeat">${I.repeat}</button>` : ''}`;
+    <button class="pc" data-act="next" aria-label="Next" ${isLast() && !st.shuffle ? 'disabled' : ''}>${I.next}</button>
+    <button class="pc tog ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Repeat this song" title="${st.repeat ? 'Repeat is on — this song will loop' : 'Repeat this song'}">${st.repeat ? I.repeat1 : I.repeat}</button>`;
 }
 function volume() {
   const v = st.muted ? 0 : st.volume;
@@ -220,7 +216,7 @@ function act(name, target) {
     case 'prev': return step(-1);
     case 'next': return step(1);
     case 'shuffle': st.shuffle = !st.shuffle; store.set('shuffle', st.shuffle); return render();
-    case 'repeat': st.repeat = !st.repeat; store.set('repeat', st.repeat); return render();
+    case 'repeat': st.repeat = !st.repeat; syncLoop(); return render();
     case 'mute': st.muted = !st.muted; engineVolume(); store.set('muted', st.muted); return render();
     case 'close': return setOpen(false);
     default: return undefined;
@@ -242,7 +238,8 @@ export function mount(report_) {
   songs = rep.songs.map((s, i) => ({ ...s, n: i + 1 }));
   order = songs.slice().reverse();
   st.shuffle = store.get('shuffle', false);
-  st.repeat = store.get('repeat', false);
+  st.repeat = false; // tidak disimpan: tiap halaman dibuka, lagu berhenti saat selesai kecuali Repeat ditekan
+  syncLoop();
   st.volume = store.get('volume', 0.8);
   st.muted = store.get('muted', false);
   engineVolume();
@@ -307,7 +304,13 @@ export function mount(report_) {
     }
   }
   for (const ev of ['timeupdate', 'loadedmetadata', 'durationchange', 'seeked']) audio.addEventListener(ev, paintProgress);
-  audio.addEventListener('ended', () => { st.playing = false; if (!isLast() || st.repeat || st.shuffle) advance(); else render(); });
+  // Lagu selesai → berhenti dan kembali ke awal (tombol jadi ▶ lagi). Kalau Repeat menyala,
+  // audio.loop mengulangnya sendiri dan event ini tidak pernah sampai.
+  audio.addEventListener('ended', () => {
+    st.playing = false;
+    try { audio.currentTime = 0; } catch { /* tidak masalah: tampilan akan menyusul */ }
+    render();
+  });
   // Diputar/dijeda dari luar (tombol di lock screen, headset) → samakan tampilan.
   audio.addEventListener('play', () => { if (!st.playing) { st.playing = true; render(); } });
   audio.addEventListener('pause', () => { if (st.playing && !audio.ended) { st.playing = false; render(); } });
@@ -388,7 +391,7 @@ export const remote = {
   get locked() { return locked; },
 
   /** Kunci tombol-tombol transport (pemimpinnya sisi admin). */
-  lock(on) { locked = !!on; if (mounted && cur()) render(); },
+  lock(on) { locked = !!on; syncLoop(); if (mounted && cur()) render(); },
 
   /** Lagu ini ada di daftar saya? */
   has(id) { return !!songs?.some((x) => x.id === id && hasAudio(x)); },
@@ -428,5 +431,5 @@ export const remote = {
     };
   },
 
-  stop() { enginePause(); this.rate(1); locked = false; if (mounted && cur()) render(); },
+  stop() { enginePause(); this.rate(1); locked = false; syncLoop(); if (mounted && cur()) render(); },
 };

@@ -5,8 +5,8 @@
 // Revision = batalkan Accept + minta revisi (boleh dengan catatan); tombol kembali ke "Accept".
 // Revision bukan tombol: diminta lewat klik kanan / tekan lama pada lagu (lihat songlist.js).
 // Send to FC: lagu muncul di halaman unduhan operator FC (/fc/<kode>). Vokalis memberi tahu
-// operator sendiri lewat WhatsApp. Status tombol: Send to FC → Ready (terkirim) → Finish (vokalis
-// sudah mengunduh WAV-nya sendiri). Lihat songlist.js.
+// operator sendiri lewat WhatsApp. Status tombol: Send to FC → Waiting operator (terkirim) → Ready
+// (operator sudah mengunduh). Lihat songlist.js.
 import { sb } from '/js/core/supabase.js';
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';

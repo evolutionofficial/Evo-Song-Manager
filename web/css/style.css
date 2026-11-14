@@ -772,27 +772,24 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
   .op-dl span { display: none; }
   .op-dl { width: 44px; padding: 0; justify-content: center; }
 }
-.sendbtn.ready:disabled, .sendbtn.done:disabled { opacity: 1; cursor: default; }
-/* Ready = sudah dikirim ke First Club: biru senada tema, hanya tampilan (tidak bisa ditekan) */
+.sendbtn.ready:disabled, .sendbtn.waiting:disabled { opacity: 1; cursor: default; }
+/* Waiting operator = sudah dikirim ke First Club, operator belum mengunduh: hijau, hanya tampilan */
+.sendbtn.waiting { color: #d9f8e9; border-color: rgba(61, 220, 151, .5); background: linear-gradient(135deg, rgba(61, 220, 151, .22), rgba(61, 220, 151, .07)); }
+.sendbtn.waiting svg { color: #3ddc97; }
+/* Ready = operator sudah mengunduh: biru senada tema, hanya tampilan (tidak bisa ditekan) */
 .sendbtn.ready { color: #cfe6ff; border-color: rgba(46, 139, 255, .5); background: linear-gradient(135deg, rgba(46, 139, 255, .22), rgba(46, 139, 255, .08)); }
 .sendbtn.ready svg { color: #6fb6ff; }
-/* Finish = urusan lagu ini tuntas. SENGAJA tanpa bingkai: tidak ada yang perlu ditekan,
-   jadi bentuk tombol justru menipu. Hijau juga dihindari karena terlalu mirip Accept —
-   satu-satunya tombol hijau di baris ini — sehingga sekilas keduanya tertukar.
-   Warnanya biru elektrik senada tema, lebih terang dari Ready supaya tetap terbaca sebagai
-   akhir perjalanan, bukan tahap di tengah. */
-.sendbtn.done {
-  border: 0; background: none; box-shadow: none;
-  padding: 0 2px; color: #6fb6ff; font-weight: 650;
+/* "Waiting operator" panjang: di layar sempit dipendekkan jadi "Waiting", dan di layar sangat
+   sempit tinggal ikon (seperti tombol lain di baris ini). */
+.sendbtn .lbl-short { display: none; }
+@media (max-width: 480px) {
+  .sendbtn .lbl-long { display: none; }
+  .sendbtn .lbl-short { display: inline; }
 }
-.sendbtn.done svg { color: #6fb6ff; }
-/* Teks "Finish" tetap tampil di layar sempit: tanpa bingkai, ikon centang sendirian
-   tidak memberi tahu apa pun. */
 @media (max-width: 360px) {
-  .sendbtn.done span { display: inline; }
-  .sendbtn.done { width: auto; padding: 0 2px; }
+  .sendbtn .lbl-long, .sendbtn .lbl-short { display: none; }
 }
-/* Unduh WAV untuk vokalis (kiri tombol Send to FC; hilang setelah FC mengunduh) */
+/* Unduh WAV untuk vokalis (kiri tombol status; hilang setelah vokalis atau operator mengunduh) */
 .dlbtn { width: 36px; height: 36px; min-height: 36px; padding: 0; justify-content: center; border-radius: 999px; color: #9fd0ff;
   background: linear-gradient(135deg, rgba(46, 139, 255, .16), rgba(46, 139, 255, .05)); border-color: rgba(46, 139, 255, .38); }
 .dlbtn:hover { border-color: rgba(46, 139, 255, .8); box-shadow: 0 0 0 3px rgba(46, 139, 255, .15); }

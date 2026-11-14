@@ -1,8 +1,9 @@
 // VOKALIS — modul Songlist (My Songs): lagu milik vokalis ini.
 // Tombol per lagu: belum di-Accept → [Accept] [▶]; sudah di-Accept → [Download WAV] [Send to FC] [▶].
-// Tombol status (kanan ikon unduh) berganti: Accept → Preparing… → Send to FC → Ready (biru, sudah
-// dikirim ke First Club, tidak bisa ditekan) → Finish (vokalis sudah mengunduh WAV-nya lewat ikon
-// unduh; ikon unduh ikut hilang).
+// Tombol status (kanan ikon unduh) berganti: Accept → Preparing… → Send to FC → Waiting operator
+// (hijau: sudah dikirim ke First Club, operator belum mengunduh) → Ready (biru: operator sudah
+// mengunduh). Dua yang terakhir hanya tampilan, tidak bisa ditekan. Tidak ada status "Finish":
+// unduhan oleh vokalis sendiri tidak mengubah status, hanya menyembunyikan ikon unduh.
 // Revision & Redownload bukan tombol: klik kanan (desktop) / tekan lama (HP) pada lagu yang sudah
 // di-Accept → menu "Request a revision" (event 'fc:revision' ke send.js) dan "Redownload"
 // (aktif selama WAV masih ada di Google Drive).
@@ -20,22 +21,25 @@ let playing = 0;
 const CHECK_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const SEND_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>';
 
-const DL_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
+const CLOCK_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
+const DL_ICON ='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
 
 const vdlUrl = (s) => `/vdl/${encodeURIComponent(rep.token)}/${encodeURIComponent(s.id)}`;
 
 // WAV masih bisa diunduh vokalis: file sudah selesai diunggah dan masih ada di Google Drive.
 const canDownload = (s) => s.wav === 'complete' && s.on_drive !== false;
 
-// Unduh WAV (cadangan pribadi vokalis): muncul hanya kalau WAV siap di Drive, dan hilang
-// setelah vokalis mengunduhnya. Mengunduh lagi lewat menu klik kanan / tekan lama → Redownload.
+// Unduh WAV (cadangan pribadi vokalis): muncul hanya kalau WAV siap di Drive. Hilang setelah
+// vokalis mengunduhnya, dan juga setelah operator mengunduh (status Ready).
+// Mengunduh lagi lewat menu klik kanan / tekan lama → Redownload.
 function downloadButton(s) {
-  if (s.vocalist_downloaded_at) return '';
+  if (s.vocalist_downloaded_at || s.fc_downloaded_at) return '';
   if (!canDownload(s)) return '';
   return `<a class="btn dlbtn" href="${vdlUrl(s)}" download data-vdl="${s.n}" title="Download WAV" aria-label="Download WAV: ${esc(s.title)}">${DL_ICON}</a>`;
 }
 
-// Tombol status sesuai keadaan: Preparing… → Send to FC → Ready → Finish.
+// Tombol status sesuai keadaan: Preparing… → Send to FC → Waiting operator → Ready.
 /**
  * Selama lagu dalam revisi, semua tombolnya mati: versi lama sudah dicabut dan versi barunya
  * belum ada, jadi tidak ada yang bisa diputar, diunduh, atau dikirim.
@@ -63,12 +67,11 @@ function playButton(s) {
 
 function sendButton(s) {
   const t = esc(s.title);
-  // Sudah dikirim ke First Club: "Ready" (biru). Finish butuh DUA-DUANYA, sesuai permintaan
-  // Jeffry: operator benar-benar sudah mengunduhnya, DAN vokalis sudah punya salinannya.
-  // Sekadar terkirim belum cukup — selama operator belum mengambilnya, statusnya tetap Ready.
+  // Operator sudah mengunduh → "Ready" (biru). Sudah dikirim tapi belum diunduh operator →
+  // "Waiting operator" (hijau). Unduhan oleh vokalis sendiri tidak mengubah status.
   // Keduanya hanya tampilan — tidak bisa ditekan.
-  if (s.fc_downloaded_at && s.vocalist_downloaded_at) return `<button class="sendbtn done" disabled title="Done — FC has this song and you have your own copy" aria-label="${t}: finish">${CHECK_ICON}<span>Finish</span></button>`;
-  if (s.sent_at) return `<button class="sendbtn ready" disabled title="Sent to FC" aria-label="${t}: ready">${CHECK_ICON}<span>Ready</span></button>`;
+  if (s.fc_downloaded_at) return `<button class="sendbtn ready" disabled title="The operator has downloaded this song" aria-label="${t}: ready">${CHECK_ICON}<span>Ready</span></button>`;
+  if (s.sent_at) return `<button class="sendbtn waiting" disabled title="Sent to FC — waiting for the operator to download" aria-label="${t}: waiting for operator">${CLOCK_ICON}<span class="lbl-long">Waiting operator</span><span class="lbl-short">Waiting</span></button>`;
   if (canDownload(s)) return `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${t}">${SEND_ICON}<span>Send to FC</span></button>`;
   if (s.wav === 'complete') return `<button class="sendbtn" disabled title="This file is no longer stored. Ask the studio." aria-label="${t}: not available">${SEND_ICON}<span>Unavailable</span></button>`;
   return `<button class="sendbtn preparing" disabled aria-label="Preparing ${t} for sending" title="${s.wav === 'failed' ? 'Upload is being retried automatically' : 'Getting the WAV ready…'}"><i class="spin" aria-hidden="true"></i><span>Preparing…</span></button>`;
@@ -162,7 +165,7 @@ export function mount(report) {
       return;
     }
     const dlb = e.target.closest('[data-vdl]');
-    if (dlb) { // biarkan browser mengunduh; setelah itu ikon unduh hilang dan status jadi Finish
+    if (dlb) { // biarkan browser mengunduh; setelah itu ikon unduh hilang (status tidak berubah)
       toast('Download started');
       const s = rep.songs[Number(dlb.dataset.vdl) - 1];
       if (s) markDownloadedSoon(s);
