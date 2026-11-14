@@ -1145,3 +1145,30 @@ body.cl-live #vCallPanel {
   background: rgba(5, 6, 10, .72); backdrop-filter: blur(8px);
   border: 1px solid var(--glass-line); border-radius: 12px; padding: 10px;
 }
+
+/* ---- Meter level masukan ---- */
+.cl-meter {
+  --meter-bg: rgba(255, 255, 255, .07);
+  display: flex; align-items: center; gap: 9px;
+}
+.cl-mlabel { color: var(--muted); font-size: 12px; flex: 0 0 auto; }
+.cl-mcanvas {
+  flex: 1 1 auto; min-width: 0; height: 10px; border-radius: 5px;
+  background: var(--meter-bg); display: block;
+}
+.cl-mdb {
+  flex: 0 0 auto; width: 56px; text-align: right;
+  color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.cl-mdb.quiet { color: var(--muted); }
+/* Tidak ada sinyal sama sekali: labelnya yang bicara, bukan batang kosong yang ambigu. */
+.cl-meter.nosig .cl-mlabel { color: var(--warn, #ffc24d); }
+.cl-meter.nosig .cl-mlabel::after { content: ' — no signal'; }
+/* Saat panggilan memenuhi layar, meter melayang di bawah bersama tombol. */
+.cl-wrap.live .cl-meter {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 3;
+  width: min(360px, calc(100% - 32px));
+  background: rgba(5, 6, 10, .6); backdrop-filter: blur(6px);
+  padding: 7px 11px; border-radius: 999px;
+}

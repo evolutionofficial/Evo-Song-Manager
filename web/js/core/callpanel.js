@@ -12,6 +12,7 @@
 // yang perlu dikirim: vokalis menyebut tokennya, admin menyebut vokalisnya.
 import { createRoom } from '/js/core/room.js';
 import { createVoice } from '/js/core/voice.js';
+import { createMeter } from '/js/core/meter.js';
 
 const I = {
   call: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 10.5 19 7V17l-3.5-3.5"/><rect x="3" y="6" width="12.5" height="12" rx="2.5"/></svg>',
@@ -60,6 +61,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   // Slot A dan B: masing-masing satu perangkat masukan. Hanya SATU yang hidup pada satu waktu.
   const slots = { A: { dev: '', music: false }, B: { dev: '', music: true } };
   let activeSlot = 'A';
+  let meter = null;
+  let meterTick = 0;
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -103,6 +106,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         <p class="note" data-abnote></p>
       </div>` : ''}
 
+      <div class="cl-meter" data-meterbox>
+        <span class="cl-mlabel">Input</span>
+        <canvas class="cl-mcanvas" data-meter width="320" height="10"></canvas>
+        <span class="cl-mdb" data-mdb>—</span>
+      </div>
+
       <p class="cl-err" data-err hidden></p>
       <p class="cl-camwarn" data-camwarn hidden></p>
 
@@ -119,6 +128,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     </div>`;
 
   const q = (sel) => mount.querySelector(sel);
+  meter = createMeter(mount.querySelector('[data-meter]'));
   const inCall = () => ['asking', 'calling', 'ringing', 'connecting', 'live'].includes(state);
 
   function paint() {
@@ -176,6 +186,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         : isHost ? 'Pick a vocalist, then press Call.' : 'Press Call to reach the studio.';
     }
     layout();
+    syncMeter();
     const badge = q('[data-badge]');
     if (badge) badge.hidden = !(state !== 'live' && preview && preview.getVideoTracks().length);
   }
@@ -186,6 +197,26 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
    *  speaker sendiri adalah monitoring, dan monitoring itulah yang melolong — bukan panggilannya.
    *  Tanpa ini, pratinjau sebelum menelepon memutar mikrofon sendiri ke speaker sendiri.
    *  Dengan ini, Jeffry bisa tetap memakai speaker: yang terdengar hanya suara dari sana. */
+  /** Meter selalu membaca stream yang SEDANG DIKIRIM — saat bicara itu stream panggilan,
+   *  sebelum menelepon itu pratinjau. Kalau yang dibaca stream lain, meternya berbohong. */
+  function syncMeter() {
+    if (!meter) return;
+    const live = voice?.localStream || preview || null;
+    meter.attach(live);
+    if (!meterTick) {
+      meterTick = setInterval(() => {
+        const c = q('[data-meter]');
+        const out = q('[data-mdb]');
+        if (!c || !out) return;
+        const db = c.dataset.db;
+        const silent = c.dataset.silent === '1';
+        out.textContent = db === undefined ? '—' : (db === 'floor' ? '< −60' : db + ' dB');
+        out.classList.toggle('quiet', silent);
+        q('[data-meterbox]')?.classList.toggle('nosig', silent);
+      }, 120);
+    }
+  }
+
   const put = (sel, stream) => {
     const el = q(sel);
     if (!el) return;
@@ -299,6 +330,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     }
     paint();
     fillDevices();
+  }
+
+  function stopMeter() {
+    clearInterval(meterTick); meterTick = 0;
+    meter?.detach();
+    const out = q('[data-mdb]'); if (out) out.textContent = '—';
   }
 
   function stopPreview() {
@@ -476,7 +513,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     if (document.hidden && state === 'live' && !document.pictureInPictureElement) enterPip();
   });
 
-  window.addEventListener('pagehide', leave);
+  window.addEventListener('pagehide', () => { stopMeter(); meter?.close(); leave(); });
 
   return {
     /** Panel ditampilkan. Vokalis langsung masuk ruangnya; admin menunggu pilihan. */
@@ -497,7 +534,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     },
     /** Panel disembunyikan. Panggilan yang sedang hidup TIDAK diputus hanya karena
      *  pindah tab — itu akan mengagetkan di tengah rapat. */
-    hide() { if (!inCall()) stopPreview(); paint(); },
+    hide() { if (!inCall()) { stopPreview(); stopMeter(); } paint(); },
     get busy() { return inCall(); },
     stop: leave,
   };
