@@ -230,6 +230,12 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       if (t.kind === 'video') camSender = sender;
       if (t.kind === 'audio') micSender = sender;
     }
+    // Layar yang sudah disiapkan sebelum menelepon ikut dipasang sekarang, lalu id stream-nya
+    // dikabarkan supaya sisi lain bisa membedakannya dari kamera.
+    if (screenTrack && screenStream && !screenSender) {
+      screenSender = pc.addTrack(screenTrack, screenStream);
+      try { session.signal('studio-mode', { screen: screenStream.id }); } catch (_) {}
+    }
     set('connecting', { video: local.getVideoTracks().length > 0, cam: camFail });
 
     // Apa pun yang sudah datang lebih dulu, dipakai sekarang.
@@ -365,11 +371,16 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     ending = true;
     clearTimeout(stuckTimer); stuckTimer = null;
     try { for (const t of local?.getTracks() || []) t.stop(); } catch (_) {}
-    try { screenTrack?.stop(); } catch (_) {}
+    // screenTrack TIDAK dihentikan di sini: Jeffry bisa menyiapkan layar sebelum menelepon,
+    // dan menutup panggilan tidak boleh ikut mematikan persiapannya. Yang dilepas hanya
+    // pengirimnya; track-nya dihentikan lewat setScreen(false) atau saat panel ditutup.
+    screenSender = null;
     try { pc?.close(); } catch (_) {}
     pc = null; local = null; remote = null; camSender = null; micSender = null;
     negotiatedMusic = false;
-    screenTrack = null; screenStream = null; screenSender = null;
+    // screenTrack dan screenStream sengaja DIPERTAHANKAN — lihat catatan di atas. Kalau
+    // di-null-kan di sini tanpa dihentikan, browser terus merekam layar tanpa ada lagi yang
+    // bisa menghentikannya.
     peerScreenId = null; peerStreams.clear();
     makingOffer = false; ignoreOffer = false;
     pendingDesc = null; pendingIce = []; peerReady = false;
@@ -503,7 +514,6 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
      * berbagi layar hanya boleh diminta oleh tindakan orang.
      */
     async setScreen(on) {
-      if (!pc) return false;
       try {
         if (on && !screenTrack) {
           if (!navigator.mediaDevices?.getDisplayMedia) {
@@ -520,8 +530,12 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
           screenStream = new MediaStream([t]);
           // Browser punya tombol "Stop sharing" sendiri di luar halaman kita.
           t.addEventListener('ended', () => { api.setScreen(false); });
-          screenSender = pc.addTrack(t, screenStream);
-          try { session.signal('studio-mode', { screen: screenStream.id }); } catch (_) {}
+          // Kalau panggilan belum ada, track-nya disimpan dulu dan dipasang oleh connect().
+          // Itu yang memungkinkan Jeffry menyiapkan layarnya SEBELUM menelepon.
+          if (pc) {
+            screenSender = pc.addTrack(t, screenStream);
+            try { session.signal('studio-mode', { screen: screenStream.id }); } catch (_) {}
+          }
           set(state, { screen: true, screenNote: null });
           return true;
         }
@@ -529,10 +543,10 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
         if (!on && screenTrack) {
           const t = screenTrack;
           screenTrack = null;
-          try { if (screenSender) pc.removeTrack(screenSender); } catch (_) {}
+          try { if (screenSender && pc) pc.removeTrack(screenSender); } catch (_) {}
           screenSender = null; screenStream = null;
           try { t.stop(); } catch (_) {}
-          try { session.signal('studio-mode', { screen: null }); } catch (_) {}
+          if (pc) { try { session.signal('studio-mode', { screen: null }); } catch (_) {} }
           set(state, { screen: false });
           return false;
         }
@@ -601,7 +615,14 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       } catch (e) { return null; }
     },
 
-    stop() { teardown(); set('idle'); },
+    /** Tutup total: dipakai saat panel ditinggalkan. Berbeda dengan hangUp(), ini juga
+     *  menghentikan layar yang sedang disiapkan di luar panggilan. */
+    stop() {
+      try { screenTrack?.stop(); } catch (_) {}
+      screenTrack = null; screenStream = null; screenSender = null;
+      teardown();
+      set('idle', { screen: false });
+    },
   };
   return api;
 }

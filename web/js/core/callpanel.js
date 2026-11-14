@@ -157,7 +157,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       const el = q(sel); if (el) el.hidden = !show;
     }
     const sh = q('[data-share]');
-    if (sh) sh.hidden = !inCall();
+    // Berbagi layar boleh disiapkan SEBELUM menelepon, jadi tombolnya tidak menunggu panggilan.
+    if (sh) sh.hidden = false;
     const pip = q('[data-pip]');
     if (pip) { pip.hidden = state !== 'live' || !document.pictureInPictureEnabled; pip.innerHTML = I.pip; }
 
@@ -188,7 +189,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     layout();
     syncMeter();
     const badge = q('[data-badge]');
-    if (badge) badge.hidden = !(state !== 'live' && preview && preview.getVideoTracks().length);
+    if (badge) {
+      const showing = state !== 'live' && (voice?.screenStream || (preview && preview.getVideoTracks().length));
+      badge.hidden = !showing;
+      badge.textContent = voice?.screenStream ? 'Screen ready' : 'Preview';
+    }
   }
 
   /** Pasang sebuah stream ke sebuah bingkai video.
@@ -244,11 +249,13 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       // memang untuk memastikan kameranya jalan sebelum menelepon.
       const own = (inCall() ? mine : preview) || null;
       const ownCam = own && own.getVideoTracks().length ? own : null;
-      put('[data-main]', ownCam);
+      // Kalau layar sudah disiapkan sebelum menelepon, ITU yang ditampilkan besar: yang perlu
+      // dipastikan adalah apa yang nanti terkirim, bukan wajah sendiri.
+      put('[data-main]', myScreen || ownCam);
       put('[data-side]', null);
       put('[data-peerthumb]', null);
-      put('[data-selfthumb]', null);
-      q('[data-main]').classList.toggle('mirror', !!ownCam);
+      put('[data-selfthumb]', myScreen ? ownCam : null);
+      q('[data-main]').classList.toggle('mirror', !myScreen && !!ownCam);
       q('[data-stage]').classList.remove('with-side', 'two-thumbs');
       return;
     }
@@ -392,6 +399,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
 
   function leave() {
     try { voice?.hangUp(); } catch (_) {}
+    try { voice?.stop(); } catch (_) {}   // termasuk menghentikan layar yang sedang disiapkan
     try { voice?.stop(); } catch (_) {}
     try { room?.leave(); } catch (_) {}
     voice = null; room = null; joinedCode = null; state = 'idle'; shareOn = false;
@@ -454,7 +462,13 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         paint();
         return;
       }
-      if (e.target.closest('[data-share]')) { shareOn = await voice.setScreen(!shareOn); paint(); return; }
+      if (e.target.closest('[data-share]')) {
+        // Sama seperti tombol Call: kalau ruangnya belum terbuka, buka dulu — jangan diam.
+        if (!voice && !(await ensureRoom())) return;
+        shareOn = await voice.setScreen(!shareOn);
+        paint();
+        return;
+      }
       // Tombol PIP hanya ada di sisi admin: Jeffry yang berpindah ke DAW sambil tetap ingin
       // melihat wajah vokalis. Vokalis sengaja tetap tiga tombol saja, sesuai permintaannya.
       const tab = e.target.closest('[data-abtab]');
