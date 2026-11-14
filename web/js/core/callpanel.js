@@ -56,6 +56,10 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   let stuckNote = false;
   let peerCam = null;      // stream kamera lawan bicara
   let peerScreen = null;   // stream layar lawan bicara (null kalau tidak berbagi)
+  let preview = null;      // kamera + mikrofon kita, hidup SEBELUM panggilan dimulai
+  // Slot A dan B: masing-masing satu perangkat masukan. Hanya SATU yang hidup pada satu waktu.
+  const slots = { A: { dev: '', music: false }, B: { dev: '', music: true } };
+  let activeSlot = 'A';
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -72,6 +76,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         <!-- Hanya admin: wajah vokalis BESAR di sebelah kanan layar yang dibagikan. -->
         <video class="cl-side" data-side autoplay playsinline hidden></video>
         <div class="cl-ph" data-ph><p data-ph-t></p><p class="note" data-ph-s></p></div>
+        <span class="cl-badge" data-badge hidden>Preview</span>
         <!-- Urutan DOM = urutan di layar. Wajah lawan bicara di KIRI, wajah sendiri di kanan,
              sesuai permintaan: "di thumbnail bawah ada Facecam dia, di sebelah kirinya Facecamku". -->
         <div class="cl-thumbs" data-thumbs>
@@ -79,6 +84,24 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
           <video class="cl-thumb" data-selfthumb autoplay playsinline muted hidden></video>
         </div>
       </div>
+
+      ${isHost ? `
+      <!-- Slot A/B: dua sumber suara yang disiapkan di depan, lalu DIPINDAH, bukan dicampur.
+           Pencampuran dikerjakan Jeffry di Studio One (mic dinamis masuk ke track, keluar lewat
+           loopback), jadi aplikasi ini tidak perlu punya pencampur sendiri. -->
+      <div class="cl-ab" data-ab>
+        <div class="cl-abrow">
+          <button class="cl-abtab on" data-abtab="A">A</button>
+          <select data-abdev="A"></select>
+          <label class="cl-abmus"><input type="checkbox" data-abmusic="A"> music</label>
+        </div>
+        <div class="cl-abrow">
+          <button class="cl-abtab" data-abtab="B">B</button>
+          <select data-abdev="B"></select>
+          <label class="cl-abmus"><input type="checkbox" data-abmusic="B" checked> music</label>
+        </div>
+        <p class="note" data-abnote></p>
+      </div>` : ''}
 
       <p class="cl-err" data-err hidden></p>
       <p class="cl-camwarn" data-camwarn hidden></p>
@@ -112,7 +135,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     if (lastError) err.textContent = lastError;
 
     const warn = q('[data-camwarn]');
-    warn.hidden = !(camProblem && inCall());
+    warn.hidden = !camProblem;
     if (!warn.hidden) warn.textContent = CAM_MSG[camProblem] || CAM_MSG.failed;
 
     const go = q('[data-go]');
@@ -136,7 +159,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     q('[data-end]').innerHTML = I.end;
 
     const live = state === 'live';
-    q('[data-ph]').hidden = live;
+    // Kalau pratinjau sudah tampil, tulisan di tengah hanya mengganggu.
+    q('[data-ph]').hidden = live || !!(preview && preview.getVideoTracks().length && !inCall());
     if (!live) {
       q('[data-ph-t]').textContent =
         state === 'ringing' ? 'Someone is calling' :
@@ -152,6 +176,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         : isHost ? 'Pick a vocalist, then press Call.' : 'Press Call to reach the studio.';
     }
     layout();
+    const badge = q('[data-badge]');
+    if (badge) badge.hidden = !(state !== 'live' && preview && preview.getVideoTracks().length);
   }
 
   const put = (sel, stream) => {
@@ -175,13 +201,19 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     const myScreen = voice?.screenStream || null;
 
     if (!live) {
-      put('[data-main]', null); put('[data-side]', null);
+      // Sebelum tersambung, yang ditampilkan BESAR adalah kamera kita sendiri — gunanya
+      // memang untuk memastikan kameranya jalan sebelum menelepon.
+      const own = (inCall() ? mine : preview) || null;
+      const ownCam = own && own.getVideoTracks().length ? own : null;
+      put('[data-main]', ownCam);
+      put('[data-side]', null);
       put('[data-peerthumb]', null);
-      // Pratinjau diri tetap berguna sebelum tersambung: untuk mengecek wajah dan pencahayaan.
-      put('[data-selfthumb]', inCall() && camOn ? mine : null);
+      put('[data-selfthumb]', null);
+      q('[data-main]').classList.toggle('mirror', !!ownCam);
       q('[data-stage]').classList.remove('with-side', 'two-thumbs');
       return;
     }
+    q('[data-main]').classList.remove('mirror');
 
     if (isHost) {
       const sharing = !!myScreen;
@@ -201,6 +233,72 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       q('[data-stage]').classList.remove('with-side');
       q('[data-stage]').classList.toggle('two-thumbs', !!(theirScreen && peerCam));
     }
+  }
+
+  /** Daftar perangkat masukan baru punya NAMA setelah izin mikrofon diberikan — sebelum itu
+   *  browser sengaja menyembunyikannya. Jadi daftar ini diisi ulang setelah pratinjau hidup. */
+  async function fillDevices() {
+    if (!isHost || !navigator.mediaDevices?.enumerateDevices) return;
+    let list = [];
+    try { list = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput'); }
+    catch (_) { return; }
+    for (const k of ['A', 'B']) {
+      const sel = q(`[data-abdev="${k}"]`);
+      if (!sel) continue;
+      const keep = slots[k].dev || sel.value;
+      sel.innerHTML = '<option value="">Default input</option>' + list.map((d, i) =>
+        `<option value="${d.deviceId}">${(d.label || 'Input ' + (i + 1)).replace(/[<>]/g, '')}</option>`).join('');
+      if (keep && [...sel.options].some((o) => o.value === keep)) sel.value = keep;
+      slots[k].dev = sel.value;
+    }
+    paintAb();
+  }
+
+  function paintAb() {
+    if (!isHost) return;
+    for (const k of ['A', 'B']) {
+      q(`[data-abtab="${k}"]`)?.classList.toggle('on', activeSlot === k);
+      const cb = q(`[data-abmusic="${k}"]`);
+      if (cb) cb.checked = slots[k].music;
+    }
+    const n = q('[data-abnote]');
+    if (n) n.textContent = slots[activeSlot].music
+      ? 'Slot ' + activeSlot + ' is in music mode: echo cancellation, noise suppression and auto-gain are off, and the call asks for stereo. Headphones required.'
+      : 'Slot ' + activeSlot + ' is in voice mode: echo cancellation on. Good for talking, wrong for music.';
+  }
+
+  /** Kamera dinyalakan begitu halaman Call dibuka, bukan menunggu tombol Call ditekan —
+   *  supaya bisa dicek dulu apakah kameranya memang jalan. Stream ini nanti DIPAKAI ULANG
+   *  oleh panggilan; meminta izin dua kali membuat browser mematikan pratinjau yang sedang
+   *  tampil, dan di iOS bisa gagal sama sekali. */
+  async function startPreview() {
+    if (preview || inCall()) return;
+    try {
+      preview = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: { ideal: 'user' } },
+      });
+      camProblem = null;
+    } catch (e) {
+      // Tanpa kamera pun halaman tetap berguna: panggilan masih bisa dimulai dengan suara.
+      const n = e?.name || '';
+      camProblem = n === 'NotAllowedError' ? 'blocked'
+        : n === 'NotFoundError' ? 'nocam'
+        : n === 'NotReadableError' ? 'busy' : 'failed';
+      try {
+        preview = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      } catch (_) { preview = null; }
+    }
+    paint();
+    fillDevices();
+  }
+
+  function stopPreview() {
+    // Hanya dihentikan kalau BUKAN stream yang sedang dipakai panggilan.
+    if (preview && preview !== voice?.localStream) {
+      try { for (const t of preview.getTracks()) t.stop(); } catch (_) {}
+    }
+    preview = null;
   }
 
   /** Masuk ke ruang vokalis ini. Dipanggil saat panel dibuka, jauh SEBELUM tombol Call
@@ -225,7 +323,18 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         state = s;
         if (typeof inf?.screen === 'boolean') shareOn = inf.screen;
         if (s === 'live' || s === 'connecting') camOn = !!inf?.video;
-        if (inf && 'cam' in inf) camProblem = inf.cam || null;
+        if (inf && 'cam' in inf) {
+          // Jangan hapus temuan pratinjau hanya karena panggilan memakai ulang stream yang
+          // sama: kalau memang tidak ada track video, masalahnya masih ada.
+          const gotVideo = voice?.localStream?.getVideoTracks?.().length > 0;
+          camProblem = inf.cam || (gotVideo ? null : camProblem);
+        }
+        if (s === 'live' && isHost && (slots[activeSlot].dev || slots[activeSlot].music)) {
+          // Sumber yang dipilih dipasang setelah tersambung, bukan sebelum: sebelum ada
+          // sambungan tidak ada pengirim yang bisa ditukar isinya.
+          voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        }
+        if (s === 'idle' || s === 'failed') { preview = null; startPreview(); }
         if (s === 'failed') stuckNote = inf?.note === 'stuck';
         if (s !== 'failed' && s !== 'idle') stuckNote = false;
         paint();
@@ -279,13 +388,14 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   mount.addEventListener('click', async (e) => {
     try {
       if (e.target.closest('[data-go]')) {
-        if (state === 'ringing') { await voice.answer({ video: true }); return; }
+        if (state === 'ringing') { await voice.answer({ video: true, stream: preview }); return; }
         // Dulu di sini ada `if (!room) return` tanpa kabar apa pun: kalau ruangnya gagal
         // dibuka, tombol Call jadi mati total tanpa satu pun pesan. Sekarang dicoba lagi.
         if (!room && !(await ensureRoom())) return;
         lastError = null;
         camOn = true;
-        await voice.call({ video: true });       // kamera menyala sejak panggilan dimulai
+        // Pratinjau yang sudah hidup dipakai langsung: tidak ada permintaan izin kedua.
+        await voice.call({ video: true, stream: preview });
         return;
       }
       if (e.target.closest('[data-mic]')) { voice?.setMuted(!voice.muted); paint(); return; }
@@ -302,12 +412,37 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       if (e.target.closest('[data-share]')) { shareOn = await voice.setScreen(!shareOn); paint(); return; }
       // Tombol PIP hanya ada di sisi admin: Jeffry yang berpindah ke DAW sambil tetap ingin
       // melihat wajah vokalis. Vokalis sengaja tetap tiga tombol saja, sesuai permintaannya.
+      const tab = e.target.closest('[data-abtab]');
+      if (tab) {
+        activeSlot = tab.dataset.abtab;
+        paintAb();
+        // Kalau sedang bicara, sumbernya ditukar saat itu juga tanpa memutus panggilan.
+        if (voice && inCall()) await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        return;
+      }
       if (e.target.closest('[data-pip]')) { await enterPip(); return; }
       if (e.target.closest('[data-end]')) { voice?.hangUp(); shareOn = false; paint(); return; }
     } catch (err) { onError?.(err); }
   });
 
   if (isHost) {
+    mount.addEventListener('change', async (e) => {
+      const dev = e.target.closest('[data-abdev]');
+      if (dev) {
+        slots[dev.dataset.abdev].dev = dev.value;
+        if (dev.dataset.abdev === activeSlot && voice && inCall())
+          await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+        return;
+      }
+      const mus = e.target.closest('[data-abmusic]');
+      if (mus) {
+        slots[mus.dataset.abmusic].music = mus.checked;
+        paintAb();
+        if (mus.dataset.abmusic === activeSlot && voice && inCall())
+          await voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
+      }
+    });
+
     q('#clVoc').addEventListener('change', async () => {
       leave();                 // ganti vokalis = ganti ruang
       lastError = null;
@@ -338,6 +473,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   return {
     /** Panel ditampilkan. Vokalis langsung masuk ruangnya; admin menunggu pilihan. */
     async show() {
+      startPreview();
       if (isHost) {
         const list = vocalists?.() || [];
         const sel = q('#clVoc');
@@ -349,10 +485,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         await ensureRoom();
       }
       paint();
+      startPreview();        // sengaja tidak di-await: panel tampil dulu, kamera menyusul
     },
     /** Panel disembunyikan. Panggilan yang sedang hidup TIDAK diputus hanya karena
      *  pindah tab — itu akan mengagetkan di tengah rapat. */
-    hide() { paint(); },
+    hide() { if (!inCall()) stopPreview(); paint(); },
     get busy() { return inCall(); },
     stop: leave,
   };

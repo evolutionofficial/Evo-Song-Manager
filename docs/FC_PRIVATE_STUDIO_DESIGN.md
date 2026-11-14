@@ -1,6 +1,14 @@
 # FC Private Studio — rancangan (13 Nov 2026)
 
-> **Status: TAHAP 1-3 SELESAI (13 Nov malam). Tahap 4-5 belum.**
+> **Status: TAHAP 1-4 SELESAI (14 Nov). Tahap 5 (penurunan otomatis saat internet lemah) belum.**
+>
+> **Slot A/B ternyata lebih sederhana dari ketiga pilihan di bagian 6, karena cara kerja Jeffry
+> sendiri:** dia merutekan mic dinamisnya MASUK ke Studio One, lalu keluar lewat loopback. Jadi
+> pencampuran suara dan musik terjadi di DAW, bukan di browser. Aplikasi ini cukup BERPINDAH
+> antara dua sumber — tidak perlu pencampur audio di browser sama sekali, yang juga berarti
+> satu sumber kesalahan lebih sedikit. Slot B default mode musik, slot A mode bicara.
+>
+> Catatan lama di bawah ini tetap berlaku:
 > Ruang, undangan, mikrofon, kamera, dan berbagi layar sudah jalan dan sudah diuji dua arah.
 > Slot audio A/B dan jalur mutu musik (tahap 4) belum dikerjakan — itu bagian yang perlu
 > disetel dengan telinga di perangkat Jeffry.

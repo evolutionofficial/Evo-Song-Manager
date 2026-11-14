@@ -18,6 +18,41 @@
 
 const MIC = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
 
+/* Dua jenis sumber suara, dengan kebutuhan yang BERLAWANAN.
+ *
+ *   bicara : peredam gema, peredam bising, dan auto-gain menyala. Bagus untuk suara orang.
+ *   musik  : ketiganya DIMATIKAN. Inilah seluruh alasan membangun panggilan ini sendiri
+ *            dan tidak memakai Zoom: peredam bising menganggap bagian sunyi sebagai derau
+ *            lalu memotongnya, auto-gain menaik-turunkan volume persis saat dinamika sedang
+ *            dinilai, dan peredam gema meruntuhkan stereo jadi mono.
+ *
+ * Harga yang dibayar: tanpa peredam gema, speaker akan melolong. Rapat ini wajib headphone.
+ */
+const audioFor = (deviceId, music) => ({
+  ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+  echoCancellation: !music,
+  noiseSuppression: !music,
+  autoGainControl: !music,
+  ...(music ? { channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 } } : {}),
+});
+
+/* Opus default-nya mono dan hemat, karena dirancang untuk suara bicara. Untuk musik, stereo
+ * dan bitrate tinggi harus diminta lewat SDP — tidak ada API JavaScript untuk ini, jadi baris
+ * fmtp-nya memang disunting langsung. Dilakukan di KEDUA sisi tawaran supaya berlaku dua arah. */
+function opusForMusic(sdp) {
+  const pt = (sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i) || [])[1];
+  if (!pt) return sdp;
+  const want = 'stereo=1;sprop-stereo=1;maxaveragebitrate=256000;maxplaybackrate=48000;useinbandfec=1';
+  const re = new RegExp('a=fmtp:' + pt + ' ([^\\r\\n]*)');
+  if (re.test(sdp)) {
+    return sdp.replace(re, (m, body) => {
+      const keep = body.split(';').filter((x) => !/^(stereo|sprop-stereo|maxaveragebitrate|maxplaybackrate|useinbandfec)=/.test(x.trim()));
+      return 'a=fmtp:' + pt + ' ' + [...keep, want].filter(Boolean).join(';');
+    });
+  }
+  return sdp.replace(new RegExp('(a=rtpmap:' + pt + ' opus/48000/2[^\\r\\n]*)'), '$1\r\na=fmtp:' + pt + ' ' + want);
+}
+
 // Yang dikirim lewat saluran harus DATA BIASA, bukan objek browser yang hidup.
 // RTCSessionDescription dan RTCIceCandidate tidak bisa disalin antar-konteks, dan kalaupun
 // sebuah transport berhasil mengubahnya sendiri, mengandalkan itu rapuh — jadi diubah di sini.
@@ -59,6 +94,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   let muted = false;
   let wantVideo = false;
   let camSender = null;
+  let micSender = null;        // supaya sumber suara bisa ditukar tanpa memutus panggilan
+  let musicMode = false;       // true = jalur mutu musik (pemroses suara bicara dimatikan)
+  let negotiatedMusic = false; // mode musik yang SUDAH tersampaikan lewat SDP
   let stuckTimer = null;       // penjaga waktu untuk 'connecting' yang tidak kunjung selesai
   let camFail = null;          // kenapa kamera tidak jadi menyala, untuk ditampilkan
 
@@ -120,7 +158,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       try {
         makingOffer = true;
         await pc.setLocalDescription();
-        session.signal('rtc-desc', { sdp: plainDesc(pc.localDescription) });
+        // Permintaan stereo + bitrate tinggi disisipkan ke SDP yang DIKIRIM. Tidak ada API
+        // JavaScript untuk ini; baris fmtp Opus memang harus disunting sendiri.
+        session.signal('rtc-desc', { sdp: musicSdp(plainDesc(pc.localDescription)) });
       } catch (e) { oops(e); } finally { makingOffer = false; }
     };
 
@@ -186,6 +226,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     for (const t of local.getTracks()) {
       const sender = pc.addTrack(t, local);
       if (t.kind === 'video') camSender = sender;
+      if (t.kind === 'audio') micSender = sender;
     }
     set('connecting', { video: local.getVideoTracks().length > 0, cam: camFail });
 
@@ -245,8 +286,29 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     return 'failed';
   }
 
-  async function grab(video) {
-    local = await getMedia(video);
+  /** SDP yang dikirim diberi permintaan mutu musik kalau slot musik sedang aktif. */
+  function musicSdp(d) {
+    negotiatedMusic = musicMode;
+    if (!d || !musicMode || !d.sdp) return d;
+    try { return { type: d.type, sdp: opusForMusic(d.sdp) }; } catch (_) { return d; }
+  }
+
+  /** Tawaran baru dibuat sendiri. Dipakai saat mode musik berubah di tengah panggilan. */
+  async function renegotiate() {
+    if (!pc || makingOffer) return;
+    try {
+      makingOffer = true;
+      await pc.setLocalDescription();
+      session.signal('rtc-desc', { sdp: musicSdp(plainDesc(pc.localDescription)) });
+    } catch (e) { oops(e); } finally { makingOffer = false; }
+  }
+
+  async function grab(video, ready) {
+    // `ready` adalah stream pratinjau yang sudah hidup di halaman. Memakainya ulang bukan
+    // sekadar hemat: meminta getUserMedia untuk kedua kalinya membuat browser mematikan
+    // pratinjau yang sedang tampil, dan di iOS bisa gagal sama sekali.
+    local = ready && ready.getAudioTracks().length ? ready : await getMedia(video);
+    if (local === ready) { wantVideo = local.getVideoTracks().length > 0; camFail = null; }
     for (const t of local.getAudioTracks()) t.enabled = !muted;
   }
 
@@ -277,7 +339,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       }
       if (sdp.type === 'offer') {
         await pc.setLocalDescription();
-        session.signal('rtc-desc', { sdp: plainDesc(pc.localDescription) });
+        // Permintaan stereo + bitrate tinggi disisipkan ke SDP yang DIKIRIM. Tidak ada API
+        // JavaScript untuk ini; baris fmtp Opus memang harus disunting sendiri.
+        session.signal('rtc-desc', { sdp: musicSdp(plainDesc(pc.localDescription)) });
       }
       await drainIce();
     } catch (e) { oops(e); }
@@ -301,7 +365,8 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     try { for (const t of local?.getTracks() || []) t.stop(); } catch (_) {}
     try { screenTrack?.stop(); } catch (_) {}
     try { pc?.close(); } catch (_) {}
-    pc = null; local = null; remote = null; camSender = null;
+    pc = null; local = null; remote = null; camSender = null; micSender = null;
+    negotiatedMusic = false;
     screenTrack = null; screenStream = null; screenSender = null;
     peerScreenId = null; peerStreams.clear();
     makingOffer = false; ignoreOffer = false;
@@ -326,12 +391,16 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
      * ambil mikrofon, bilang "saya siap", dan sambungan dibuat begitu sisi lain juga siap.
      * Harus dari klik, karena izin mikrofon hanya boleh diminta oleh tindakan orang.
      */
-    async call({ video = false } = {}) {
-      if (pc || local) return;
+    async call({ video = false, stream = null } = {}) {
+      // Dulu di sini ada `if (pc || local) return` yang keluar diam-diam. Sisa panggilan lama
+      // yang masih menempel membuat tombol Call mati total tanpa satu pun pesan.
+      if (pc && ['connecting', 'live', 'calling'].includes(state)) return;
+      if (pc || local) teardown();
       wantVideo = video;
       try {
-        await grab(video);
-        set(peerReady || pendingDesc ? 'connecting' : 'calling');
+        await grab(video, stream);
+        set(peerReady || pendingDesc ? 'connecting' : 'calling',
+            { video: local.getVideoTracks().length > 0 });
         watchStuck();
         session.signal('rtc-ready', {});
         session.signal('rtc-call', {});
@@ -397,6 +466,31 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     get camProblem() { return camFail; },
 
     get sharing() { return !!screenTrack; },
+    get musicMode() { return musicMode; },
+
+    /** Ganti sumber suara (slot A/B) tanpa memutus panggilan. `music` mematikan pemroses
+     *  suara bicara dan meminta stereo — dipakai untuk loopback dari DAW. */
+    async setAudioSource(deviceId, music = false) {
+      musicMode = !!music;
+      try {
+        const st = await navigator.mediaDevices.getUserMedia({ audio: audioFor(deviceId, music), video: false });
+        const t = st.getAudioTracks()[0];
+        if (!t) return false;
+        t.enabled = !muted;
+        if (local) {
+          for (const old of local.getAudioTracks()) { local.removeTrack(old); try { old.stop(); } catch (_) {} }
+          local.addTrack(t);
+        }
+        // replaceTrack: isinya ditukar tanpa perundingan ulang, jadi tidak ada jeda bicara.
+        if (micSender) await micSender.replaceTrack(t);
+        // replaceTrack sengaja TIDAK memicu perundingan ulang — itu gunanya, supaya tidak ada
+        // jeda bicara. Tapi permintaan stereo hanya bisa disampaikan lewat SDP baru, jadi
+        // kalau mode musiknya berubah, perundingan dipanggil sendiri.
+        if (pc && musicMode !== negotiatedMusic) await renegotiate();
+        set(state, { audio: deviceId || 'default', music: musicMode });
+        return true;
+      } catch (e) { oops(e); return false; }
+    },
     /** Stream layar kita sendiri, supaya halaman bisa menampilkannya berdampingan
      *  dengan kamera — bukan menggantikannya. */
     get screenStream() { return screenStream; },
