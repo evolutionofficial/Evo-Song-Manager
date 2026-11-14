@@ -10,7 +10,7 @@ installGlobalHandlers();
 const MODULES = [
   { key: 'auth', label: 'Login', path: '/js/apps/admin/auth.js', el: 'loginView' },
   { key: 'songs', label: 'Song table', path: '/js/apps/admin/songs.js', el: 'vocMain' },
-  { key: 'call', label: 'Call', path: '/js/apps/admin/call.js', el: 'callPanel' },
+  { key: 'call', label: 'Meeting', path: '/js/apps/admin/call.js', el: 'callPanel' },
   { key: 'trash', label: 'Deleted', path: '/js/apps/admin/trash.js', el: 'delBox' },
   { key: 'revisions', label: 'Replace revision', path: '/js/apps/admin/revisions.js', el: null },
   { key: 'requests', label: 'Revisions', path: '/js/apps/admin/requests.js', el: 'rrList' },
@@ -104,7 +104,7 @@ function renderTabs() {
   items.push(`<button class="nav-item ${cf ? 'alert' : ''}" style="--i:${k + 2}" aria-current="${state.tab === 'cf' ? 'page' : 'false'}" data-tab="cf">
     <span class="nav-name">Conflicts${cf ? ` <span class="badge warn">${cf}</span>` : ''}</span></button>`);
   items.push(`<button class="nav-item" style="--i:${k + 3}" aria-current="${state.tab === 'call' ? 'page' : 'false'}" data-tab="call">
-    <span class="nav-name">Call</span></button>`);
+    <span class="nav-name">Meeting</span></button>`);
   items.push(`<button class="nav-item" style="--i:${k + 4}" aria-current="${state.tab === 'sys' ? 'page' : 'false'}" data-tab="sys">
     <span class="nav-name">System</span></button>`);
   items.push(`<button class="nav-item" style="--i:${k + 5}" aria-current="${state.tab === 'set' ? 'page' : 'false'}" data-tab="set">

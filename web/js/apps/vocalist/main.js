@@ -1,7 +1,7 @@
 // VOKALIS — kerangka halaman: memuat laporan sekali, lalu menyerahkan ke modul Songlist & Invoice.
 // Modul baru (Player, ACC, Studio) cukup ditambahkan ke daftar MODULES.
 import { sb } from '/js/core/supabase.js';
-import { $, toast } from '/js/core/ui.js';
+import { $ } from '/js/core/ui.js';
 import { safe, on, loadModules, installGlobalHandlers, report } from '/js/core/guard.js';
 
 installGlobalHandlers();
@@ -13,12 +13,12 @@ const MODULES = [
   { key: 'send', label: 'Send to FC', path: '/js/apps/vocalist/send.js', el: null },
   { key: 'player', label: 'Player', path: '/js/apps/vocalist/player.js', el: 'playerBody' },
   { key: 'listen', label: 'Listen together', path: '/js/apps/vocalist/listen.js', el: 'listenBanner' },
-  { key: 'call', label: 'Call', path: '/js/apps/vocalist/call.js', el: 'vCallPanel' },
+  { key: 'call', label: 'Meeting', path: '/js/apps/vocalist/call.js', el: 'vCallPanel' },
 ];
 
 const token = new URLSearchParams(location.search).get('t') || location.pathname.split('/').filter(Boolean).pop();
 
-// ---------- Tampilan: Songlist / Invoice (tab) dan All Song List (dari laci) ----------
+// ---------- Tampilan: Songlist / Invoice (tab); All Song List dan Meeting (dari laci) ----------
 const VIEWS = { songs: 'songsView', invoice: 'invView', all: 'allView', call: 'callView' };
 const HASH = { songs: '', invoice: '#invoice', all: '#all', call: '#call' };
 
@@ -27,7 +27,6 @@ function showView(v) {
   for (const [k, id] of Object.entries(VIEWS)) $(id).classList.toggle('hidden', k !== v);
   $('tabSongs').setAttribute('aria-selected', v === 'songs');
   $('tabInv').setAttribute('aria-selected', v === 'invoice');
-  $('tabCall').setAttribute('aria-selected', v === 'call');
   document.querySelectorAll('#drawerNav [data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
   history.replaceState(history.state, '', location.pathname + location.search + HASH[v]);
   window.scrollTo(0, 0);
@@ -51,7 +50,6 @@ function initDrawer() {
   on(document, 'keydown', 'Menu', (e) => { if (e.key === 'Escape' && $('drawer').classList.contains('open')) setDrawer(false); });
   on($('drawerNav'), 'click', 'Menu', (e) => {
     const b = e.target.closest('.nav-item'); if (!b) return;
-    if (b.dataset.soon) { toast(`${b.dataset.soon} is coming soon`); return; }
     showView(b.dataset.view);
     setDrawer(false);
   });
