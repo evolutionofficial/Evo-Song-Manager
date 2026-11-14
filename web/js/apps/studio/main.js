@@ -129,7 +129,9 @@ async function start() {
       if (inf?.screenNote === 'unsupported') say('This browser cannot share a screen');
       paint();
     },
-    onRemote: (stream) => { $('remote').srcObject = stream || null; },
+    // Halaman ini hanya punya SATU bingkai video, jadi layar diutamakan saat dibagikan —
+    // itu yang sedang dibahas. Halaman Call punya tata letak dua gambar; halaman ini tidak.
+    onRemote: (cam, screen) => { $('remote').srcObject = screen || cam || null; },
     onError: (e) => say('Problem: ' + (e?.message || e)),
   });
 

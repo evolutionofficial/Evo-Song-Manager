@@ -995,16 +995,32 @@ body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
   background: #05060a; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
 }
 /* contain, bukan cover: layar DAW tidak boleh terpotong — yang terpotong justru bagian
-   yang sedang dibahas. */
-.cl-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #05060a; }
+   yang sedang dibahas. Wajah boleh cover, karena memenuhi bingkai lebih enak dilihat. */
+.cl-main { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #05060a; }
 .cl-ph { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 20px; }
 .cl-ph p { margin: 0; }
-.cl-local {
-  position: absolute; right: 10px; bottom: 10px; width: 26%; max-width: 190px; min-width: 96px;
-  aspect-ratio: 4 / 3; object-fit: cover; border-radius: 9px;
-  border: 1px solid var(--line); background: #000; transform: scaleX(-1);
+
+/* ADMIN saat membagikan layar: wajah vokalis BESAR di kanan, bukan mengecil jadi thumbnail.
+   Lebarnya 30% supaya layar DAW tetap mendapat bagian terbesar. */
+.cl-side {
+  position: absolute; top: 0; right: 0; width: 30%; height: 100%;
+  object-fit: cover; background: #05060a; border-left: 1px solid var(--line); z-index: 1;
+}
+.cl-stage.with-side .cl-main { right: 30%; width: 70%; }
+
+/* Deretan wajah kecil di bawah. Urutannya mengikuti DOM: lawan bicara di kiri, diri di kanan. */
+.cl-thumbs {
+  position: absolute; right: 10px; bottom: 10px; z-index: 2;
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.cl-thumb {
+  width: 112px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 9px;
+  border: 1px solid var(--line); background: #000;
   box-shadow: 0 5px 16px rgba(0, 0, 0, .4);
 }
+/* Hanya gambar dari kamera sendiri yang dicerminkan — wajah orang lain tidak boleh dibalik. */
+.cl-thumb[data-selfthumb] { transform: scaleX(-1); }
+@media (max-width: 520px) { .cl-thumb { width: 84px; } }
 
 .cl-bar { display: flex; align-items: center; gap: 10px; }
 .cl-go {
@@ -1045,8 +1061,13 @@ body.cl-live { overflow: hidden; }
   position: absolute; inset: 0; width: 100%; height: 100%;
   aspect-ratio: auto; border: 0; border-radius: 0;
 }
-.cl-wrap.live .cl-local {
-  right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); width: 28%; max-width: 170px;
+.cl-wrap.live .cl-thumbs { right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); }
+.cl-wrap.live .cl-thumb { width: 124px; }
+@media (max-width: 520px) { .cl-wrap.live .cl-thumb { width: 96px; } }
+/* Di HP tegak, wajah besar di kanan memakan terlalu banyak lebar; dibuat lebih ramping. */
+@media (max-width: 640px) {
+  .cl-side { width: 34%; }
+  .cl-stage.with-side .cl-main { right: 34%; width: 66%; }
 }
 .cl-wrap.live .cl-camwarn {
   position: absolute; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 3;
@@ -1092,3 +1113,8 @@ body.cl-live #vCallPanel {
   position: absolute; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom));
   z-index: 3; max-width: 460px; margin: 0 auto; background: rgba(48, 12, 12, .92);
 }
+
+/* Saat panel wajah besar aktif di kanan, wajah sendiri pindah ke KIRI — kalau tetap di kanan
+   dia menutupi wajah vokalis, yang justru bagian yang ingin dilihat Jeffry. */
+.cl-stage.with-side .cl-thumbs { right: auto; left: 10px; }
+.cl-wrap.live .cl-stage.with-side .cl-thumbs { right: auto; left: 12px; }

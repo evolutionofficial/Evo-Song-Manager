@@ -59,15 +59,20 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   let muted = false;
   let wantVideo = false;
   let camSender = null;
-  // Berbagi layar MENGGANTI track kamera di pengirim yang sama, bukan menambah track kedua.
-  // Alasannya dua: satu m-line berarti tidak perlu perundingan ulang sama sekali (replaceTrack
-  // langsung tukar isi), dan sisi penerima tidak perlu menebak mana kamera mana layar.
-  // Kamera yang tergusur disimpan di sini supaya bisa dipulihkan saat berbagi layar dihentikan.
   let stuckTimer = null;       // penjaga waktu untuk 'connecting' yang tidak kunjung selesai
   let camFail = null;          // kenapa kamera tidak jadi menyala, untuk ditampilkan
+
+  // Layar dikirim sebagai track KEDUA, berdampingan dengan kamera — bukan menggantikannya.
+  // Jeffry ingin wajahnya tetap terlihat sementara DAW-nya dibagikan, jadi keduanya harus
+  // hidup bersamaan. Konsekuensinya sisi penerima harus bisa membedakan mana kamera mana
+  // layar; itu diselesaikan dengan MediaStream terpisah yang id-nya dikabarkan lewat pesan
+  // 'studio-mode'. Menebak dari ukuran atau urutan track tidak bisa diandalkan.
   let screenTrack = null;
-  let camBefore = null;
-  let screenAdded = false;    // true kalau pengirimnya kita yang buat (kamera sedang mati)
+  let screenStream = null;
+  let screenSender = null;
+  // Dari sisi lain: id stream mana yang berisi layar, dan semua stream yang sudah tiba.
+  let peerScreenId = null;
+  const peerStreams = new Map();
 
   // Keadaan pola "sopan/tidak sopan".
   let makingOffer = false;
@@ -124,8 +129,12 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     };
 
     pc.ontrack = (e) => {
-      remote = e.streams[0] || new MediaStream([e.track]);
-      try { onRemote?.(remote); } catch (_) {}
+      const st = e.streams[0] || new MediaStream([e.track]);
+      peerStreams.set(st.id, st);
+      // Track yang berhenti (sisi lain menutup berbagi layar) harus ikut hilang dari layar,
+      // kalau tidak yang tertinggal adalah gambar beku.
+      e.track.addEventListener('ended', () => { peerStreams.delete(st.id); emitRemote(); });
+      emitRemote();
       // Beberapa browser baru memberi 'connected' setelah track pertama tiba.
       if (pc.connectionState === 'connected') set('live');
     };
@@ -144,6 +153,16 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       }
     };
     return pc;
+  }
+
+  /** Kirim ke halaman: mana stream kamera, mana stream layar. Pemisahannya berdasarkan id
+   *  yang dikabarkan sisi lain lewat 'studio-mode' — bukan tebakan. */
+  function emitRemote() {
+    const screen = peerScreenId ? peerStreams.get(peerScreenId) || null : null;
+    let cam = null;
+    for (const st of peerStreams.values()) if (st !== screen) { cam = st; break; }
+    remote = cam || screen || null;
+    try { onRemote?.(cam, screen); } catch (_) {}
   }
 
   /** 'connecting' yang menggantung tidak pernah berubah jadi 'failed' dengan sendirinya:
@@ -281,10 +300,10 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     clearTimeout(stuckTimer); stuckTimer = null;
     try { for (const t of local?.getTracks() || []) t.stop(); } catch (_) {}
     try { screenTrack?.stop(); } catch (_) {}
-    try { camBefore?.stop(); } catch (_) {}
     try { pc?.close(); } catch (_) {}
     pc = null; local = null; remote = null; camSender = null;
-    screenTrack = null; camBefore = null; screenAdded = false;
+    screenTrack = null; screenStream = null; screenSender = null;
+    peerScreenId = null; peerStreams.clear();
     makingOffer = false; ignoreOffer = false;
     pendingDesc = null; pendingIce = []; peerReady = false;
     try { onRemote?.(null); } catch (_) {}
@@ -378,11 +397,14 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     get camProblem() { return camFail; },
 
     get sharing() { return !!screenTrack; },
+    /** Stream layar kita sendiri, supaya halaman bisa menampilkannya berdampingan
+     *  dengan kamera — bukan menggantikannya. */
+    get screenStream() { return screenStream; },
 
     /**
-     * Berbagi layar. Track layar MENGGANTI track kamera di pengirim yang sama — lihat catatan
-     * di deklarasi screenTrack. Harus dipicu klik: izin berbagi layar hanya boleh diminta oleh
-     * tindakan orang, dan browser memang akan menolak kalau tidak.
+     * Berbagi layar. Track layar ditambahkan SEBAGAI PENGIRIM SENDIRI, berdampingan dengan
+     * kamera, supaya wajah tetap terkirim selama DAW dibagikan. Harus dipicu klik: izin
+     * berbagi layar hanya boleh diminta oleh tindakan orang.
      */
     async setScreen(on) {
       if (!pc) return false;
@@ -393,26 +415,17 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
             return false;
           }
           // audio:false — suara DAW TIDAK diambil dari sini. Jalur itu beda-beda per sistem
-          // operasi dan tidak memberi kita kendali setelan; suara DAW masuk lewat loopback
-          // sebagai perangkat mikrofon (tahap 4).
+          // operasi dan tidak memberi kita kendali setelan; suara DAW masuk lewat loopback.
           const disp = await navigator.mediaDevices.getDisplayMedia({ video: SCREEN, audio: false });
           const t = disp.getVideoTracks()[0];
           if (!t) return false;
           screenTrack = t;
-
-          // Browser punya tombol "Stop sharing" sendiri di luar halaman kita. Kalau itu yang
-          // ditekan, kita harus tahu — tanpa ini, tampilan tetap mengaku sedang berbagi.
+          // Stream TERPISAH: id-nya yang nanti dipakai sisi lain untuk mengenali layar.
+          screenStream = new MediaStream([t]);
+          // Browser punya tombol "Stop sharing" sendiri di luar halaman kita.
           t.addEventListener('ended', () => { api.setScreen(false); });
-
-          if (camSender) {
-            camBefore = camSender.track;        // kamera disimpan, tidak dimatikan
-            await camSender.replaceTrack(t);    // satu m-line: tidak perlu perundingan ulang
-            screenAdded = false;
-          } else {
-            local.addTrack(t);
-            camSender = pc.addTrack(t, local);  // ini memicu perundingan ulang, memang perlu
-            screenAdded = true;
-          }
+          screenSender = pc.addTrack(t, screenStream);
+          try { session.signal('studio-mode', { screen: screenStream.id }); } catch (_) {}
           set(state, { screen: true, screenNote: null });
           return true;
         }
@@ -420,28 +433,17 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
         if (!on && screenTrack) {
           const t = screenTrack;
           screenTrack = null;
-          if (screenAdded) {
-            // Pengirimnya kita yang buat, jadi dicabut lagi sepenuhnya.
-            try { pc.removeTrack(camSender); } catch (_) {}
-            camSender = null;
-            screenAdded = false;
-            try { local.removeTrack(t); } catch (_) {}
-          } else if (camSender) {
-            // Kamera dipulihkan. Kalau track kameranya sudah mati (misalnya izinnya dicabut),
-            // pengirimnya dikosongkan daripada menyiarkan gambar beku.
-            const back = camBefore && camBefore.readyState === 'live' ? camBefore : null;
-            try { await camSender.replaceTrack(back); } catch (e) { oops(e); }
-          }
-          camBefore = null;
+          try { if (screenSender) pc.removeTrack(screenSender); } catch (_) {}
+          screenSender = null; screenStream = null;
           try { t.stop(); } catch (_) {}
+          try { session.signal('studio-mode', { screen: null }); } catch (_) {}
           set(state, { screen: false });
           return false;
         }
         return !!screenTrack;
       } catch (e) {
-        // Paling sering: orangnya menekan Cancel di dialog pemilih layar. Itu bukan kesalahan,
-        // jadi tidak dilaporkan sebagai error — hanya dikembalikan ke keadaan tidak berbagi.
-        screenTrack = null;
+        // Paling sering: orangnya menekan Cancel di dialog pemilih layar. Itu bukan kesalahan.
+        screenTrack = null; screenStream = null; screenSender = null;
         set(state, { screen: false, screenNote: e?.name === 'NotAllowedError' ? 'cancelled' : 'failed' });
         if (e?.name !== 'NotAllowedError') oops(e);
         return false;
@@ -459,6 +461,12 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       if (event === 'rtc-call') {
         // Sisi lain menekan panggil. Kalau kita belum punya mikrofon, biarkan berdering.
         if (!local && state === 'idle') set('ringing');
+        return;
+      }
+      if (event === 'studio-mode') {
+        // Sisi lain memberi tahu stream mana yang berisi layarnya (atau berhenti berbagi).
+        peerScreenId = payload?.screen || null;
+        emitRemote();
         return;
       }
       if (event === 'rtc-ready') {
