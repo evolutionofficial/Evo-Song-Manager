@@ -938,13 +938,13 @@ body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
   display: flex; gap: 8px; align-items: flex-end;
 }
 .cl-thumb {
-  width: 112px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 9px;
+  width: 160px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px;
   border: 1px solid var(--line); background: #000;
   box-shadow: 0 5px 16px rgba(0, 0, 0, .4);
 }
 /* Hanya gambar dari kamera sendiri yang dicerminkan — wajah orang lain tidak boleh dibalik. */
 .cl-thumb[data-selfthumb] { transform: scaleX(-1); }
-@media (max-width: 520px) { .cl-thumb { width: 84px; } }
+@media (max-width: 520px) { .cl-thumb { width: 112px; } }
 
 .cl-bar { display: flex; align-items: center; gap: 10px; }
 /* Kotak "Call alerts" di bawah tombol: teks bantuan + satu tombol kecil. */
@@ -993,8 +993,8 @@ body.cl-live { overflow: hidden; }
   aspect-ratio: auto; border: 0; border-radius: 0;
 }
 .cl-wrap.live .cl-thumbs { right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); }
-.cl-wrap.live .cl-thumb { width: 124px; }
-@media (max-width: 520px) { .cl-wrap.live .cl-thumb { width: 96px; } }
+.cl-wrap.live .cl-thumb { width: 200px; }
+@media (max-width: 520px) { .cl-wrap.live .cl-thumb { width: 130px; } }
 /* Di HP tegak, wajah besar di kanan memakan terlalu banyak lebar; dibuat lebih ramping. */
 @media (max-width: 640px) {
   .cl-side { width: 34%; }
@@ -1139,8 +1139,30 @@ body.cl-live #vCallPanel {
   #callView.call-fullv:not(.hidden) #vCallPanel { height: auto; min-height: 0; }
   #vCallPanel .cl-wrap:not(.live) .cl-stage { flex: none; height: 64dvh; min-height: 0; }
   #callView.call-full:not(.hidden) { height: calc(100dvh - 60px); min-height: 0; }
-  .cl-wrap.live .cl-thumb { width: 104px; }
+  .cl-wrap.live .cl-thumb { width: 150px; }
   .cl-wrap.live .cl-bar { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
   .cl-wrap.live .st-btn { width: 46px; height: 46px; }
   .cl-wrap.live .cl-thumbs { bottom: calc(68px + env(safe-area-inset-bottom)); }
+}
+
+
+/* ===== Saat panggilan berjalan: panel audio disembunyikan, cukup di persiapan ===== */
+.cl-wrap.incall .cl-meter { display: none; }
+/* Admin: slot A/B mengecil jadi dua tombol saja. Pemilih perangkat, "music", Out, dan catatannya
+   sudah diatur sebelum menelepon, jadi tidak perlu tampil lagi. */
+.cl-wrap.incall .cl-ab select,
+.cl-wrap.incall .cl-ab .cl-abmus,
+.cl-wrap.incall .cl-ab [data-outrow],
+.cl-wrap.incall .cl-ab .note { display: none; }
+.cl-wrap.incall .cl-ab { flex-direction: row; gap: 8px; }
+.cl-wrap.live.incall .cl-ab { width: auto; padding: 6px; border-radius: 999px; }
+
+/* ===== Admin tanpa berbagi layar: bingkai dibagi dua (wajah vokalis | wajah sendiri) ===== */
+.cl-stage.split .cl-main { right: 50%; width: 50%; object-fit: cover; }
+.cl-stage.split .cl-side { width: 50%; border-left: 1px solid var(--line); }
+.cl-side.mirror { transform: scaleX(-1); }
+/* HP tegak: dua kolom terlalu sempit, jadi dibagi atas-bawah. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .cl-stage.split .cl-main { right: 0; bottom: 50%; width: 100%; height: 50%; }
+  .cl-stage.split .cl-side { top: 50%; left: 0; width: 100%; height: 50%; border-left: 0; border-top: 1px solid var(--line); }
 }

@@ -200,6 +200,10 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     // seperti FaceTime. Di luar panggilan panel kembali menjadi kotak biasa di halaman.
     const full = state === 'live';
     q('.cl-wrap').classList.toggle('live', full);
+    // Pemilih audio (meter masukan; slot A/B beserta pemilih perangkatnya di admin) hanya untuk
+    // PERSIAPAN. Begitu panggilan dimulai (memanggil, menyambung, tersambung) semuanya
+    // disembunyikan; di admin tinggal tombol A dan B untuk berpindah sumber.
+    q('.cl-wrap').classList.toggle('incall', ['calling', 'connecting', 'live'].includes(state));
     document.body.classList.toggle('cl-live', full);
 
     const err = q('[data-err]');
@@ -319,18 +323,24 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       put('[data-peerthumb]', null);
       put('[data-selfthumb]', myScreen ? ownCam : null);
       q('[data-main]').classList.toggle('mirror', !myScreen && !!ownCam);
-      q('[data-stage]').classList.remove('with-side', 'two-thumbs');
+      q('[data-stage]').classList.remove('with-side', 'two-thumbs', 'split');
       return;
     }
     q('[data-main]').classList.remove('mirror');
 
     if (isHost) {
       const sharing = !!myScreen;
+      // Tanpa berbagi layar, bingkainya DIBAGI DUA: wajah vokalis dan wajah Jeffry sama besar,
+      // bukan satu wajah penuh dengan thumbnail kecil. Saat berbagi layar susunan lama dipakai:
+      // layar di tengah, wajah vokalis besar di kanan, wajah sendiri thumbnail.
+      const split = !sharing && !!peerCam && camOn && !!mine;
       put('[data-main]', sharing ? myScreen : peerCam);
-      put('[data-side]', sharing ? peerCam : null);
+      put('[data-side]', sharing ? peerCam : split ? mine : null);
       put('[data-peerthumb]', null);
-      put('[data-selfthumb]', camOn ? mine : null);
+      put('[data-selfthumb]', !split && camOn ? mine : null);
+      q('[data-side]').classList.toggle('mirror', split);   // wajah sendiri dicerminkan, wajah orang lain tidak
       q('[data-stage]').classList.toggle('with-side', sharing && !!peerCam);
+      q('[data-stage]').classList.toggle('split', split);
       q('[data-stage]').classList.remove('two-thumbs');
     } else {
       const theirScreen = peerScreen;
@@ -339,7 +349,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       // Wajah Jeffry turun jadi thumbnail HANYA kalau layarnya sedang mengambil bagian utama.
       put('[data-peerthumb]', theirScreen ? peerCam : null);
       put('[data-selfthumb]', camOn ? mine : null);
-      q('[data-stage]').classList.remove('with-side');
+      q('[data-stage]').classList.remove('with-side', 'split');
       q('[data-stage]').classList.toggle('two-thumbs', !!(theirScreen && peerCam));
     }
   }
