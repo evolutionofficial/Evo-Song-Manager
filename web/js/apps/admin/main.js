@@ -47,6 +47,19 @@ const ctx = {
     if (!mods.revisions) return toast('Replace revision is having problems. Everything else still works.', 'bad');
     runMod('revisions', 'open', id);
   },
+  /** Buka tab Meeting untuk vokalis ini — dipakai notifikasi panggilan. Panggilan yang sedang
+   *  berjalan tidak pernah diputus: pindah tab menutup panggilan, jadi dalam keadaan itu hanya
+   *  memberi tahu. */
+  openCall(vocalistId) {
+    if (mods.call?.busy?.() && state.tab === 'call') {
+      toast('Another call is coming in. Finish this one first, then open Meeting.', 'bad');
+      return;
+    }
+    state.tab = 'call';
+    renderAll();
+    window.scrollTo(0, 0);
+    runMod('call', 'open', vocalistId);
+  },
   vocalists() { return state.vocalists; },
   /** Putar sebuah lagu di pemutar admin. */
   play(id) { return runMod('playback', 'play', id); },
@@ -57,6 +70,21 @@ const ctx = {
 async function enterApp() {
   $('appView').classList.remove('hidden');
   await reload();
+  // Dibuka dari notifikasi "… is calling" (alamatnya /admin#call=<id vokalis>): langsung ke Meeting.
+  const m = /^#call=([0-9a-f-]{36})$/i.exec(location.hash);
+  if (m) {
+    history.replaceState(null, '', location.pathname + location.search);
+    ctx.openCall(m[1]);
+  }
+}
+
+// Halaman admin sudah terbuka saat notifikasi masuk atau diketuk: pindah ke Meeting vokalis itu.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type !== 'incoming-call' && e.data?.type !== 'open-call') return;
+    const m = /#call=([0-9a-f-]{36})/i.exec(String(e.data.url || ''));
+    if (m && !$('appView').classList.contains('hidden')) safe('Meeting', () => ctx.openCall(m[1]));
+  });
 }
 
 async function reload() {

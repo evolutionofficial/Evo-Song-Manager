@@ -947,6 +947,13 @@ body.is-playing .row.playing .playbtn .ico-pause { display: inline; }
 @media (max-width: 520px) { .cl-thumb { width: 84px; } }
 
 .cl-bar { display: flex; align-items: center; gap: 10px; }
+/* Kotak "Call alerts" di bawah tombol: teks bantuan + satu tombol kecil. */
+.cl-alerts { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 13px; color: var(--muted); }
+.cl-alerts:empty { display: none; }
+.cl-alerts .btn { min-height: 36px; padding: 0 14px; }
+.cl-alerts b { color: var(--ok); font-weight: 650; }
+.cl-alnote { flex-basis: 100%; color: var(--bad); }
+.cl-wrap.live .cl-alerts { display: none; }
 .cl-go {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 0 16px; height: 42px; border-radius: 999px;

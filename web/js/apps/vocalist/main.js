@@ -34,6 +34,14 @@ function showView(v) {
   window.dispatchEvent(new CustomEvent('fc:view', { detail: v }));
 }
 
+// Notifikasi "… is calling" masuk atau diketuk saat halaman ini sudah terbuka: langsung ke Meeting,
+// di mana tombol Answer akan muncul begitu panel masuk ke ruangnya.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type === 'incoming-call' || e.data?.type === 'open-call') showView('call');
+  });
+}
+
 function setDrawer(open) {
   $('drawer').classList.toggle('open', open);
   $('drawer').setAttribute('aria-hidden', String(!open));

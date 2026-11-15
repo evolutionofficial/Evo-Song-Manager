@@ -431,6 +431,16 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
 
     answer(opts) { return this.call(opts); },
 
+    /**
+     * Lawan bicara baru masuk ruang padahal kita sudah menekan Call. Pesan panggilan tadi
+     * hilang karena dia belum ada di saluran (siaran tidak disimpan), jadi kirim ulang.
+     * Tidak berbuat apa-apa kalau kita tidak sedang memanggil.
+     */
+    reRing() {
+      if (state !== 'calling') return;
+      try { session.signal('rtc-ready', {}); session.signal('rtc-call', {}); } catch (_) {}
+    },
+
     hangUp() {
       if (state === 'idle') return;
       try { session.signal('rtc-bye', {}); } catch (_) {}

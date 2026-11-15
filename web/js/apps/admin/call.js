@@ -28,3 +28,6 @@ export function render() {
 
 /** Dipakai main.js untuk memperingatkan sebelum pergi, kalau nanti diperlukan. */
 export const busy = () => !!panel?.busy;
+
+/** Dari notifikasi "… is calling": pilih vokalisnya dan masuk ruangnya (tab Meeting sudah dibuka main.js). */
+export function open(vocalistId) { return panel?.openVocalist(vocalistId); }

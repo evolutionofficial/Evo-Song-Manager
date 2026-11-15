@@ -158,9 +158,38 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         <button class="st-btn st-end" data-end hidden aria-label="Hang up"></button>
       </div>
       ${isHost ? '<p class="note" data-hint></p>' : ''}
+      <div class="cl-alerts" data-alerts aria-live="polite"></div>
     </div>`;
 
   const q = (sel) => mount.querySelector(sel);
+
+  // Notifikasi panggilan. Semuanya dimuat terpisah dan gagal dengan tenang: notifikasi adalah
+  // tambahan, jadi masalah di sini tidak boleh mengganggu panggilannya sendiri.
+  let alerts = null;
+  let peerHere = false;   // lawan bicara sedang ada di ruang (halaman Meeting-nya terbuka)
+  let lastRingAt = 0;
+  import('/js/core/callalerts.js')
+    .then((m) => {
+      alerts = m.mountAlerts({ el: q('[data-alerts]'), role, token, onError });
+      if (visible) alerts.refresh();
+    })
+    .catch((e) => console.warn('[FC:call-alerts]', e));
+
+  /** Bunyikan HP lawan bicara lewat push — hanya kalau dia belum ada di ruang. Kalau halaman
+   *  Meeting-nya sudah terbuka, dia sudah melihat tombol Answer sendiri. */
+  function ringPeer() {
+    if (peerHere) return;
+    const now = Date.now();
+    if (now - lastRingAt < 15000) return;      // tombol Call ditekan berulang tidak membanjiri HP orang
+    lastRingAt = now;
+    const vocalistId = isHost ? (q('#clVoc')?.value || '') : '';
+    import('/js/core/push.js')
+      .then((p) => p.ring({ role: isHost ? 'host' : 'guest', token, vocalistId }))
+      .catch((e) => console.warn('[FC:ring]', e));
+  }
+
+  /** Panggilan sudah dijawab atau berakhir: notifikasi dering yang masih menempel tidak berguna lagi. */
+  const clearRinging = () => import('/js/core/push.js').then((p) => p.clearRinging()).catch(() => {});
   meter = createMeter(mount.querySelector('[data-meter]'));
   const inCall = () => ['asking', 'calling', 'ringing', 'connecting', 'live'].includes(state);
 
@@ -514,6 +543,14 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       code,
       role,
       onSignal: (ev, p) => voice?.handle(ev, p),
+      onPeers: (list) => {
+        const was = peerHere;
+        peerHere = list.some((p) => p?.role && p.role !== role);
+        // Lawan bicara BARU masuk ruang padahal kita sudah menekan Call: pesan panggilan tadi
+        // tidak sampai karena dia belum ada di saluran. Kirim ulang supaya tombol Answer-nya muncul.
+        // Inilah yang membuat ketukan pada notifikasi langsung berujung ke tombol Answer.
+        if (peerHere && !was) voice?.reRing?.();
+      },
       onError: (e) => onError?.(e),
     });
     await room.join();
@@ -539,6 +576,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
             && previewSlot === slots[activeSlot].dev + '|' + slots[activeSlot].music;
           if (!same) voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
         }
+        if (s === 'connecting' || s === 'live') clearRinging();
         if (s === 'idle' || s === 'failed') { preview = null; if (visible) startPreview(); }
         if (s !== 'live') stopPip();
         armAutoPip();
@@ -556,7 +594,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     try { voice?.hangUp(); } catch (_) {}
     try { voice?.stop(); } catch (_) {}   // termasuk menghentikan layar yang sedang disiapkan
     try { room?.leave(); } catch (_) {}
-    voice = null; room = null; joinedCode = null; state = 'idle'; shareOn = false;
+    voice = null; room = null; joinedCode = null; state = 'idle'; shareOn = false; peerHere = false;
   }
 
   /** Pastikan kita sudah di dalam ruang. Dipanggil saat memilih vokalis DAN saat Call ditekan,
@@ -603,6 +641,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         camOn = true;
         // Pratinjau yang sudah hidup dipakai langsung: tidak ada permintaan izin kedua.
         await voice.call({ video: true, stream: preview });
+        ringPeer();            // lawan bicara belum membuka Meeting? bunyikan HP-nya
         return;
       }
       if (e.target.closest('[data-mic]')) { voice?.setMuted(!voice.muted); paint(); return; }
@@ -754,7 +793,24 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
         await ensureRoom();
       }
       paint();
+      alerts?.refresh();     // status notifikasi di perangkat ini (menyala / belum / diblokir)
+      clearRinging();        // dia sudah di Meeting: notifikasi dering yang menempel tidak perlu lagi
       startPreview();        // sengaja tidak di-await: panel tampil dulu, kamera menyusul
+    },
+    /** Admin: dari notifikasi "Keket is calling" — pilih vokalisnya dan masuk ruangnya, sama seperti
+     *  memilihnya sendiri di daftar. Tidak melakukan apa-apa kalau vokalisnya tidak ada di daftar. */
+    async openVocalist(id) {
+      if (!isHost || !id) return;
+      const sel = q('#clVoc');
+      if (!sel) return;
+      if (sel.value !== id) {
+        sel.value = id;
+        if (sel.value !== id) return;
+        leave();             // ganti vokalis = ganti ruang
+        lastError = null;
+        paint();
+      }
+      await ensureRoom();
     },
     /** Panel disembunyikan (tab lain dibuka). Lihat catatan di atas: semua perangkat dilepas. */
     hide() {
