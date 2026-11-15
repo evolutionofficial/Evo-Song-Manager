@@ -49,8 +49,11 @@ const TEXT = {
   live: 'In a call', failed: 'Could not connect',
 };
 
-export function createCallPanel({ mount, role, token = '', vocalists = null, onError }) {
+export function createCallPanel({ mount, role, token = '', vocalists = null, testRoom = null, onError }) {
   const isHost = role === 'host';
+  // Halaman developer /test: ruang uji milik akun admin sendiri, bukan ruang vokalis.
+  // Tanpa pilihan vokalis, tanpa dering push, tanpa panel notifikasi.
+  const isTest = typeof testRoom === 'function';
   let room = null;
   let voice = null;
   let joinedCode = null;
@@ -89,7 +92,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
 
   mount.innerHTML = `
     <div class="cl-wrap">
-      ${isHost ? `
+      ${isHost && !isTest ? `
       <div class="cl-pick">
         <label for="clVoc">Call</label>
         <select id="clVoc" style="width:auto"></select>
@@ -168,7 +171,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   let alerts = null;
   let peerHere = false;   // lawan bicara sedang ada di ruang (halaman Meeting-nya terbuka)
   let lastRingAt = 0;
-  import('/js/core/callalerts.js')
+  if (!isTest) import('/js/core/callalerts.js')
     .then((m) => {
       alerts = m.mountAlerts({ el: q('[data-alerts]'), role, token, onError });
       if (visible) alerts.refresh();
@@ -178,7 +181,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   /** Bunyikan HP lawan bicara lewat push — hanya kalau dia belum ada di ruang. Kalau halaman
    *  Meeting-nya sudah terbuka, dia sudah melihat tombol Answer sendiri. */
   function ringPeer() {
-    if (peerHere) return;
+    if (isTest || peerHere) return;
     const now = Date.now();
     if (now - lastRingAt < 15000) return;      // tombol Call ditekan berulang tidak membanjiri HP orang
     lastRingAt = now;
@@ -612,13 +615,14 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   async function ensureRoom() {
     if (room) return true;
     try {
-      const id = isHost ? (q('#clVoc')?.value || '') : '';
-      if (isHost && !id) { lastError = 'Choose a vocalist first.'; paint(); return false; }
+      const id = isHost && !isTest ? (q('#clVoc')?.value || '') : '';
+      if (isHost && !isTest && !id) { lastError = 'Choose a vocalist first.'; paint(); return false; }
       const r = await roomFor(id || null);
       await enter(r.code);
       lastError = null;
-      if (isHost) q('[data-hint]').textContent =
-        `Room open for ${r.vocalist}. They see a Call button on their own page.`;
+      if (isHost) q('[data-hint]').textContent = isTest
+        ? 'Test room open. Open /test?as=phone on your phone (signed in with this admin account) and answer there.'
+        : `Room open for ${r.vocalist}. They see a Call button on their own page.`;
       paint();
       return true;
     } catch (e) {
@@ -630,6 +634,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
   }
 
   async function roomFor(vocalistId) {
+    if (isTest) {
+      const r = await testRoom();
+      if (!r?.code) throw new Error('no room');
+      return r;
+    }
     const { sb } = await import('/js/core/supabase.js');
     const { data, error } = await sb.rpc('call_room', { p_token: token, p_vocalist: vocalistId || null });
     if (error) throw error;
@@ -717,7 +726,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       }
     });
 
-    q('#clVoc').addEventListener('change', async () => {
+    // Di halaman /test tidak ada pilihan vokalis.
+    q('#clVoc')?.addEventListener('change', async () => {
       leave();                 // ganti vokalis = ganti ruang
       lastError = null;
       paint();
@@ -792,7 +802,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
       visible = true;
       armAutoPip();
       startPreview();
-      if (isHost) {
+      if (isHost && !isTest) {
         const list = vocalists?.() || [];
         const sel = q('#clVoc');
         const keep = sel.value;
@@ -810,7 +820,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, onE
     /** Admin: dari notifikasi "Keket is calling" — pilih vokalisnya dan masuk ruangnya, sama seperti
      *  memilihnya sendiri di daftar. Tidak melakukan apa-apa kalau vokalisnya tidak ada di daftar. */
     async openVocalist(id) {
-      if (!isHost || !id) return;
+      if (!isHost || isTest || !id) return;
       const sel = q('#clVoc');
       if (!sel) return;
       if (sel.value !== id) {

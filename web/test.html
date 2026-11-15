@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Call test · Evo Song Manager</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07080b">
+</head>
+<body class="glass-bg">
+<div class="wrap">
+
+  <section id="loginView" class="login hidden">
+    <div class="brand" style="margin-bottom:14px">Call test<small>Developer page · sign in as admin</small></div>
+    <form id="loginForm" class="panel">
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" minlength="6" required></div>
+      <div class="err" id="loginErr"></div>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <section id="appView" class="hidden">
+    <div class="bar" style="align-items:center;margin-bottom:12px">
+      <div class="brand">Call test<small id="whoami"></small></div>
+      <span class="grow"></span>
+      <a class="btn" href="/admin">Admin</a>
+      <button id="logoutBtn" class="ghost">Log out</button>
+    </div>
+
+    <div class="panel" style="margin-bottom:12px">
+      <div class="bar" style="margin:0">
+        <button id="asPc" class="ghost">This is the PC (caller)</button>
+        <button id="asPhone" class="ghost">This is the phone (receiver)</button>
+      </div>
+      <p class="note" id="roleNote"></p>
+      <div id="phoneLink" class="hidden">
+        <p class="note">On your phone, open this address and sign in with the same admin account:</p>
+        <div class="bar" style="margin:0;align-items:center">
+          <code id="phoneUrl" style="word-break:break-all"></code>
+          <button id="copyUrl" class="ghost">Copy</button>
+        </div>
+      </div>
+      <p class="note">Test calls use the same connection and relay (TURN) as real calls, but no vocalist is involved and no phone is rung.</p>
+    </div>
+
+    <div id="testCallPanel"></div>
+  </section>
+
+</div>
+<script type="module" src="/js/apps/test/main.js"></script>
+</body>
+</html>
