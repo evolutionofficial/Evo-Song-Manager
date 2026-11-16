@@ -29,6 +29,7 @@ const I = {
   shareOff: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M3 3l18 18"/></svg>',
   pip: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><rect x="12" y="11" width="8" height="6.5" rx="1.5" fill="currentColor" stroke="none"/></svg>',
   end: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  flip: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><path d="M9 14a3 3 0 0 0 5.2 2"/><path d="M15 13a3 3 0 0 0-5.2-2"/><path d="M14.2 16.6V16h.6M9.8 10.4v.6h-.6"/></svg>',
 };
 
 // Pesan kamera dibuat berisi LANGKAH, bukan sekadar "gagal". Yang paling sering terjadi
@@ -49,7 +50,7 @@ const TEXT = {
   live: 'In a call', failed: 'Could not connect',
 };
 
-export function createCallPanel({ mount, role, token = '', vocalists = null, testRoom = null, onError }) {
+export function createCallPanel({ mount, role, token = '', vocalists = null, testRoom = null, onError, onBusyChange = null }) {
   const isHost = role === 'host';
   // Halaman developer /test: ruang uji milik akun admin sendiri, bukan ruang vokalis.
   // Tanpa pilihan vokalis, tanpa dering push, tanpa panel notifikasi.
@@ -89,6 +90,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
   let meter = null;
   let meterTick = 0;
   let visible = false;      // tab Meeting sedang terbuka? Hanya saat itu perangkat boleh menyala
+  // Admin pindah ke tab lain SELAGI menelepon: panggilan tetap jalan, hanya tampilannya
+  // yang disembunyikan (lihat away()).
+  let away = false;
+  let lastBusy = false;
+  let multiCam = false;     // perangkat ini punya lebih dari satu kamera (HP: depan + belakang)
+  let soundBlocked = false; // sistem menolak memutar ulang suara tanpa ketukan
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -111,6 +118,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         <video class="cl-side" data-side autoplay playsinline hidden></video>
         <div class="cl-ph" data-ph><p data-ph-t></p><p class="note" data-ph-s></p></div>
         <span class="cl-badge" data-badge hidden>Preview</span>
+        <button class="cl-unblock" data-unblock hidden>Tap to hear the call again</button>
         <!-- Urutan DOM = urutan di layar. Wajah lawan bicara di KIRI, wajah sendiri di kanan,
              sesuai permintaan: "di thumbnail bawah ada Facecam dia, di sebelah kirinya Facecamku". -->
         <div class="cl-thumbs" data-thumbs>
@@ -156,6 +164,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         <span class="grow"></span>
         <button class="st-btn" data-mic hidden aria-label="Mute microphone"></button>
         <button class="st-btn" data-cam hidden aria-label="Turn camera off"></button>
+        <button class="st-btn" data-flip hidden aria-label="Switch camera"></button>
         ${isHost ? '<button class="st-btn" data-share hidden aria-label="Share screen"></button>' : ''}
         ${isHost ? '<button class="st-btn" data-pip hidden aria-label="Picture in picture"></button>' : ''}
         <button class="st-btn st-end" data-end hidden aria-label="Hang up"></button>
@@ -207,7 +216,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     // PERSIAPAN. Begitu panggilan dimulai (memanggil, menyambung, tersambung) semuanya
     // disembunyikan; di admin tinggal tombol A dan B untuk berpindah sumber.
     q('.cl-wrap').classList.toggle('incall', ['calling', 'connecting', 'live'].includes(state));
-    document.body.classList.toggle('cl-live', full);
+    document.body.classList.toggle('cl-live', full && !away);
+    q('.cl-wrap').classList.toggle('rear', voice?.facing === 'environment');
 
     const err = q('[data-err]');
     err.hidden = !lastError;
@@ -225,6 +235,12 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     for (const [sel, show] of [['[data-mic]', inCall()], ['[data-cam]', inCall()], ['[data-end]', inCall()]]) {
       const el = q(sel); if (el) el.hidden = !show;
     }
+    const flip = q('[data-flip]');
+    flip.hidden = !(inCall() && camOn && multiCam);
+    flip.innerHTML = I.flip;
+    q('[data-unblock]').hidden = !(soundBlocked && inCall());
+    const busyNow = inCall();
+    if (busyNow !== lastBusy) { lastBusy = busyNow; try { onBusyChange?.(busyNow); } catch (_) {} }
     const sh = q('[data-share]');
     // Berbagi layar boleh disiapkan SEBELUM menelepon, jadi tombolnya tidak menunggu panggilan.
     if (sh) sh.hidden = false;
@@ -590,7 +606,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
           if (!same) voice.setAudioSource(slots[activeSlot].dev, slots[activeSlot].music);
         }
         if (s === 'connecting' || s === 'live') clearRinging();
-        if (s === 'idle' || s === 'failed') { preview = null; if (visible) startPreview(); }
+        if (s === 'idle' || s === 'failed') { preview = null; if (visible && !away) startPreview(); }
         if (s !== 'live') stopPip();
         armAutoPip();
         if (s === 'failed') stuckNote = inf?.note === 'stuck';
@@ -664,6 +680,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         return;
       }
       if (e.target.closest('[data-mic]')) { voice?.setMuted(!voice.muted); paint(); return; }
+      if (e.target.closest('[data-flip]')) { await voice?.flipCamera(); paint(); return; }
+      if (e.target.closest('[data-unblock]')) { await replay(true); return; }
       if (e.target.closest('[data-cam]')) {
         // Nilai baliknya yang dipercaya, bukan niat kita: kalau izinnya ditolak, setCamera
         // mengembalikan false dan tombolnya tidak boleh terlihat menyala.
@@ -796,6 +814,40 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
 
   window.addEventListener('pagehide', () => { stopPip(); stopMeter(); meter?.close(); leave(); });
 
+  /** Putar ulang semua video/suara di panel. Saat aplikasi ditinggalkan, HP menjeda pemutarnya
+   *  dan tidak selalu memutarnya lagi sendiri — gejalanya: kembali ke aplikasi, gambar ada tapi
+   *  suara lawan bicara hilang. srcObject dipasang ulang karena di iOS pemutar yang sempat
+   *  diinterupsi kadang "hidup" tapi tetap bisu sampai sumbernya disambung lagi. */
+  async function replay(byTap = false) {
+    let blocked = false;
+    for (const v of mount.querySelectorAll('video')) {
+      const s = v.srcObject;
+      if (!s) continue;
+      if (!v.muted) { v.srcObject = null; v.srcObject = s; }
+      try { await v.play(); } catch (_) { if (!v.muted) blocked = true; }
+    }
+    soundBlocked = blocked;
+    paint();
+  }
+
+  /** Kembali dari aplikasi lain / layar utama. */
+  async function resume() {
+    if (document.hidden || !voice || !inCall()) return;
+    await voice.revive?.();
+    await replay();
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) resume(); });
+  window.addEventListener('pageshow', () => resume());
+
+  async function checkCams() {
+    try {
+      const d = await navigator.mediaDevices?.enumerateDevices?.();
+      multiCam = (d || []).filter((x) => x.kind === 'videoinput').length > 1;
+    } catch (_) { multiCam = false; }
+    paint();
+  }
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => { checkCams(); });
+
   return {
     /** Panel ditampilkan. Vokalis langsung masuk ruangnya; admin menunggu pilihan. */
     async show() {
@@ -816,6 +868,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
       alerts?.refresh();     // status notifikasi di perangkat ini (menyala / belum / diblokir)
       clearRinging();        // dia sudah di Meeting: notifikasi dering yang menempel tidak perlu lagi
       startPreview();        // sengaja tidak di-await: panel tampil dulu, kamera menyusul
+      checkCams();
     },
     /** Admin: dari notifikasi "Keket is calling" — pilih vokalisnya dan masuk ruangnya, sama seperti
      *  memilihnya sendiri di daftar. Tidak melakukan apa-apa kalau vokalisnya tidak ada di daftar. */
@@ -849,6 +902,15 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
       stopPreview(); stopMeter();
       paint();
     },
+    /** Admin pindah ke tab lain selagi menelepon: panggilan TIDAK ditutup. Tampilan layar
+     *  penuhnya saja yang dilepas supaya halaman lain bisa dipakai. Kalau panggilannya
+     *  berakhir selama itu, kamera tidak dinyalakan lagi untuk pratinjau (visible = false). */
+    setAway(on) {
+      away = !!on;
+      if (away) visible = false;
+      paint();
+    },
+    get away() { return away; },
     get busy() { return inCall(); },
     stop: leave,
   };
