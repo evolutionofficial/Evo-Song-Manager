@@ -188,6 +188,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   // ------------------------------------------------------------------ sambungan
 
   async function build() {
+    info = { ...info, cands: {}, rcands: {} };   // diagnosis per panggilan, bukan menumpuk
     pc = new RTCPeerConnection({ iceServers: await iceServers(), bundlePolicy: 'max-bundle' });
 
     pc.onnegotiationneeded = async () => {
@@ -201,7 +202,11 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     };
 
     pc.onicecandidate = ({ candidate }) => {
-      if (candidate) { try { session.signal('rtc-ice', { candidate: plainCand(candidate) }); } catch (e) { oops(e); } }
+      if (candidate) {
+        // Diagnosis: jenis jalur yang ditemukan sisi ini (host = jaringan lokal, srflx = lewat STUN, relay = lewat TURN).
+        info.cands = { ...(info.cands || {}), [candidate.type || 'other']: 1 };
+        try { session.signal('rtc-ice', { candidate: plainCand(candidate) }); } catch (e) { oops(e); }
+      }
     };
 
     pc.ontrack = (e) => {
@@ -392,6 +397,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
 
   async function onIce({ candidate }) {
     if (!candidate) return;
+    { const ty = (/ typ (\w+)/.exec(candidate.candidate || '') || [])[1] || 'other'; info.rcands = { ...(info.rcands || {}), [ty]: 1 }; }
     // addIceCandidate hanya sah setelah remote description dipasang; sebelum itu disangga.
     if (!pc || !pc.remoteDescription) {
       pendingIce.push(candidate);

@@ -64,6 +64,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
   let camProblem = null;
   let lastError = null;
   let stuckNote = false;
+  let failInfo = null;      // info dari voice saat gagal: relay ada/tidak + jenis jalur yang ditemukan, untuk diagnosis
   let peerCam = null;      // stream kamera lawan bicara
   let peerScreen = null;   // stream layar lawan bicara (null kalau tidak berbagi)
   let preview = null;      // kamera + mikrofon kita, hidup SEBELUM panggilan dimulai
@@ -286,7 +287,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
       q('[data-ph-s]').textContent =
         state === 'failed' ? (stuckNote
           ? 'The other side never answered. If you are testing both ends on one phone, it cannot work: a background Safari tab is frozen by iOS and cannot answer. Use two devices.'
-          : 'Check the connection and try again.')
+          : failText(failInfo))
         : state === 'connecting' || state === 'asking' || state === 'calling' ? ''
         : isHost ? 'Pick a vocalist, then press Call.' : 'Press Call to reach the studio.';
     }
@@ -324,6 +325,17 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         q('[data-meterbox]')?.classList.toggle('nosig', silent);
       }, 120);
     }
+  }
+
+  /** Kenapa sambungan gagal, dengan bukti: apakah relay (TURN) tersedia, dan jalur apa saja yang
+   *  ditemukan tiap sisi. Tanpa relay, panggilan lewat data seluler hampir selalu gagal. */
+  function failText(inf) {
+    const kinds = (o) => Object.keys(o || {}).join('+') || 'none';
+    const relay = inf?.relay ? 'relay OK' : 'NO relay (' + (inf?.reason || 'unknown') + ')';
+    const tip = inf?.relay
+      ? 'The network blocked the call. Press Call again, or switch one side between Wi-Fi and mobile data.'
+      : 'The relay server (TURN) was not available, so calls over mobile data usually fail. Use Wi-Fi on both sides, and check the TURN keys in Cloudflare Pages.';
+    return tip + ' [' + relay + ' · this side: ' + kinds(inf?.cands) + ' · other side: ' + kinds(inf?.rcands) + ']';
   }
 
   const put = (sel, stream) => {
@@ -661,7 +673,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         if (s === 'idle' || s === 'failed') { preview = null; if (visible && !away) startPreview(); }
         if (s !== 'live') stopPip();
         armAutoPip();
-        if (s === 'failed') stuckNote = inf?.note === 'stuck';
+        if (s === 'failed') { stuckNote = inf?.note === 'stuck'; failInfo = { ...(inf || {}) }; }
         if (s !== 'failed' && s !== 'idle') stuckNote = false;
         paint();
       },
