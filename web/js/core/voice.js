@@ -50,12 +50,12 @@ function opusForMusic(sdp) {
   const want = 'stereo=1;sprop-stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;useinbandfec=1';
   const re = new RegExp('a=fmtp:' + pt + ' ([^\\r\\n]*)');
   if (re.test(sdp)) {
-    return sdp.replace(re, (m, body) => {
+    return sdp.replace(new RegExp(re.source, 'g'), (m, body) => {
       const keep = body.split(';').filter((x) => !/^(stereo|sprop-stereo|maxaveragebitrate|maxplaybackrate|useinbandfec)=/.test(x.trim()));
       return 'a=fmtp:' + pt + ' ' + [...keep, want].filter(Boolean).join(';');
     });
   }
-  return sdp.replace(new RegExp('(a=rtpmap:' + pt + ' opus/48000/2[^\\r\\n]*)'), '$1\r\na=fmtp:' + pt + ' ' + want);
+  return sdp.replace(new RegExp('(a=rtpmap:' + pt + ' opus/48000/2[^\\r\\n]*)', 'g'), '$1\r\na=fmtp:' + pt + ' ' + want);
 }
 
 // Yang dikirim lewat saluran harus DATA BIASA, bukan objek browser yang hidup.
@@ -115,6 +115,10 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   let screenTrack = null;
   let screenStream = null;
   let screenSender = null;
+  // Suara dari layar yang dibagikan (tab YouTube/Suno, jendela, atau seluruh layar). Ikut
+  // di stream layar yang SAMA, jadi sisi lain memutarnya bersama gambar layarnya.
+  let screenAudio = null;
+  let screenAudioSender = null;
   // Dari sisi lain: id stream mana yang berisi layar, dan semua stream yang sudah tiba.
   let peerScreenId = null;
   const peerStreams = new Map();
@@ -264,6 +268,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     // dikabarkan supaya sisi lain bisa membedakannya dari kamera.
     if (screenTrack && screenStream && !screenSender) {
       screenSender = pc.addTrack(screenTrack, screenStream);
+      if (screenAudio) screenAudioSender = pc.addTrack(screenAudio, screenStream);
       try { session.signal('studio-mode', { screen: screenStream.id }); } catch (_) {}
     }
     set('connecting', { video: local.getVideoTracks().length > 0, cam: camFail });
@@ -327,7 +332,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   /** SDP yang dikirim diberi permintaan mutu musik kalau slot musik sedang aktif. */
   function musicSdp(d) {
     negotiatedMusic = musicMode;
-    if (!d || !musicMode || !d.sdp) return d;
+    if (!d || !(musicMode || screenAudio) || !d.sdp) return d;
     try { return { type: d.type, sdp: opusForMusic(d.sdp) }; } catch (_) { return d; }
   }
 
@@ -404,7 +409,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     // screenTrack TIDAK dihentikan di sini: Jeffry bisa menyiapkan layar sebelum menelepon,
     // dan menutup panggilan tidak boleh ikut mematikan persiapannya. Yang dilepas hanya
     // pengirimnya; track-nya dihentikan lewat setScreen(false) atau saat panel ditutup.
-    screenSender = null;
+    screenSender = null; screenAudioSender = null;
     try { pc?.close(); } catch (_) {}
     pc = null; local = null; remote = null; camSender = null; micSender = null;
     negotiatedMusic = false;
@@ -575,6 +580,8 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     /** Stream layar kita sendiri, supaya halaman bisa menampilkannya berdampingan
      *  dengan kamera — bukan menggantikannya. */
     get screenStream() { return screenStream; },
+    /** Layar yang dibagikan ikut membawa suara? */
+    get screenHasAudio() { return !!screenAudio; },
 
     /**
      * Berbagi layar. Track layar ditambahkan SEBAGAI PENGIRIM SENDIRI, berdampingan dengan
@@ -588,23 +595,42 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
             set(state, { screen: false, screenNote: 'unsupported' });
             return false;
           }
-          // audio:false — suara DAW TIDAK diambil dari sini. Jalur itu beda-beda per sistem
-          // operasi dan tidak memberi kita kendali setelan; suara DAW masuk lewat loopback.
-          const disp = await navigator.mediaDevices.getDisplayMedia({ video: SCREEN, audio: false });
+          // Suara DAW tetap lewat loopback (slot A/B). Suara LAYAR diminta di sini, seperti
+          // Google Meet: untuk memperdengarkan YouTube atau hasil Suno ke vokalis.
+          //   tab Chrome      : centang "Also share tab audio" (semua sistem operasi)
+          //   jendela         : suara jendela itu saja (windowAudio 'window', Chrome 141+, kalau didukung)
+          //   seluruh layar   : suara sistem (Windows/ChromeOS; macOS di Chrome baru)
+          // Pemrosesan suara dimatikan (ini musik), dan restrictOwnAudio meminta browser TIDAK
+          // ikut mengambil suara halaman ini sendiri — kalau ikut, vokalis mendengar suaranya
+          // sendiri kembali saat seluruh layar dibagikan. Opsi yang tidak dikenal browser diabaikan.
+          const disp = await navigator.mediaDevices.getDisplayMedia({
+            video: SCREEN,
+            audio: {
+              echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+              suppressLocalAudioPlayback: false, restrictOwnAudio: true,
+              channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 },
+            },
+            systemAudio: 'include',
+            windowAudio: 'window',
+            selfBrowserSurface: 'exclude',
+            surfaceSwitching: 'include',
+          });
           const t = disp.getVideoTracks()[0];
-          if (!t) return false;
+          if (!t) { for (const x of disp.getTracks()) x.stop(); return false; }
           screenTrack = t;
+          screenAudio = disp.getAudioTracks()[0] || null;
           // Stream TERPISAH: id-nya yang nanti dipakai sisi lain untuk mengenali layar.
-          screenStream = new MediaStream([t]);
+          screenStream = new MediaStream(screenAudio ? [t, screenAudio] : [t]);
           // Browser punya tombol "Stop sharing" sendiri di luar halaman kita.
           t.addEventListener('ended', () => { api.setScreen(false); });
           // Kalau panggilan belum ada, track-nya disimpan dulu dan dipasang oleh connect().
           // Itu yang memungkinkan Jeffry menyiapkan layarnya SEBELUM menelepon.
           if (pc) {
             screenSender = pc.addTrack(t, screenStream);
+            if (screenAudio) screenAudioSender = pc.addTrack(screenAudio, screenStream);
             try { session.signal('studio-mode', { screen: screenStream.id }); } catch (_) {}
           }
-          set(state, { screen: true, screenNote: null });
+          set(state, { screen: true, screenNote: null, screenAudio: !!screenAudio });
           return true;
         }
 
@@ -612,7 +638,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
           const t = screenTrack;
           screenTrack = null;
           try { if (screenSender && pc) pc.removeTrack(screenSender); } catch (_) {}
-          screenSender = null; screenStream = null;
+          try { if (screenAudioSender && pc) pc.removeTrack(screenAudioSender); } catch (_) {}
+          try { screenAudio?.stop(); } catch (_) {}
+          screenSender = null; screenStream = null; screenAudio = null; screenAudioSender = null;
           try { t.stop(); } catch (_) {}
           if (pc) { try { session.signal('studio-mode', { screen: null }); } catch (_) {} }
           set(state, { screen: false });
@@ -621,7 +649,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
         return !!screenTrack;
       } catch (e) {
         // Paling sering: orangnya menekan Cancel di dialog pemilih layar. Itu bukan kesalahan.
-        screenTrack = null; screenStream = null; screenSender = null;
+        screenTrack = null; screenStream = null; screenSender = null; screenAudio = null; screenAudioSender = null;
         set(state, { screen: false, screenNote: e?.name === 'NotAllowedError' ? 'cancelled' : 'failed' });
         if (e?.name !== 'NotAllowedError') oops(e);
         return false;
@@ -687,7 +715,8 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
      *  menghentikan layar yang sedang disiapkan di luar panggilan. */
     stop() {
       try { screenTrack?.stop(); } catch (_) {}
-      screenTrack = null; screenStream = null; screenSender = null;
+      try { screenAudio?.stop(); } catch (_) {}
+      screenTrack = null; screenStream = null; screenSender = null; screenAudio = null; screenAudioSender = null;
       teardown();
       set('idle', { screen: false });
     },
