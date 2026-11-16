@@ -221,8 +221,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
   // Dibuat dengan WebAudio, tanpa file suara. Masuk ('ringing'): "triiing-triiing" seperti telepon,
   // diulang tiap 3 detik, plus getar di Android. Keluar ('calling'): nada sambung 425 Hz, 1 detik
   // bunyi tiap 5 detik (nada sambung telepon Indonesia). Berhenti sendiri setelah 60 detik.
-  // Browser hanya mengizinkan suara setelah halaman pernah disentuh, jadi audionya dibuka di
-  // ketukan pertama di mana pun di halaman.
+  // Browser hanya mengizinkan suara setelah halaman pernah disentuh; mesin suaranya dibuat saat
+  // mulai berdering dan ditutup lagi sesudahnya.
   let toneCtx = null, toneTimer = 0, toneKind = '', toneT0 = 0, reRingTimer = 0, reRings = 0;
   function toneAudio() {
     try {
@@ -231,8 +231,6 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
       return toneCtx;
     } catch (_) { return null; }
   }
-  ['pointerdown', 'keydown', 'touchend'].forEach((ev) =>
-    window.addEventListener(ev, () => { toneAudio(); }, { once: true, capture: true, passive: true }));
   function beep(c, freqs, t0, dur, vol) {
     const g = c.createGain();
     g.gain.setValueAtTime(0, t0);
@@ -258,6 +256,9 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     const want = state === 'ringing' ? 'in' : state === 'calling' ? 'out' : '';
     if (want === toneKind) return;
     clearInterval(toneTimer); toneTimer = 0; toneKind = want;
+    // Mesin suara nada dering hanya hidup selama berdering. Kalau dibiarkan menganggur, di iPhone
+    // ia berebut sesi audio dengan pemutar lagu setelah aplikasi ditinggalkan dan dibuka lagi.
+    if (!want && toneCtx) { try { toneCtx.close(); } catch (_) {} toneCtx = null; }
     try { navigator.vibrate?.(0); } catch (_) {}
     // Penelepon: HP lawan bicara yang belum membuka Meeting dibunyikan lagi tiap 16 detik
     // (maks. 3 kali), supaya notifikasinya terasa seperti dering, bukan satu bunyi pendek.
