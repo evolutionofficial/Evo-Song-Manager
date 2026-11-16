@@ -75,8 +75,12 @@ function engineLoad(song) {
 }
 async function enginePlay() {
   if (!audio.src) { toast('No audio yet for this song'); return false; }
+  // Pemutar yang sudah error (mis. alirannya diputus HP saat aplikasi ditinggalkan) tidak mau
+  // diputar lagi: sambung ulang dulu.
+  if (needsHeal()) return (await heal(true)) && !audio.paused;
   try { await audio.play(); return true; } catch (e) {
     if (e && e.name === 'AbortError') return false; // diganti lagu lain sebelum mulai — normal
+    if ((await heal(true)) && !audio.paused) return true;   // satu kali sambung ulang sebelum menyerah
     report('Player:play', e); toast("This song can't be played right now", 'bad'); return false;
   }
 }
@@ -86,6 +90,59 @@ function engineSeek(frac) {
   audio.currentTime = Math.min(Math.max(0, frac), 1) * d;
 }
 function enginePause() { audio.pause(); }
+
+// ---- Pemulihan ----
+// Saat aplikasi ditinggalkan (pindah tab/aplikasi, layar mati), HP membekukan halaman dan memutus
+// aliran lagunya. Elemen audio yang sempat error atau macet tidak mau jalan lagi sampai halaman
+// dimuat ulang — itulah kenapa dulu aplikasinya harus ditutup dan dibuka ulang. Di sini lagunya
+// disambung ulang di posisi terakhir, dan lanjut diputar kalau tadi sedang diputar.
+let lastPos = 0, healing = null, healTries = 0, stallTimer = 0;
+audio.addEventListener('timeupdate', () => {
+  if (audio.currentTime > 0) { lastPos = audio.currentTime; healTries = 0; }
+  clearTimeout(stallTimer);
+});
+audio.addEventListener('emptied', () => { if (!healing) lastPos = 0; });  // lagu lain dipilih
+const needsHeal = () => !!audio.getAttribute('src') && (!!audio.error || audio.networkState === 3);
+function heal(play) {
+  if (healing) return healing;
+  const url = audioUrl(cur());
+  if (!url) return Promise.resolve(false);
+  const at = lastPos;
+  healing = new Promise((resolve) => {
+    let t = 0;
+    const done = (ok) => {
+      audio.removeEventListener('loadedmetadata', onMeta); audio.removeEventListener('error', onErr);
+      clearTimeout(t); healing = null; resolve(ok);
+    };
+    const onMeta = async () => {
+      try { if (at && Number.isFinite(audio.duration)) audio.currentTime = Math.min(at, Math.max(0, audio.duration - 0.25)); } catch {}
+      if (play) { try { await audio.play(); } catch {} }
+      done(true);
+    };
+    const onErr = () => done(false);
+    t = setTimeout(() => done(false), 12000);
+    audio.addEventListener('loadedmetadata', onMeta, { once: true });
+    audio.addEventListener('error', onErr, { once: true });
+    audio.src = url;
+    audio.load();
+  });
+  return healing;
+}
+// Diputar tapi tidak bergerak (aliran macet) selama 8 detik → sambung ulang.
+for (const ev of ['waiting', 'stalled']) audio.addEventListener(ev, () => {
+  clearTimeout(stallTimer);
+  stallTimer = setTimeout(() => { if (st.playing && !audio.paused && audio.readyState < 3) heal(true); }, 8000);
+});
+audio.addEventListener('playing', () => clearTimeout(stallTimer));
+// Kembali ke aplikasi / jaringan kembali.
+function onBack() {
+  if (document.hidden || !cur() || !audio.getAttribute('src')) return;
+  if (needsHeal()) { heal(st.playing); return; }
+  if (st.playing && audio.paused && !audio.ended) audio.play().catch(() => heal(true));
+}
+document.addEventListener('visibilitychange', onBack);
+window.addEventListener('pageshow', onBack);
+window.addEventListener('online', onBack);
 function engineVolume() { if (!volumeLocked) audio.volume = st.volume; audio.muted = st.muted; }
 // =========================================================================================
 
@@ -315,7 +372,9 @@ export function mount(report_) {
   audio.addEventListener('play', () => { if (!st.playing) { st.playing = true; render(); } });
   audio.addEventListener('pause', () => { if (st.playing && !audio.ended) { st.playing = false; render(); } });
   audio.addEventListener('error', () => {
-    if (!audio.getAttribute('src')) return;
+    if (!audio.getAttribute('src') || healing) return;
+    // Biasanya aliran yang terputus: coba sambung ulang (maks. 2 kali) sebelum menyerah.
+    if (healTries++ < 2) { heal(st.playing); return; }
     st.playing = false; render();
     toast("This song can't be played right now", 'bad');
   });
