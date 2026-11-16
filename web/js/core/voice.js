@@ -104,6 +104,8 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   let negotiatedMusic = false; // mode musik yang SUDAH tersampaikan lewat SDP
   let stuckTimer = null;       // penjaga waktu untuk 'connecting' yang tidak kunjung selesai
   let camFail = null;          // kenapa kamera tidak jadi menyala, untuk ditampilkan
+  let facing = 'user';         // kamera depan ('user') atau belakang ('environment') di HP
+  let audioDev = '';           // perangkat suara terakhir, supaya bisa diminta ulang setelah mati
 
   // Layar dikirim sebagai track KEDUA, berdampingan dengan kamera — bukan menggantikannya.
   // Jeffry ingin wajahnya tetap terlihat sementara DAW-nya dibagikan, jadi keduanya harus
@@ -135,6 +137,31 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     try { onState?.(s, info); } catch (_) { /* tampilan tidak boleh menjatuhkan panggilan */ }
   };
   const oops = (e) => { try { onError?.(e); } catch (_) {} };
+
+  /** Tukar track kamera yang sedang terkirim dengan kamera `want`, tanpa perundingan ulang.
+   *  Track lama dihentikan DULU: iOS tidak bisa membuka dua kamera sekaligus, jadi meminta
+   *  kamera baru selagi yang lama hidup membuat permintaannya gagal. */
+  async function swapCam(want) {
+    if (!camSender || !local) return false;
+    const old = camSender.track;
+    try { old?.stop(); } catch (_) {}
+    let t = null;
+    try {
+      t = (await navigator.mediaDevices.getUserMedia({ video: { ...CAM, facingMode: { exact: want } } })).getVideoTracks()[0];
+    } catch (_) {
+      try {
+        t = (await navigator.mediaDevices.getUserMedia({ video: { ...CAM, facingMode: { ideal: want } } })).getVideoTracks()[0];
+      } catch (e) { camFail = camReason(e); }
+    }
+    if (!t) { set(state, { video: false, cam: camFail || 'failed' }); return false; }
+    await camSender.replaceTrack(t);
+    if (old) { try { local.removeTrack(old); } catch (_) {} }
+    local.addTrack(t);
+    facing = want;
+    camFail = null;
+    set(state, { video: true, cam: null, facing });
+    return true;
+  }
 
   // ------------------------------------------------------------------ ICE
 
@@ -462,7 +489,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
         if (on && !camSender) {
           let cam;
           try {
-            cam = await navigator.mediaDevices.getUserMedia({ video: CAM });
+            cam = await navigator.mediaDevices.getUserMedia({ video: { ...CAM, facingMode: { ideal: facing } } });
           } catch (e) {
             // Dilaporkan, bukan ditelan: tanpa ini tombol kamera terlihat ditekan tapi
             // tidak terjadi apa-apa, dan orangnya tidak tahu harus berbuat apa.
@@ -490,6 +517,33 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     },
 
     get camProblem() { return camFail; },
+    get facing() { return facing; },
+
+    /** HP: pindah antara kamera depan dan belakang di tengah panggilan. */
+    async flipCamera() {
+      if (!camSender) return false;
+      const prev = facing;
+      const ok = await swapCam(prev === 'user' ? 'environment' : 'user');
+      if (!ok) await swapCam(prev);
+      return ok;
+    },
+
+    /** Dipanggil saat halaman terlihat lagi (orangnya kembali dari WhatsApp, layar utama, dst.).
+     *  HP bisa mematikan mikrofon dan kamera selama aplikasi ditinggalkan; yang mati diminta
+     *  ulang dan ditukar di tempat, tanpa memutus panggilan. */
+    async revive() {
+      if (!pc || !local) return;
+      try {
+        const a = local.getAudioTracks()[0];
+        if (!a || a.readyState === 'ended') await api.setAudioSource(audioDev, musicMode);
+        const v = camSender?.track;
+        if (camSender && (!v || v.readyState === 'ended')) await swapCam(facing);
+        // Sambungan yang sempat putus karena jaringan HP tertidur: minta jalur baru.
+        if (pc && (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')) {
+          try { pc.restartIce(); } catch (_) {}
+        }
+      } catch (e) { oops(e); }
+    },
 
     get sharing() { return !!screenTrack; },
     get musicMode() { return musicMode; },
@@ -498,6 +552,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
      *  suara bicara dan meminta stereo — dipakai untuk loopback dari DAW. */
     async setAudioSource(deviceId, music = false) {
       musicMode = !!music;
+      audioDev = deviceId || '';
       try {
         const st = await navigator.mediaDevices.getUserMedia({ audio: audioFor(deviceId, music), video: false });
         const t = st.getAudioTracks()[0];

@@ -1151,7 +1151,6 @@ body.cl-live #vCallPanel {
 /* Admin: slot A/B mengecil jadi dua tombol saja. Pemilih perangkat, "music", Out, dan catatannya
    sudah diatur sebelum menelepon, jadi tidak perlu tampil lagi. */
 .cl-wrap.incall .cl-ab select,
-.cl-wrap.incall .cl-ab .cl-abmus,
 .cl-wrap.incall .cl-ab [data-outrow],
 .cl-wrap.incall .cl-ab .note { display: none; }
 .cl-wrap.incall .cl-ab { flex-direction: row; gap: 8px; }
@@ -1166,3 +1165,26 @@ body.cl-live #vCallPanel {
   .cl-stage.split .cl-main { right: 0; bottom: 50%; width: 100%; height: 50%; }
   .cl-stage.split .cl-side { top: 50%; left: 0; width: 100%; height: 50%; border-left: 0; border-top: 1px solid var(--line); }
 }
+
+/* ===== Meeting: tambahan 2026-11-16 ===== */
+/* Kamera belakang tidak dicerminkan: tulisan dan benda di depan HP harus terbaca benar. */
+.cl-wrap.rear .cl-thumb[data-selfthumb],
+.cl-wrap.rear .cl-side.mirror,
+.cl-wrap.rear .cl-main.mirror { transform: none; }
+/* Muncul hanya kalau HP menolak memutar ulang suara sendiri setelah aplikasi dibuka lagi. */
+.cl-unblock {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4;
+  padding: 14px 20px; border-radius: 999px; border: 0;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 15px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+}
+/* Admin: pil "kembali ke panggilan" saat sedang membuka tab lain. */
+.call-pill {
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 80;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 16px; border-radius: 999px; border: 0;
+  background: #1fbf6a; color: #fff; font-weight: 700; font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45); cursor: pointer;
+}
+.call-pill::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: callpulse 1.4s ease-in-out infinite; }
+@keyframes callpulse { 50% { opacity: .35; } }

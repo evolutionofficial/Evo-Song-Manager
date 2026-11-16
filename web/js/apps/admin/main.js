@@ -51,8 +51,9 @@ const ctx = {
    *  berjalan tidak pernah diputus: pindah tab menutup panggilan, jadi dalam keadaan itu hanya
    *  memberi tahu. */
   openCall(vocalistId) {
-    if (mods.call?.busy?.() && state.tab === 'call') {
+    if (mods.call?.busy?.()) {
       toast('Another call is coming in. Finish this one first, then open Meeting.', 'bad');
+      if (state.tab !== 'call') { state.tab = 'call'; renderAll(); }
       return;
     }
     state.tab = 'call';
