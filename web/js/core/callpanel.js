@@ -217,6 +217,64 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
       .catch((e) => console.warn('[FC:ring]', e));
   }
 
+  // ---------------------------------------------------------------- nada dering & nada sambung
+  // Dibuat dengan WebAudio, tanpa file suara. Masuk ('ringing'): "triiing-triiing" seperti telepon,
+  // diulang tiap 3 detik, plus getar di Android. Keluar ('calling'): nada sambung 425 Hz, 1 detik
+  // bunyi tiap 5 detik (nada sambung telepon Indonesia). Berhenti sendiri setelah 60 detik.
+  // Browser hanya mengizinkan suara setelah halaman pernah disentuh, jadi audionya dibuka di
+  // ketukan pertama di mana pun di halaman.
+  let toneCtx = null, toneTimer = 0, toneKind = '', toneT0 = 0, reRingTimer = 0, reRings = 0;
+  function toneAudio() {
+    try {
+      if (!toneCtx) toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (toneCtx.state === 'suspended') toneCtx.resume().catch(() => {});
+      return toneCtx;
+    } catch (_) { return null; }
+  }
+  ['pointerdown', 'keydown', 'touchend'].forEach((ev) =>
+    window.addEventListener(ev, () => { toneAudio(); }, { once: true, capture: true, passive: true }));
+  function beep(c, freqs, t0, dur, vol) {
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+    g.gain.setValueAtTime(vol, t0 + dur - 0.04);
+    g.gain.linearRampToValueAtTime(0, t0 + dur);
+    g.connect(c.destination);
+    for (const f of freqs) {
+      const o = c.createOscillator();
+      o.type = 'sine'; o.frequency.value = f; o.connect(g);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+  }
+  function tonePattern(kind) {
+    const c = toneAudio();
+    if (kind === 'in') { try { navigator.vibrate?.([400, 200, 400]); } catch (_) {} }
+    if (!c) return;
+    const t = c.currentTime + 0.05;
+    if (kind === 'in') { beep(c, [440, 480], t, 0.4, 0.22); beep(c, [440, 480], t + 0.6, 0.4, 0.22); }
+    else beep(c, [425], t, 1.0, 0.1);
+  }
+  function syncTone() {
+    const want = state === 'ringing' ? 'in' : state === 'calling' ? 'out' : '';
+    if (want === toneKind) return;
+    clearInterval(toneTimer); toneTimer = 0; toneKind = want;
+    try { navigator.vibrate?.(0); } catch (_) {}
+    // Penelepon: HP lawan bicara yang belum membuka Meeting dibunyikan lagi tiap 16 detik
+    // (maks. 3 kali), supaya notifikasinya terasa seperti dering, bukan satu bunyi pendek.
+    clearInterval(reRingTimer); reRingTimer = 0; reRings = 0;
+    if (want === 'out') reRingTimer = setInterval(() => {
+      if (state !== 'calling' || peerHere || ++reRings > 3) { clearInterval(reRingTimer); reRingTimer = 0; return; }
+      lastRingAt = 0; ringPeer();
+    }, 16000);
+    if (!want) return;
+    toneT0 = Date.now();
+    tonePattern(want);
+    toneTimer = setInterval(() => {
+      if (Date.now() - toneT0 > 60000) { clearInterval(toneTimer); toneTimer = 0; try { navigator.vibrate?.(0); } catch (_) {} return; }
+      tonePattern(want);
+    }, want === 'in' ? 3000 : 5000);
+  }
+
   /** Panggilan sudah dijawab atau berakhir: notifikasi dering yang masih menempel tidak berguna lagi. */
   const clearRinging = () => import('/js/core/push.js').then((p) => p.clearRinging()).catch(() => {});
   meter = createMeter(mount.querySelector('[data-meter]'));
@@ -224,6 +282,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
 
   function paint() {
     q('[data-state]').textContent = TEXT[state] || state;
+    syncTone();
 
     // Saat tersambung, videonya memenuhi layar dan tombolnya melayang di atasnya —
     // seperti FaceTime. Di luar panggilan panel kembali menjadi kotak biasa di halaman.
