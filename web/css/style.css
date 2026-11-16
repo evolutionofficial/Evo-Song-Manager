@@ -773,7 +773,7 @@ dialog.confirm textarea:focus { outline: none; border-color: var(--accent); box-
   .op-dl { width: 44px; padding: 0; justify-content: center; }
 }
 .sendbtn.ready:disabled, .sendbtn.waiting:disabled { opacity: 1; cursor: default; }
-/* Waiting operator = sudah dikirim ke First Club, operator belum mengunduh: hijau, hanya tampilan */
+/* Delivered = sudah dikirim ke First Club, operator belum mengunduh: hijau, hanya tampilan */
 .sendbtn.waiting { color: #d9f8e9; border-color: rgba(61, 220, 151, .5); background: linear-gradient(135deg, rgba(61, 220, 151, .22), rgba(61, 220, 151, .07)); }
 .sendbtn.waiting svg { color: #3ddc97; }
 /* Ready = operator sudah mengunduh: biru senada tema, hanya tampilan (tidak bisa ditekan) */

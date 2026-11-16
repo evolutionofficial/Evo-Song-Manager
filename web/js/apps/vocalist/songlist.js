@@ -1,6 +1,6 @@
 // VOKALIS — modul Songlist (My Songs): lagu milik vokalis ini.
 // Tombol per lagu: belum di-Accept → [Accept] [▶]; sudah di-Accept → [Download WAV] [Send to FC] [▶].
-// Tombol status (kanan ikon unduh) berganti: Accept → Preparing… → Send to FC → Waiting operator
+// Tombol status (kanan ikon unduh) berganti: Accept → Preparing… → Send to FC → Delivered
 // (hijau: sudah dikirim ke First Club, operator belum mengunduh) → Ready (biru: operator sudah
 // mengunduh). Dua yang terakhir hanya tampilan, tidak bisa ditekan. Tidak ada status "Finish":
 // unduhan oleh vokalis sendiri tidak mengubah status, hanya menyembunyikan ikon unduh.
@@ -39,7 +39,7 @@ function downloadButton(s) {
   return `<a class="btn dlbtn" href="${vdlUrl(s)}" download data-vdl="${s.n}" title="Download WAV" aria-label="Download WAV: ${esc(s.title)}">${DL_ICON}</a>`;
 }
 
-// Tombol status sesuai keadaan: Preparing… → Send to FC → Waiting operator → Ready.
+// Tombol status sesuai keadaan: Preparing… → Send to FC → Delivered → Ready.
 /**
  * Selama lagu dalam revisi, semua tombolnya mati: versi lama sudah dicabut dan versi barunya
  * belum ada, jadi tidak ada yang bisa diputar, diunduh, atau dikirim.
@@ -68,10 +68,10 @@ function playButton(s) {
 function sendButton(s) {
   const t = esc(s.title);
   // Operator sudah mengunduh → "Ready" (biru). Sudah dikirim tapi belum diunduh operator →
-  // "Waiting operator" (hijau). Unduhan oleh vokalis sendiri tidak mengubah status.
+  // "Delivered" (hijau). Unduhan oleh vokalis sendiri tidak mengubah status.
   // Keduanya hanya tampilan — tidak bisa ditekan.
   if (s.fc_downloaded_at) return `<button class="sendbtn ready" disabled title="The operator has downloaded this song" aria-label="${t}: ready">${CHECK_ICON}<span>Ready</span></button>`;
-  if (s.sent_at) return `<button class="sendbtn waiting" disabled title="Sent to FC — waiting for the operator to download" aria-label="${t}: waiting for operator">${CLOCK_ICON}<span class="lbl-long">Waiting operator</span><span class="lbl-short">Waiting</span></button>`;
+  if (s.sent_at) return `<button class="sendbtn waiting" disabled title="Sent to FC — waiting for the operator to download" aria-label="${t}: delivered to FC, waiting for the operator to download">${CLOCK_ICON}<span>Delivered</span></button>`;
   if (canDownload(s)) return `<button class="sendbtn" data-send="${s.n}" aria-label="Send to FC: ${t}">${SEND_ICON}<span>Send to FC</span></button>`;
   if (s.wav === 'complete') return `<button class="sendbtn" disabled title="This file is no longer stored. Ask the studio." aria-label="${t}: not available">${SEND_ICON}<span>Unavailable</span></button>`;
   return `<button class="sendbtn preparing" disabled aria-label="Preparing ${t} for sending" title="${s.wav === 'failed' ? 'Upload is being retried automatically' : 'Getting the WAV ready…'}"><i class="spin" aria-hidden="true"></i><span>Preparing…</span></button>`;
