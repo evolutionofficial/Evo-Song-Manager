@@ -96,6 +96,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
   let lastBusy = false;
   let multiCam = false;     // perangkat ini punya lebih dari satu kamera (HP: depan + belakang)
   let soundBlocked = false; // sistem menolak memutar ulang suara tanpa ketukan
+  let shareNote = '';       // layar dibagikan TANPA suara: beri tahu cara menyertakannya
+  let shareNoteTimer = 0;
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -158,6 +160,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
 
       <p class="cl-err" data-err hidden></p>
       <p class="cl-camwarn" data-camwarn hidden></p>
+      <p class="cl-camwarn" data-sharenote hidden></p>
 
       <div class="cl-bar">
         <button class="cl-go" data-go></button>
@@ -223,6 +226,8 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     err.hidden = !lastError;
     if (lastError) err.textContent = lastError;
 
+    const sn = q('[data-sharenote]');
+    if (sn) { sn.hidden = !shareNote; sn.textContent = shareNote; }
     const warn = q('[data-camwarn]');
     warn.hidden = !camProblem;
     if (!warn.hidden) warn.textContent = CAM_MSG[camProblem] || CAM_MSG.failed;
@@ -696,6 +701,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         // Sama seperti tombol Call: kalau ruangnya belum terbuka, buka dulu — jangan diam.
         if (!voice && !(await ensureRoom())) return;
         shareOn = await voice.setScreen(!shareOn);
+        clearTimeout(shareNoteTimer);
+        shareNote = shareOn && !voice.screenHasAudio
+          ? 'Sharing without sound. To let the vocalist hear YouTube or Suno, stop sharing, share again, pick the Chrome tab and turn on “Also share tab audio”.'
+          : '';
+        if (shareNote) shareNoteTimer = setTimeout(() => { shareNote = ''; paint(); }, 12000);
         paint();
         return;
       }
