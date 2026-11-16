@@ -133,6 +133,15 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
   // hilang, tidak ada yang menawarkan lagi, panggilan menggantung selamanya. Jadi disangga.
   let pendingDesc = null;
   let pendingIce = [];
+  // Setiap kali seseorang menekan Call/Answer, sisinya membuat id panggilan baru. Kalau datang
+  // 'rtc-ready' dengan id BARU sementara kita masih memegang sambungan lama, berarti sisi lain
+  // mengulang (menekan Call lagi, atau halamannya dimuat ulang): sambungan lama dibuang dan
+  // kita ikut menyambung ulang, tanpa ada yang perlu menekan apa-apa di sisi ini.
+  let myCallId = '';
+  let peerCallId = null;
+  let pcPeerId = null;          // id panggilan sisi lain saat sambungan kita yang sekarang dibuat
+  let iceRetried = false;       // satu kali pemulihan ICE per sambungan sebelum menyerah
+  let failTimer = null, discTimer = null;
   let peerReady = false;   // sisi lain sudah punya mikrofon
 
   const set = (s, extra) => {
@@ -173,7 +182,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     // Kalau /turn tidak bisa dihubungi, panggilan tetap dicoba dengan STUN bawaan: di banyak
     // jaringan rumah itu cukup. Lebih baik mencoba daripada menolak memanggil.
     try {
-      const res = await fetch(`/turn?room=${encodeURIComponent(session.code)}`, { cache: 'no-store' });
+      let res;
+      try { res = await fetch(`/turn?room=${encodeURIComponent(session.code)}`, { cache: 'no-store' }); }
+      catch (_) { await new Promise((r) => setTimeout(r, 800)); res = await fetch(`/turn?room=${encodeURIComponent(session.code)}`, { cache: 'no-store' }); }
       if (!res.ok) throw new Error('turn ' + res.status);
       const d = await res.json();
       info = { ...info, relay: !!d.relay, reason: d.reason || null };
@@ -187,8 +198,44 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
 
   // ------------------------------------------------------------------ sambungan
 
+  /** Jalur gagal: satu kali ICE restart (jalur baru, termasuk relay) dengan tenggat 15 detik,
+   *  baru kemudian menyerah. Dulu langsung 'failed' di detik yang sama. */
+  function recoverIce() {
+    if (!pc || ending) return;
+    clearTimeout(stuckTimer); stuckTimer = null;
+    if (!iceRetried) {
+      iceRetried = true;
+      try { pc.restartIce(); } catch (_) {}
+      set('connecting', { note: 'reconnecting' });
+      clearTimeout(failTimer);
+      failTimer = setTimeout(() => {
+        if (pc && !ending && pc.connectionState !== 'connected') set('failed', { note: info.relay ? 'network' : 'no_relay' });
+      }, 15000);
+      return;
+    }
+    clearTimeout(failTimer); failTimer = null;
+    set('failed', { note: info.relay ? 'network' : 'no_relay' });
+  }
+
+  /** Buang sambungan lama TAPI pertahankan mikrofon/kamera kita, lalu sambung lagi. */
+  async function resetAndConnect() {
+    clearTimeout(failTimer); clearTimeout(discTimer); failTimer = discTimer = null;
+    ending = true;
+    try { pc?.close(); } catch (_) {}
+    pc = null; camSender = null; micSender = null; screenSender = null; screenAudioSender = null;
+    negotiatedMusic = false; peerScreenId = null; peerStreams.clear();
+    makingOffer = false; ignoreOffer = false; pendingIce = [];
+    try { onRemote?.(null); } catch (_) {}
+    ending = false;
+    set('connecting', { note: 'reconnecting' });
+    watchStuck();
+    await connect();
+  }
+
   async function build() {
     info = { ...info, cands: {}, rcands: {} };   // diagnosis per panggilan, bukan menumpuk
+    pcPeerId = peerCallId;
+    iceRetried = false; clearTimeout(failTimer); clearTimeout(discTimer); failTimer = discTimer = null;
     pc = new RTCPeerConnection({ iceServers: await iceServers(), bundlePolicy: 'max-bundle' });
 
     pc.onnegotiationneeded = async () => {
@@ -223,15 +270,19 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     pc.onconnectionstatechange = () => {
       if (!pc || ending) return;
       const s = pc.connectionState;
-      if (s === 'connected') { clearTimeout(stuckTimer); stuckTimer = null; set('live'); }
-      else if (s === 'connecting') set('connecting');
-      else if (s === 'disconnected') set('connecting', { note: 'reconnecting' });
-      else if (s === 'failed') {
-        // Satu kali coba sambung ulang sebelum menyerah: jaringan seluler sering pindah jalur.
-        try { pc.restartIce(); } catch (_) {}
-        clearTimeout(stuckTimer); stuckTimer = null;
-        set('failed', { note: info.relay ? 'network' : 'no_relay' });
+      if (s === 'connected') {
+        clearTimeout(stuckTimer); stuckTimer = null; clearTimeout(failTimer); clearTimeout(discTimer); failTimer = discTimer = null;
+        set('live');
       }
+      else if (s === 'connecting') set('connecting');
+      else if (s === 'disconnected') {
+        // Putus sesaat (HP pindah jaringan, layar mati sebentar). Beri 4 detik untuk pulih
+        // sendiri; kalau belum, minta jalur baru.
+        set('connecting', { note: 'reconnecting' });
+        clearTimeout(discTimer);
+        discTimer = setTimeout(() => { if (pc && pc.connectionState === 'disconnected') recoverIce(); }, 4000);
+      }
+      else if (s === 'failed') recoverIce();
     };
     return pc;
   }
@@ -255,6 +306,8 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     stuckTimer = setTimeout(() => {
       if (!pc || ending) return;
       if (state === 'connecting' || state === 'calling') {
+        // Sudah punya sambungan tapi belum nyambung: coba jalur baru dulu.
+        if (pc && !iceRetried && state === 'connecting') { recoverIce(); return; }
         set('failed', { note: 'stuck' });
       }
     }, 25000);
@@ -369,6 +422,9 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
         // Datang sebelum sambungan kita ada. Disimpan, bukan dibuang — nanti dipakai begitu
         // sambungannya dibuat. Mikrofon TIDAK dinyalakan diam-diam: tunggu orangnya menjawab.
         pendingDesc = { sdp };
+        // Kita sudah menekan Call/Answer (mikrofon ada) tapi belum menyambung: sisi lain sudah
+        // mulai, jadi sambung sekarang. connect() memakai tawaran yang disimpan ini.
+        if (local) { set('connecting'); return connect(); }
         if (state === 'idle') set('ringing');
         return;
       }
@@ -424,7 +480,8 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
     // bisa menghentikannya.
     peerScreenId = null; peerStreams.clear();
     makingOffer = false; ignoreOffer = false;
-    pendingDesc = null; pendingIce = []; peerReady = false;
+    pendingDesc = null; pendingIce = []; peerReady = false; peerCallId = null;
+    clearTimeout(failTimer); clearTimeout(discTimer); failTimer = discTimer = null;
     try { onRemote?.(null); } catch (_) {}
     ending = false;
   }
@@ -451,12 +508,13 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
       if (pc && ['connecting', 'live', 'calling'].includes(state)) return;
       if (pc || local) teardown();
       wantVideo = video;
+      myCallId = Math.random().toString(36).slice(2, 10);
       try {
         await grab(video, stream);
         set(peerReady || pendingDesc ? 'connecting' : 'calling',
             { video: local.getVideoTracks().length > 0 });
         watchStuck();
-        session.signal('rtc-ready', {});
+        session.signal('rtc-ready', { id: myCallId });
         session.signal('rtc-call', {});
         // Sisi lain sudah siap lebih dulu (atau tawarannya sudah menunggu) → sambung sekarang.
         if (peerReady || pendingDesc) await connect();
@@ -476,7 +534,7 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
      */
     reRing() {
       if (state !== 'calling') return;
-      try { session.signal('rtc-ready', {}); session.signal('rtc-call', {}); } catch (_) {}
+      try { session.signal('rtc-ready', { id: myCallId }); session.signal('rtc-call', {}); } catch (_) {}
     },
 
     hangUp() {
@@ -682,7 +740,18 @@ export function createVoice({ session, role, onState, onRemote, onError }) {
         return;
       }
       if (event === 'rtc-ready') {
+        const id = payload?.id || null;
+        const isNew = !!id && id !== peerCallId;
+        if (id) peerCallId = id;
         peerReady = true;
+        // Sisi lain mengulang panggilan sementara kita masih memegang sambungan lama:
+        // buang yang lama, kabari kita siap, lalu sambung lagi.
+        // Hanya kalau sambungan kita dibuat untuk panggilan LAIN dari dia; sambungan yang baru saja
+        // dibuat dari tawarannya yang baru tidak boleh ikut dibuang.
+        if (local && pc && isNew && pcPeerId && pcPeerId !== id) {
+          try { session.signal('rtc-ready', { id: myCallId }); } catch (_) {}
+          return resetAndConnect();
+        }
         // Kedua sisi sudah punya mikrofon → inilah saatnya menyambung. Sengaja tidak lebih
         // cepat: sambungan yang dibuat saat sisi lain belum siap membuat tawaran terbuang.
         if (local && !pc) { set('connecting'); return connect(); }
