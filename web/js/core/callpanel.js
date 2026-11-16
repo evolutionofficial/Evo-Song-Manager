@@ -98,6 +98,14 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
   let soundBlocked = false; // sistem menolak memutar ulang suara tanpa ketukan
   let shareNote = '';       // layar dibagikan TANPA suara: beri tahu cara menyertakannya
   let shareNoteTimer = 0;
+  // Penguat suara vokalis (admin saja). Elemen video hanya bisa sampai volume 1.0, jadi suara
+  // lawan bicara dilewatkan ke WebAudio: Gain → limiter → speaker. Elemen videonya tetap
+  // memegang stream (Chrome baru mengalirkan suara WebRTC ke WebAudio kalau stream-nya juga
+  // terpasang di elemen media) tapi dibisukan supaya suaranya tidak terdengar dua kali.
+  const BOOST_KEY = 'fc.voiceBoost';
+  let boost = 2;
+  try { const v = parseFloat(localStorage.getItem(BOOST_KEY)); if (v >= 1 && v <= 4) boost = v; } catch (_) {}
+  let bctx = null, bgain = null, btrack = null;
 
   mount.innerHTML = `
     <div class="cl-wrap">
@@ -147,6 +155,11 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
         <div class="cl-abrow" data-outrow hidden>
           <span class="cl-ablbl">Out</span>
           <select data-out></select>
+        </div>
+        <div class="cl-abrow cl-volrow">
+          <span class="cl-ablbl">Voice</span>
+          <input type="range" min="1" max="4" step="0.25" data-vol aria-label="Vocalist volume">
+          <span class="cl-volv" data-volv></span>
         </div>
         <p class="note" data-abnote></p>
         <p class="note cl-outnote" data-outnote hidden></p>
@@ -226,6 +239,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     err.hidden = !lastError;
     if (lastError) err.textContent = lastError;
 
+    paintVol();
     const sn = q('[data-sharenote]');
     if (sn) { sn.hidden = !shareNote; sn.textContent = shareNote; }
     const warn = q('[data-camwarn]');
@@ -317,7 +331,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     if (!el) return;
     if (el.srcObject !== (stream || null)) el.srcObject = stream || null;
     const mine = !!stream && (stream === preview || stream === voice?.localStream || stream === voice?.screenStream);
-    el.muted = mine;
+    el.muted = mine || (!!btrack && !!stream && stream === peerCam);
     el.hidden = !stream;
   };
 
@@ -329,8 +343,40 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
    *  VOKALIS— yang penting baginya adalah LAYAR DAW, jadi itu yang memenuhi bagian utama.
    *           Dua wajah turun ke bawah: wajah Jeffry di kiri, wajahnya sendiri di kanan.
    */
+  function boostOff() {
+    try { bctx?.close(); } catch (_) {}
+    bctx = null; bgain = null; btrack = null;
+  }
+  /** Pasang/perbarui penguat untuk track suara vokalis yang sedang aktif. */
+  function syncBoost() {
+    const t = (isHost && state === 'live' && boost > 1 && peerCam?.getAudioTracks()[0]) || null;
+    if (t && t === btrack) { if (bgain) bgain.gain.value = boost; return; }
+    boostOff();
+    if (!t || typeof AudioContext === 'undefined') return;
+    try {
+      bctx = new AudioContext({ latencyHint: 'interactive' });
+      if (sinkId && bctx.setSinkId) bctx.setSinkId(sinkId).catch(() => {});
+      const src = bctx.createMediaStreamSource(new MediaStream([t]));
+      bgain = bctx.createGain();
+      bgain.gain.value = boost;
+      // Limiter: suara yang dikeraskan tidak boleh pecah saat vokalis tertawa atau bernyanyi keras.
+      const lim = bctx.createDynamicsCompressor();
+      lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20;
+      lim.attack.value = 0.003; lim.release.value = 0.15;
+      src.connect(bgain).connect(lim).connect(bctx.destination);
+      bctx.resume?.().catch(() => {});
+      btrack = t;
+    } catch (_) { boostOff(); }
+  }
+  function paintVol() {
+    const r = q('[data-vol]'), v = q('[data-volv]');
+    if (r && document.activeElement !== r) r.value = String(boost);
+    if (v) v.textContent = Math.round(boost * 100) + '%';
+  }
+
   function layout() {
     const live = state === 'live';
+    syncBoost();
     feedPip();
     const mine = voice?.localStream || null;        // kamera + mikrofon kita
     const myScreen = voice?.screenStream || null;
@@ -461,6 +507,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
    *  berubah. Yang diatur hanya suara HALAMAN INI — tab lain tetap ikut setelan Windows. */
   async function applySink() {
     if (!canSink) return;
+    try { if (bctx?.setSinkId) await bctx.setSinkId(sinkId); } catch (_) {}
     for (const s of ['[data-main]', '[data-side]', '[data-peerthumb]']) {
       const el = q(s);
       if (!el || el.dataset.sink === (sinkId || 'default')) continue;
@@ -726,6 +773,18 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
   });
 
   if (isHost) {
+    mount.addEventListener('input', (e) => {
+      const r = e.target.closest('[data-vol]');
+      if (!r) return;
+      boost = Math.min(4, Math.max(1, parseFloat(r.value) || 1));
+      try { localStorage.setItem(BOOST_KEY, String(boost)); } catch (_) {}
+      if (bgain && boost > 1) bgain.gain.value = boost;
+      else layout();      // dari/ke 100%: penguat dipasang atau dilepas, elemen dibunyikan lagi
+      paintVol();
+    });
+  }
+
+  if (isHost) {
     mount.addEventListener('change', async (e) => {
       const dev = e.target.closest('[data-abdev]');
       if (dev) {
@@ -822,7 +881,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
     });
   }
 
-  window.addEventListener('pagehide', () => { stopPip(); stopMeter(); meter?.close(); leave(); });
+  window.addEventListener('pagehide', () => { stopPip(); stopMeter(); meter?.close(); boostOff(); leave(); });
 
   /** Putar ulang semua video/suara di panel. Saat aplikasi ditinggalkan, HP menjeda pemutarnya
    *  dan tidak selalu memutarnya lagi sendiri — gejalanya: kembali ke aplikasi, gambar ada tapi
@@ -830,6 +889,7 @@ export function createCallPanel({ mount, role, token = '', vocalists = null, tes
    *  diinterupsi kadang "hidup" tapi tetap bisu sampai sumbernya disambung lagi. */
   async function replay(byTap = false) {
     let blocked = false;
+    try { await bctx?.resume(); } catch (_) {}
     for (const v of mount.querySelectorAll('video')) {
       const s = v.srcObject;
       if (!s) continue;
