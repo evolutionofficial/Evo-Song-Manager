@@ -1188,3 +1188,9 @@ body.cl-live #vCallPanel {
 }
 .call-pill::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: callpulse 1.4s ease-in-out infinite; }
 @keyframes callpulse { 50% { opacity: .35; } }
+
+/* Penggeser volume suara vokalis (admin). Tetap terlihat selama panggilan. */
+.cl-volrow input[type="range"] { width: 120px; accent-color: var(--accent); }
+.cl-volv { min-width: 42px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.cl-wrap.incall .cl-volrow .cl-ablbl { display: none; }
+.cl-wrap.incall .cl-volrow input[type="range"] { width: 90px; }
