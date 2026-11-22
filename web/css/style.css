@@ -1206,4 +1206,4 @@ body.cl-live #vCallPanel {
 .ord-group { margin: 0 0 18px; }
 .ord-gh { font-weight: 500; margin: 0 0 6px; }
 .ord-gh small { color: var(--muted); font-weight: 400; margin-left: 6px; }
-.ord-err { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.ord-err { white-space: pre-wrap; word-break: break-word; flex-basis: 100%; font-size: 12px; color: var(--muted); }

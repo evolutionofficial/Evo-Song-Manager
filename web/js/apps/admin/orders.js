@@ -30,7 +30,7 @@ async function load() {
 }
 
 function actions(o) {
-  if (o.status === 'waiting') return `<button class="primary" data-ord-accept="${o.id}">Accept</button><button data-ord-reject="${o.id}">Reject</button>`;
+  if (o.status === 'waiting') return `<button data-ord-reject="${o.id}">Reject</button>`;
   if (o.status === 'downloading') return '';
   if (o.status === 'failed') {
     const main = o.fail_count >= MAX_TRIES
@@ -62,15 +62,29 @@ function draw() {
   const el = $('ordAdmin');
   const list = orders.filter((o) => o.status !== 'rejected');
   if (!list.length) { el.innerHTML = `<div class="table"><div class="empty">No orders.</div></div>`; return; }
-  const groups = state.vocalists
-    .map((v) => ({ v, list: list.filter((o) => o.vocalist_id === v.id) }))
-    .filter((g) => g.list.length);
-  el.innerHTML = groups.map(({ v, list: l }) => {
-    const folder = l.find((o) => o.date_folder)?.date_folder;
-    const path = `D:\\FIRST CLUB\\${v.folder_name}${folder ? `\\${folder}` : ''}`;
-    return `<div class="ord-group"><div class="ord-gh">${esc(v.display_name)}<small>${esc(path)}</small></div>
-      <div class="table">${l.map(rowHtml).join('')}</div></div>`;
+  el.innerHTML = state.vocalists.map((v) => {
+    const mine = list.filter((o) => o.vocalist_id === v.id);
+    if (!mine.length) return '';
+    const groups = new Map();
+    for (const o of mine) { if (!groups.has(o.group_id)) groups.set(o.group_id, []); groups.get(o.group_id).push(o); }
+    const cards = [...groups.values()].map((l) => groupHtml(v, l)).join('');
+    return `<div class="ord-group"><div class="ord-gh">${esc(v.display_name)}</div>${cards}</div>`;
   }).join('');
+}
+
+function groupHtml(v, l) {
+  l.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const multi = l.length > 1;
+  const date = l.find((o) => o.date_folder)?.date_folder;
+  const sub = multi ? (l[0].group_title || 'Medley') : '';
+  const path = `D:\\FIRST CLUB\\${v.folder_name}${date ? `\\${date}` : ''}${sub ? `\\${sub}` : ''}`;
+  const waiting = l.some((o) => o.status === 'waiting');
+  const head = `<div class="ord-row"><span class="ord-url"><b>${multi ? esc(sub) + ' · ' + l.length + ' links' : 'Single song'}</b> <span class="ord-when">${esc(path)}</span></span>
+    <span class="ord-when">${esc(timeAgo(l[0].created_at))}</span>
+    ${waiting ? `<button class="primary" data-ord-accept="${l.find((o) => o.status === 'waiting').id}">Accept</button>` : ''}
+    <button class="ghost" data-ord-add="${l[0].group_id}">+ Add link</button>
+    ${l[0].note ? `<span class="ord-err">Note: ${esc(l[0].note)}</span>` : ''}</div>`;
+  return `<div class="table" style="margin-bottom:10px">${head}${l.map(rowHtml).join('')}</div>`;
 }
 
 /** Dipanggil saat tab dibuka: ambil data terbaru, lalu gambar. */
@@ -94,6 +108,11 @@ export async function init(c) {
     if (d.ordReject) {
       if (!confirm('Reject this order?')) return;
       return act('reject_order', { p_id: d.ordReject }, 'Order rejected');
+    }
+    if (d.ordAdd) {
+      const url = (window.prompt('Paste another YouTube link for this order:') || '').trim();
+      if (!url) return;
+      return act('admin_add_order_link', { p_group: d.ordAdd, p_url: url }, 'Link added. Accept it to start the download');
     }
     if (d.ordRetry) return act('retry_order', { p_id: d.ordRetry }, 'Queued again');
     if (d.ordCopy) {
