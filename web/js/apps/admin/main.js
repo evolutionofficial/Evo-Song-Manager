@@ -14,6 +14,7 @@ const MODULES = [
   { key: 'trash', label: 'Deleted', path: '/js/apps/admin/trash.js', el: 'delBox' },
   { key: 'revisions', label: 'Replace revision', path: '/js/apps/admin/revisions.js', el: null },
   { key: 'requests', label: 'Revisions', path: '/js/apps/admin/requests.js', el: 'rrList' },
+  { key: 'orders', label: 'Orders', path: '/js/apps/admin/orders.js', el: 'ordAdmin' },
   { key: 'unmatched', label: 'Needs review', path: '/js/apps/admin/unmatched.js', el: 'unList' },
   { key: 'conflicts', label: 'Conflicts', path: '/js/apps/admin/conflicts.js', el: 'cfList' },
   { key: 'system', label: 'System', path: '/js/apps/admin/system.js', el: 'sysList' },
@@ -122,6 +123,9 @@ function renderTabs() {
   const k = state.vocalists.length;
   items.push(`<button class="nav-item ${rr ? 'alert' : ''}" style="--i:${k}" aria-current="${state.tab === 'rr' ? 'page' : 'false'}" data-tab="rr">
     <span class="nav-name">Revisions${rr ? ` <span class="badge rev count" aria-label="${rr} new">${rr}</span>` : ''}</span></button>`);
+  const od = mods.orders?.waitingCount?.() || 0;
+  items.push(`<button class="nav-item ${od ? 'alert' : ''}" style="--i:${k + 6}" aria-current="${state.tab === 'ord' ? 'page' : 'false'}" data-tab="ord">
+    <span class="nav-name">Orders${od ? ` <span class="badge warn">${od}</span>` : ''}</span></button>`);
   items.push(`<button class="nav-item ${un ? 'alert' : ''}" style="--i:${k + 1}" aria-current="${state.tab === 'un' ? 'page' : 'false'}" data-tab="un">
     <span class="nav-name">Needs review${un ? ` <span class="badge warn">${un}</span>` : ''}</span></button>`);
   const cf = (state.conflicts || []).length;
@@ -135,7 +139,7 @@ function renderTabs() {
     <span class="nav-name">Settings</span></button>`);
   $('tabs').innerHTML = items.join('');
   // Titik notifikasi di tombol menu (saat sidebar tertutup / di HP).
-  const total = rr + un + cf;
+  const total = rr + un + cf + od;
   $('menuBtn').dataset.count = total ? String(total) : '';
   $('menuBtn').classList.toggle('has-count', !!total);
 }
@@ -171,6 +175,7 @@ function renderView() {
   $('vocView').classList.toggle('hidden', !t.startsWith('v:'));
   $('unView').classList.toggle('hidden', t !== 'un');
   $('rrView').classList.toggle('hidden', t !== 'rr');
+  $('ordView').classList.toggle('hidden', t !== 'ord');
   $('cfView').classList.toggle('hidden', t !== 'cf');
   $('sysView').classList.toggle('hidden', t !== 'sys');
   $('setView').classList.toggle('hidden', t !== 'set');
@@ -180,6 +185,7 @@ function renderView() {
     runMod('trash', 'render');
   } else if (t === 'un') runMod('unmatched', 'render');
   else if (t === 'rr') runMod('requests', 'render');
+  else if (t === 'ord') runMod('orders', 'render');
   else if (t === 'cf') runMod('conflicts', 'render');
   else if (t === 'sys') runMod('system', 'render');
   else runMod('settings', 'render');

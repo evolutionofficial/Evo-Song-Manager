@@ -29,7 +29,7 @@ kegagalannya ditangkap di batas segmen itu sendiri.
 |---|---|---|
 | `js/core/` | `config` (URL, kunci publik, daftar harga), `supabase` (satu-satunya klien), `format` (fungsi murni), `ui` (`$`, `toast`), `guard` (pengaman error) | hanya sesama `core` |
 | `js/apps/admin/` | `main` (kerangka), `data` (lapisan data), `auth`, `songs`, `revisions`, `trash`, `unmatched`, `settings` | `core` + `./data.js` |
-| `js/apps/vocalist/` | `main` (kerangka + data laporan + laci menu), `songlist` (My Songs), `invoice`, `allsongs` (All Song List, dari laci), `player` (bar bawah + tampilan penuh; ▶ di Songlist → event `fc:play`, player → event `fc:track`), `send` (tombol Send to FC → event `fc:send`; alur belum diputuskan) | `core` |
+| `js/apps/vocalist/` | `main` (kerangka + data laporan + laci menu), `songlist` (My Songs), `invoice`, `allsongs` (All Song List, dari laci), `order` (Order Song, dari laci: tempel link YouTube lewat `place_order`, daftar lewat `my_orders`), `player` (bar bawah + tampilan penuh; ▶ di Songlist → event `fc:play`, player → event `fc:track`), `send` (tombol Send to FC → event `fc:send`; alur belum diputuskan) | `core` |
 | `js/apps/player/` | `main` (kerangka + data), `audio` (mesin putar — saat ini placeholder, belum ada sumber audio), `queue` (daftar lagu) | `core` |
 | `js/apps/public/` | `main` | `core` |
 | `js/common.js` | jembatan kompatibilitas (re-export `core`) | `core` |
@@ -101,3 +101,12 @@ Modul besar (Distribusi file, ACC + WhatsApp, Private Studio) mengikuti pola yan
   tidak menyentuh tabel modul lain.
 - **Status sistem.** Setiap worker menulis "detak" (heartbeat) berkala, seperti
   `app_settings.last_sync` untuk Sync Agent, untuk ditampilkan di dashboard status admin.
+
+
+## Order lagu (link YouTube dari vokalis)
+
+- Tabel `song_orders` punya antrean sendiri, terpisah dari `jobs` (jobs terikat ke lagu/versi dan dipakai pekerjaan penting).
+- Alur status: `waiting` → (admin Accept) `accepted` → (PC mengambil) `downloading` → `done` atau `failed`. `fail_count` naik tiap gagal; kurang dari 3 admin bisa Try again (`retry_order`), 3 atau lebih tombolnya jadi Copy link (unduh manual di web) dan `retry_order` menolak.
+- Vokalis: `place_order(p_token, p_url)`, `my_orders(p_token)`. Admin: `accept_order`, `reject_order`, `retry_order` (cek `is_admin()`), tabel dibaca langsung lewat RLS.
+- PC (agen): `claim_orders`, `order_progress`, `order_finish` (pakai `agent_ok(secret)`). Sewa unduhan 10 menit; sewa habis dihitung satu kali gagal.
+- Folder tujuan: `D:\FIRST CLUB\<vocalists.folder_name>\<date_folder>`; `date_folder` = `DD Mon` zona Jakarta (mis. `22 Nov`), dihitung saat Accept. Website tidak bisa menulis ke D:\; pembuatan folder dan unduhan dilakukan pekerja di PC (Evo Asisten, tahap berikutnya).

@@ -26,8 +26,9 @@
     <button class="nav-item" style="--i:0" data-view="songs"><span class="nav-name">My Songs</span><span class="nav-meta" id="dnMine"></span></button>
     <button class="nav-item" style="--i:1" data-view="invoice"><span class="nav-name">Invoice</span></button>
     <button class="nav-item" style="--i:2" data-view="all"><span class="nav-name">All Song List</span><span class="nav-meta" id="dnAll"></span></button>
+    <button class="nav-item" style="--i:3" data-view="order"><span class="nav-name">Order Song</span></button>
     <div class="side-sep"></div>
-    <button class="nav-item" style="--i:3" data-view="call"><span class="nav-name">Meeting</span></button>
+    <button class="nav-item" style="--i:4" data-view="call"><span class="nav-name">Meeting</span></button>
   </nav>
 </aside>
 <div class="side-backdrop" id="drawerBackdrop"></div>
@@ -74,6 +75,23 @@
         <div class="due" id="dueInv" hidden><span class="due-k">Total Due</span><span class="due-v"></span></div>
       </div>
       <div class="table" id="invTable"></div>
+      </div>
+    </section>
+
+    <!-- ORDER SONG (dibuka dari laci) -->
+    <section id="orderView" class="hidden">
+      <div id="orderBody">
+        <h2 class="view-h">Order a song</h2>
+        <div class="panel">
+          <label for="ordUrl" class="ord-label">Paste a YouTube link</label>
+          <div class="bar" style="margin:0 0 6px">
+            <div class="grow"><input type="url" id="ordUrl" placeholder="https://youtu.be/…" autocomplete="off" aria-label="YouTube link"></div>
+            <button class="primary" id="ordSend">Send order</button>
+          </div>
+          <p class="ord-hint">One link per order. Playlists and search pages are not accepted.</p>
+        </div>
+        <h3 class="ord-h">Your orders</h3>
+        <div class="table" id="ordList"></div>
       </div>
     </section>
 

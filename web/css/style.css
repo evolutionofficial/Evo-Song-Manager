@@ -1194,3 +1194,16 @@ body.cl-live #vCallPanel {
 .cl-volv { min-width: 42px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .cl-wrap.incall .cl-volrow .cl-ablbl { display: none; }
 .cl-wrap.incall .cl-volrow input[type="range"] { width: 90px; }
+
+/* Order Song (vokalis) dan Orders (admin) */
+.ord-label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.ord-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.ord-h { margin: 18px 0 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.ord-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.ord-row:last-child { border-bottom: 0; }
+.ord-url { flex: 1; min-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ord-when { font-size: 12px; color: var(--muted); }
+.ord-group { margin: 0 0 18px; }
+.ord-gh { font-weight: 500; margin: 0 0 6px; }
+.ord-gh small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.ord-err { flex-basis: 100%; font-size: 12px; color: var(--muted); }
