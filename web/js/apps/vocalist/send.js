@@ -10,8 +10,9 @@
 import { sb } from '/js/core/supabase.js';
 import { toast } from '/js/core/ui.js';
 import { on, report } from '/js/core/guard.js';
+import { mountVocThread } from '/js/core/voc-thread.js';
 
-let rep, dlg, rdlg, sdlg;
+let rep, dlg, rdlg, sdlg, mdlg;
 
 function ask(song) {
   return new Promise((resolve) => {
@@ -45,6 +46,16 @@ function askRevision(song) {
     rdlg.showModal();
     rdlg.addEventListener('close', () => resolve(rdlg.returnValue === 'ok' ? { note: ta.value.trim() } : null), { once: true });
   });
+}
+
+// Riwayat balasan untuk satu lagu (permintaan revisi). Admin bisa membalas kapan saja.
+function openMessages(n) {
+  const s = rep.songs[n - 1];
+  if (!s) return;
+  mdlg.querySelector('.cf-title').textContent = s.title;
+  mdlg.showModal();
+  mountVocThread(mdlg.querySelector('.msg-body'), { token: rep.token, kind: 'revision', ref: s.id })
+    .catch((err) => report('Messages', err));
 }
 
 async function revision(n) {
@@ -163,6 +174,19 @@ export function mount(report_) {
     </form>`;
   document.body.appendChild(sdlg);
 
+  mdlg = document.createElement('dialog');
+  mdlg.className = 'confirm messages';
+  mdlg.innerHTML = `<form method="dialog">
+      <h2>Messages</h2>
+      <p class="cf-title"></p>
+      <div class="msg-body"></div>
+      <div class="bar" style="margin:14px 0 0;justify-content:flex-end">
+        <button value="close">Close</button>
+      </div>
+    </form>`;
+  document.body.appendChild(mdlg);
+
+  on(window, 'fc:messages', 'Messages', (e) => openMessages(e.detail.n));
   on(window, 'fc:accept', 'Accept', (e) => accept(e.detail.n));
   on(window, 'fc:revision', 'Revision', (e) => revision(e.detail.n));
   on(window, 'fc:send', 'Send to FC', (e) => send(e.detail.n));

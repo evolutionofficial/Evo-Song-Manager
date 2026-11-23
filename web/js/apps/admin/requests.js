@@ -2,9 +2,10 @@
 // Sebuah permintaan selesai otomatis saat lagunya diganti dengan "Replace with revision"
 // atau saat vokalis menekan Accept lagi. Bisa juga ditutup manual (Dismiss).
 import { $, toast } from '/js/core/ui.js';
-import { on } from '/js/core/guard.js';
+import { on, report } from '/js/core/guard.js';
 import { esc, timeAgo, fmtDate, dateLabel } from '/js/core/format.js';
 import { state, updateSong } from './data.js';
+import { loadThreads, bindThreads } from './threads.js';
 
 let ctx;
 
@@ -32,11 +33,15 @@ export function render() {
         <button data-rr-open="${s.vocalist_id}">Open ${esc(voc(s.vocalist_id))}'s table</button>
         <button class="ghost" data-rr-dismiss="${s.id}" title="Remove from this list without making a revision">Dismiss</button>
       </div>
+      <div class="thread" data-thread data-kind="revision" data-ref="${s.id}" data-vocalist="${s.vocalist_id}"
+           data-initial="${esc(JSON.stringify(s.revision_note ? { body: s.revision_note, created_at: s.revision_requested_at } : null))}"></div>
     </div>`).join('');
+  loadThreads($('rrList')).catch((e) => report('Revisions', e));
 }
 
 export function init(c) {
   ctx = c;
+  bindThreads($('rrList'));
   on($('rrList'), 'click', 'Revisions', async (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.rrRep) return ctx.openReplace(b.dataset.rrRep);
