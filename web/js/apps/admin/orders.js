@@ -4,9 +4,10 @@
 // berubah jadi Copy link supaya bisa diunduh manual di web.
 import { sb } from '/js/core/supabase.js';
 import { $, toast } from '/js/core/ui.js';
-import { on } from '/js/core/guard.js';
+import { on, report } from '/js/core/guard.js';
 import { esc, timeAgo } from '/js/core/format.js';
 import { state } from './data.js';
+import { loadThreads, bindThreads } from './threads.js';
 
 let ctx;
 let orders = [];
@@ -70,6 +71,7 @@ function draw() {
     const cards = [...groups.values()].map((l) => groupHtml(v, l)).join('');
     return `<div class="ord-group"><div class="ord-gh">${esc(v.display_name)}</div>${cards}</div>`;
   }).join('');
+  loadThreads(el).catch((e) => report('Orders', e));
 }
 
 function groupHtml(v, l) {
@@ -84,7 +86,11 @@ function groupHtml(v, l) {
     ${waiting ? `<button class="primary" data-ord-accept="${l.find((o) => o.status === 'waiting').id}">Accept</button>` : ''}
     <button class="ghost" data-ord-add="${l[0].group_id}">+ Add link</button>
     ${l[0].note ? `<span class="ord-err">Note: ${esc(l[0].note)}</span>` : ''}</div>`;
-  return `<div class="table" style="margin-bottom:10px">${head}${l.map(rowHtml).join('')}</div>`;
+  const ref = l[0].group_id;
+  // Riwayat balasan hanya untuk order yang punya group (order lama tanpa group tidak punya riwayat).
+  const thread = ref ? `<div class="thread" data-thread data-kind="order" data-ref="${esc(ref)}" data-vocalist="${esc(v.id)}"
+           data-initial="${esc(JSON.stringify(l[0].note ? { body: l[0].note, created_at: l[0].created_at } : null))}"></div>` : '';
+  return `<div class="table" style="margin-bottom:10px">${head}${l.map(rowHtml).join('')}</div>${thread}`;
 }
 
 /** Dipanggil saat tab dibuka: ambil data terbaru, lalu gambar. */
@@ -99,6 +105,7 @@ async function act(fn, args, okMsg) {
 
 export async function init(c) {
   ctx = c;
+  bindThreads($('ordAdmin'));
   await load();
   if (!$('appView').classList.contains('hidden')) ctx.renderAll?.();
   on($('ordAdmin'), 'click', 'Orders', async (e) => {

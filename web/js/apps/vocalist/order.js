@@ -1,10 +1,11 @@
 // VOKALIS — modul Order Song: tempel satu atau beberapa link YouTube (medley), tulis catatan,
 // kirim ke admin, lihat statusnya. Pengunduhan terjadi di PC admin; vokalis hanya melihat
-// Waiting / Accepted / Ready. Catatan hanya dibaca admin; tidak ada balasan.
+// Waiting / Accepted / Ready. Catatan dibaca admin, dan admin bisa membalas lewat riwayat di tiap order.
 import { sb } from '/js/core/supabase.js';
 import { $, toast } from '/js/core/ui.js';
-import { on } from '/js/core/guard.js';
+import { on, report as reportErr } from '/js/core/guard.js';
 import { esc, timeAgo } from '/js/core/format.js';
+import { mountVocThread } from '/js/core/voc-thread.js';
 
 let rep;
 const MAX_LINKS = 10;
@@ -53,6 +54,7 @@ function groupHtml(g) {
     <div class="ord-gh">${multi ? esc(g.title || 'Medley') : ''}<small>${multi ? g.links.length + ' links · ' : ''}${esc(timeAgo(g.created_at))}</small></div>
     <div class="table">${links}</div>
     <div class="bar" style="margin:6px 0 0"><button class="ghost" data-add-to="${g.group_id}">+ Add link</button></div>
+    ${g.group_id ? `<details class="ord-thread" data-thread-open="${esc(g.group_id)}"><summary>Messages</summary><div class="ord-thread-body"></div></details>` : ''}
   </div>`;
 }
 
@@ -91,6 +93,14 @@ async function addTo(group) {
 
 export function mount(report) {
   rep = report;
+  // Riwayat dibuka saat dibutuhkan saja (satu panggilan per order yang dibuka).
+  $('ordList').addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.open || !d.dataset.threadOpen || d.dataset.mounted) return;
+    d.dataset.mounted = '1';
+    mountVocThread(d.querySelector('.ord-thread-body'), { token: rep.token, kind: 'order', ref: d.dataset.threadOpen })
+      .catch((err) => reportErr('Messages', err));
+  }, true);
   on($('ordSend'), 'click', 'Order Song', send);
   on($('ordAdd'), 'click', 'Order Song', addInput);
   on($('ordLinks'), 'input', 'Order Song', syncTitleBox);

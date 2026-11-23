@@ -107,6 +107,8 @@ function redownload(n) {
 // Revisi hanya bisa diminta untuk lagu yang sudah di-Accept dan belum sedang direvisi
 // (sama seperti syarat tombol Revision yang lama).
 const canRevise = (s) => !!s.accepted_at && !onRevision(s);
+// Riwayat balasan admin tersedia untuk lagu yang sudah di-Accept atau sedang direvisi.
+const canMessage = (s) => !!(s.accepted_at || s.revision_requested_at);
 
 // ---------- Menu klik kanan / tekan lama ----------
 let menuEl = null;
@@ -115,7 +117,7 @@ function closeMenu() { menuEl?.remove(); menuEl = null; }
 
 function openMenu(n, x, y) {
   const s = rep.songs[n - 1];
-  if (!s || !canRevise(s)) return;
+  if (!s || !(canRevise(s) || canMessage(s))) return;
   if (menuEl && menuEl.dataset.n === String(n) && Date.now() - menuAt < 900) return;
   closeMenu();
   menuEl = document.createElement('div');
@@ -124,8 +126,9 @@ function openMenu(n, x, y) {
   menuEl.dataset.n = String(n);
   const dl = canDownload(s);
   menuEl.innerHTML = `<div class="ctx-title">${esc(s.title)}</div>
-    <button role="menuitem" data-act="revision">Request a revision…</button>
-    <button role="menuitem" data-act="redownload"${dl ? '' : ' disabled'} title="${dl ? 'Download the WAV again' : 'No longer on Google Drive'}">Redownload${dl ? '' : ' (not on Google Drive)'}</button>`;
+    ${canMessage(s) ? '<button role="menuitem" data-act="messages">Messages…</button>' : ''}
+    ${canRevise(s) ? `<button role="menuitem" data-act="revision">Request a revision…</button>
+    <button role="menuitem" data-act="redownload"${dl ? '' : ' disabled'} title="${dl ? 'Download the WAV again' : 'No longer on Google Drive'}">Redownload${dl ? '' : ' (not on Google Drive)'}</button>` : ''}`;
   document.body.appendChild(menuEl);
   menuAt = Date.now();
   const r = menuEl.getBoundingClientRect();
@@ -135,7 +138,9 @@ function openMenu(n, x, y) {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
     closeMenu();
-    if (act === 'revision') {
+    if (act === 'messages') {
+      window.dispatchEvent(new CustomEvent('fc:messages', { detail: { n } }));
+    } else if (act === 'revision') {
       if (window.FC_SEND?.ready) window.dispatchEvent(new CustomEvent('fc:revision', { detail: { n } }));
       else toast('Revision is not available right now');
     } else if (act === 'redownload') redownload(n);
@@ -148,7 +153,7 @@ function render() {
   const rows = rep.songs.map((s, i) => ({ ...s, n: i + 1 })).reverse().filter((s) => !q || norm(s.title).includes(q));
   $('songsTable').innerHTML = rows.length
       ? `<div class="row head cols-list play"><span>#</span><span>Date</span><span>Title</span><span></span></div>` +
-        rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"${canRevise(s) ? ` data-rev-menu="${s.n}"` : ''}><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${onRevision(s) ? ' <span class="badge rev">On revision</span>' : ''}</span>` +
+        rows.map((s) => `<div class="row cols-list play ${s.n === playing ? 'playing' : ''}"${(canRevise(s) || canMessage(s)) ? ` data-rev-menu="${s.n}"` : ''}><span class="no">${s.n === playing ? '<span class="eq" aria-label="Now playing"><i></i><i></i><i></i></span>' : s.n}</span><span class="date">${esc(dateLabel(s))}</span><span class="title">${esc(s.title)}${onRevision(s) ? ' <span class="badge rev">On revision</span>' : ''}</span>` +
           `<span class="pl">${buttons(s)}${playButton(s)}</span></div>`).join('')
       : `<div class="empty">${q ? 'No matching songs.' : 'No songs yet.'}</div>`;
 }
