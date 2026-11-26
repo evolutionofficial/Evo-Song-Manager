@@ -64,3 +64,25 @@ revoke all on function public.admin_rescue_complete(uuid, text, bigint, text) fr
 grant execute on function public.admin_rescue_list() to authenticated;
 grant execute on function public.admin_rescue_info(uuid) to authenticated;
 grant execute on function public.admin_rescue_complete(uuid, text, bigint, text) to authenticated;
+
+-- (revisi) admin_rescue_list ikut menyertakan komputer pemilik sumber file dan apakah ia offline
+-- (Media Agent tidak lapor > 10 menit), untuk peringatan di halaman System.
+create or replace function public.admin_rescue_list()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'not admin'; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id', w.id, 'title', w.song_title, 'vocalist', v.display_name, 'status', w.status,
+      'attempts', w.attempts, 'accepted_at', w.accepted_at, 'rel_path', w.rel_path,
+      'token', v.share_token, 'song_id', w.song_id, 'error', w.last_error,
+      'device', d.name, 'device_seen', d.media_seen,
+      'device_offline', (d.media_seen is null or d.media_seen < now() - interval '10 minutes')) order by w.accepted_at)
+    from public.wav_uploads w
+    join public.vocalists v on v.id = w.vocalist_id
+    left join lateral (
+      select x.name, x.media_seen from public.devices x
+       where public._src_of(w.rel_path) = any (x.sources)
+       order by x.media_seen desc nulls last limit 1) d on true
+    where w.status in ('waiting', 'failed', 'uploading', 'needs_admin')), '[]'::jsonb);
+end $$;
