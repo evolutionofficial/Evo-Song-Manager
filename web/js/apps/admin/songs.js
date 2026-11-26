@@ -6,6 +6,7 @@ import { PRICES } from '/js/core/config.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
 import { rupiah, ribu, esc, norm, dateLabel, summarize, fmtDate } from '/js/core/format.js';
+import { rescueWav } from '/js/core/wav-rescue.js';
 import { state, curVoc, vocSongs, shareUrl, updateSong, wavOf } from './data.js';
 
 let ctx;
@@ -127,6 +128,7 @@ function openMenu(id, x, y) {
          <button role="menuitem" data-act="unlock">Unlock (undo Accept)</button>`
       : '<button role="menuitem" data-act="rep">Replace with revision…</button>'}
     ${['failed', 'needs_admin'].includes(wavOf(s)?.status) ? '<button role="menuitem" data-act="retry">Retry WAV upload</button>' : ''}
+    ${['waiting', 'failed', 'uploading', 'needs_admin'].includes(wavOf(s)?.status) ? '<button role="menuitem" data-act="rescue">Make WAV from preview (rescue)…</button>' : ''}
     <button role="menuitem" data-act="del" class="danger">Remove from list</button>`;
   document.body.appendChild(menuEl);
   const r = menuEl.getBoundingClientRect();
@@ -139,6 +141,7 @@ function openMenu(id, x, y) {
     if (act === 'del') deleteSong(id);
     if (act === 'unlock') unlockSong(id);
     if (act === 'retry') retryWav(id);
+    if (act === 'rescue') rescueSong(id);
   });
   menuEl.querySelector('button').focus();
 }
@@ -173,6 +176,22 @@ async function retryWav(id) {
   if (error) return toast('Failed: ' + error.message, 'bad');
   toast('WAV upload queued again');
   ctx.reload();
+}
+
+async function rescueSong(id) {
+  const s = state.songs.find((x) => x.id === id);
+  const w = wavOf(s);
+  const v = state.vocalists.find((x) => x.id === s.vocalist_id);
+  if (!w || !v?.share_token) return toast('Cannot rescue this song', 'bad');
+  if (!confirm('Make the WAV from the preview audio and put it on Google Drive?\n\nQuality equals the preview (AAC 192k), not the original mixdown. Use this only when the studio computer cannot be turned on.')) return;
+  toast('Rescue: starting…');
+  try {
+    await rescueWav({ id: w.id, token: v.share_token, song_id: s.id }, (t) => toast('Rescue: ' + t));
+    toast('WAV is on Drive — the vocalist can Send to FC now');
+    ctx.reload();
+  } catch (e) {
+    toast('Rescue failed: ' + e.message, 'bad');
+  }
 }
 
 async function unlockSong(id) {
