@@ -5,9 +5,11 @@ import { sb } from '/js/core/supabase.js';
 import { $, toast } from '/js/core/ui.js';
 import { on } from '/js/core/guard.js';
 import { esc, fmtDate, timeAgo } from '/js/core/format.js';
+import { rescueWav } from '/js/core/wav-rescue.js';
 import { state } from './data.js';
 
 let ctx, data = null;
+let rescueItems = [];
 const STALE_MS = 10 * 60 * 1000;
 const PLATFORM = { win32: 'Windows PC', darwin: 'MacBook' };
 
@@ -29,6 +31,8 @@ export async function render() {
   const { data: d, error } = await sb.rpc('system_report');
   if (error) { $('sysList').innerHTML = `<div class="empty">Could not load: ${esc(error.message)}</div>`; return; }
   data = d || {};
+  const { data: rq } = await sb.rpc('admin_rescue_list');
+  rescueItems = rq || [];
   const c = data.counts || {};
 
   const devices = (data.devices || []).map((x) => {
@@ -64,6 +68,13 @@ export async function render() {
       <div class="cf-acts"><button data-open="${esc(w.song_id)}">Open song</button></div>
     </div>`);
 
+  const stuck = rescueItems.filter((w) => w.device_offline === true).map((w) => `<div class="sys-row">
+      <div><b>${esc(w.title)}</b> <span class="badge bad">WAV ${esc(w.status)}</span> <span class="dim">${esc(w.vocalist)}</span></div>
+      <div class="dv-meta">${w.device ? esc(w.device) + ' offline' + (w.device_seen ? ' since ' + esc(timeAgo(w.device_seen)) : '') : 'no computer holds this folder'} · accepted ${esc(timeAgo(w.accepted_at))}</div>
+      <div class="rs-log dv-meta" data-rlog="${esc(w.id)}"></div>
+      <div class="cf-acts"><button data-open="${esc(w.song_id)}">Open song</button><button data-rescue="${esc(w.id)}">Rescue from preview</button></div>
+    </div>`);
+
   const miss = (data.audio_missing || []).map((m) => `<div class="sys-row">
       <div><b>${esc(m.song)}</b> <span class="badge bad">audio gone from storage</span> <span class="dim">${esc(m.vocalist)}</span></div>
       <div class="dv-meta">noticed ${esc(timeAgo(m.since))} — render it again so the agent can upload it</div>
@@ -86,6 +97,7 @@ export async function render() {
       </div>
     </div>
     ${section('Studio computers', devices, 'No computer has reported yet.', false)}
+    ${section('WAV stuck — computer offline', stuck, 'No WAV is waiting for an offline computer.')}
     ${section('Needs your attention', jobs, 'No stuck work.')}
     ${section('WAV uploads stopped', wav, 'All WAV uploads are fine.')}
     ${section('Audio missing from storage', miss, 'Every song that should have audio still has it.')}
@@ -99,6 +111,25 @@ export function init(c) {
     if (open) {
       const s = state.songs.find((x) => x.id === open.dataset.open);
       if (s) ctx.openTab('v:' + s.vocalist_id);
+      return;
+    }
+    const rescue = e.target.closest('[data-rescue]');
+    if (rescue) {
+      const id = rescue.dataset.rescue;
+      const item = rescueItems.find((x) => x.id === id);
+      if (!item) return;
+      if (!confirm('Make the WAV from the preview audio and put it on Google Drive?\n\nQuality equals the preview (AAC 192k), not the original mixdown. Use this only when the studio computer cannot be turned on.')) return;
+      rescue.disabled = true;
+      const log = $('sysList').querySelector('[data-rlog="' + id + '"]');
+      try {
+        await rescueWav(item, (t) => { if (log) log.textContent = t; });
+        toast('WAV is on Drive — the vocalist can Send to FC now');
+        ctx.reload();
+      } catch (err) {
+        if (log) log.textContent = 'Failed: ' + err.message;
+        toast('Rescue failed: ' + err.message, 'bad');
+        rescue.disabled = false;
+      }
       return;
     }
     const retry = e.target.closest('[data-retry]');
