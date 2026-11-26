@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>WAV Rescue · Evo Song Manager</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07080b">
+<style>
+  .rs-item { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+  .rs-item b { display:block; }
+  .rs-item small { color:#9aa7bd; }
+  .rs-log { font-size:13px; color:#9aa7bd; margin-top:4px; }
+  .rs-log.ok { color:#5ee59a; } .rs-log.bad { color:#ff8080; }
+</style>
+</head>
+<body class="glass-bg">
+<div class="wrap">
+  <div class="brand" style="margin:18px 0 6px">WAV Rescue<small>When the studio computer is off</small></div>
+  <p class="note">Makes a WAV from the song's preview audio (M4A, AAC 192k) and puts it on Google Drive, so the vocalist can press Send to FC. Quality equals the preview, not the original mixdown. When the studio computer is back, nothing is uploaded again for these songs.</p>
+
+  <form id="loginForm" class="panel hidden">
+    <div class="field"><label for="email">Admin email</label><input id="email" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="loginErr"></div>
+    <div class="bar" style="margin:6px 0 0"><button class="primary">Sign in</button></div>
+  </form>
+
+  <section id="listView" class="panel hidden"><div id="list"></div></section>
+</div>
+
+<script type="module">
+import { sb } from '/js/core/supabase.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let items = [];
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { $('loginForm').classList.remove('hidden'); return; }
+  const { data: ok } = await sb.rpc('is_admin');
+  if (!ok) { $('loginErr').textContent = session.user.email + ' is not an admin.'; await sb.auth.signOut(); $('loginForm').classList.remove('hidden'); return; }
+  $('loginForm').classList.add('hidden');
+  $('listView').classList.remove('hidden');
+  await load();
+}
+
+async function load() {
+  const { data, error } = await sb.rpc('admin_rescue_list');
+  if (error) { $('list').innerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+  items = data || [];
+  if (!items.length) { $('list').innerHTML = '<p class="note">Nothing waiting — all accepted WAVs are on Drive.</p>'; return; }
+  $('list').innerHTML = items.map((w, i) => `
+    <div class="rs-item">
+      <div><b>${esc(w.vocalist)} — ${esc(w.title)}</b>
+        <small>${esc(w.status)} · accepted ${new Date(w.accepted_at).toLocaleString()}</small>
+        <div class="rs-log" id="log${i}"></div></div>
+      <button class="primary" data-i="${i}">Rescue</button>
+    </div>`).join('');
+}
+
+// PCM 16-bit little-endian dari AudioBuffer (stereo/mono sesuai sumber).
+function toWav(ab) {
+  const ch = ab.numberOfChannels, rate = ab.sampleRate, n = ab.length;
+  const data = n * ch * 2;
+  const out = new DataView(new ArrayBuffer(44 + data));
+  const str = (o, s) => { for (let i = 0; i < s.length; i++) out.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); out.setUint32(4, 36 + data, true); str(8, 'WAVE');
+  str(12, 'fmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true);
+  out.setUint32(24, rate, true); out.setUint32(28, rate * ch * 2, true); out.setUint16(32, ch * 2, true); out.setUint16(34, 16, true);
+  str(36, 'data'); out.setUint32(40, data, true);
+  const chans = []; for (let c = 0; c < ch; c++) chans.push(ab.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) {
+    const v = Math.max(-1, Math.min(1, chans[c][i]));
+    out.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true); o += 2;
+  }
+  return new Blob([out.buffer], { type: 'audio/wav' });
+}
+
+async function rescue(i, btn) {
+  const w = items[i], log = $('log' + i);
+  const say = (t, cls = '') => { log.textContent = t; log.className = 'rs-log ' + cls; };
+  btn.disabled = true;
+  try {
+    say('Downloading preview audio…');
+    const r = await fetch(`/audio/${encodeURIComponent(w.token)}/${w.song_id}`);
+    if (!r.ok) throw new Error('preview audio not found (' + r.status + ')');
+    const m4a = await r.arrayBuffer();
+    say('Converting to WAV…');
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    let ctx; try { ctx = new Ctx({ sampleRate: 44100 }); } catch (_) { ctx = new Ctx(); }
+    const ab = await new Promise((res, rej) => { const p = ctx.decodeAudioData(m4a, res, rej); if (p && p.catch) p.catch(rej); });
+    ctx.close?.();
+    const wav = toWav(ab);
+    say(`Uploading to Google Drive (${(wav.size / 1048576).toFixed(1)} MB, ${Math.round(ab.duration)} s, ${ab.sampleRate} Hz)…`);
+    const { data: { session } } = await sb.auth.getSession();
+    const up = await fetch(`/admin-wav/${w.id}`, { method: 'POST', headers: { authorization: 'Bearer ' + session.access_token, 'content-type': 'audio/wav' }, body: wav });
+    const j = await up.json().catch(() => ({}));
+    if (!up.ok) throw new Error(j.error || 'upload failed (' + up.status + ')');
+    say('Done — on Drive. The vocalist can now press Send to FC.', 'ok');
+    btn.textContent = 'Done';
+  } catch (e) {
+    say('Failed: ' + e.message, 'bad');
+    btn.disabled = false;
+  }
+}
+
+$('list').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-i]');
+  if (b) rescue(Number(b.dataset.i), b);
+});
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+  if (error) { $('loginErr').textContent = 'Wrong email or password.'; return; }
+  boot();
+});
+boot();
+</script>
+</body>
+</html>
