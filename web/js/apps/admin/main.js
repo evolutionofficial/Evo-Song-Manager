@@ -172,6 +172,9 @@ function initSide() {
 
 function renderView() {
   const t = state.tab;
+  // Data belum termuat (state.tab masih null): modul lain (mis. Orders) bisa memanggil renderAll
+  // lebih dulu saat halaman pertama dibuka. Tunggu reload() yang akan menggambar ulang.
+  if (!t) return;
   $('vocView').classList.toggle('hidden', !t.startsWith('v:'));
   $('unView').classList.toggle('hidden', t !== 'un');
   $('rrView').classList.toggle('hidden', t !== 'rr');
